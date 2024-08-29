@@ -122,6 +122,8 @@ ISSUES
 #include "audio_player.h"
 #include "light_controller.h"
 #include "servo_controller.h"
+#include "sd_card_manager.h"
+#include </Users/cam/Library/Arduino15/libraries/Servo/src/Servo.h>
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
 
@@ -134,12 +136,6 @@ const int ECHO_PIN = 22;    // Pin number ultrasonic echo detection
 
 // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
 UltraSonicDistanceSensor* distanceSensor = nullptr;
-
-struct SDCardContent {
-  std::vector<ParsedSkit> skits;
-  String primaryInitAudio;
-  String secondaryInitAudio;
-};
 
 SDCardContent sdCardContent;
 
@@ -198,69 +194,12 @@ bool determinePrimaryRole() {
   }
 }
 
-SDCardContent initSDCard() {
-  SDCardContent content;
+SDCardManager* sdCardManager;
 
-  if (!SD.begin()) {
-    Serial.println("SD Card: Mount Failed!");
-    return content;
-  }
-  Serial.println("SD Card: Mounted successfully");
-
-  // Check for initialization files
-  Serial.println("Required file '/audio/Initialized - Primary.wav' " + 
-    String(audioPlayer->fileExists(SD, "/audio/Initialized - Primary.wav") ? "found." : "missing."));
-  Serial.println("Required file '/audio/Initialized - Secondary.wav' " + 
-    String(audioPlayer->fileExists(SD, "/audio/Initialized - Secondary.wav") ? "found." : "missing."));
-
-  if (audioPlayer->fileExists(SD, "/audio/Initialized - Primary.wav")) {
-    content.primaryInitAudio = "/audio/Initialized - Primary.wav";
-  }
-  if (audioPlayer->fileExists(SD, "/audio/Initialized - Secondary.wav")) {
-    content.secondaryInitAudio = "/audio/Initialized - Secondary.wav";
-  }
-
-  // Process skit files
-  File root = SD.open("/audio");
-  if (!root || !root.isDirectory()) {
-    Serial.println("SD Card: Failed to open /audio directory");
-    return content;
-  }
-
-  std::vector<String> skitFiles;
-  File file = root.openNextFile();
-  while (file) {
-    String fileName = file.name();
-    if (fileName.startsWith("Skit") && fileName.endsWith(".wav")) {
-      skitFiles.push_back(fileName);
-    }
-    file = root.openNextFile();
-  }
-
-  Serial.println("Processing " + String(skitFiles.size()) + " skits:");
-  for (const auto& fileName : skitFiles) {
-    String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-    String txtFileName = baseName + ".txt";
-    if (audioPlayer->fileExists(SD, ("/audio/" + txtFileName).c_str())) {
-      ParsedSkit parsedSkit = audioPlayer->parseSkitFile("/audio/" + fileName, "/audio/" + txtFileName);
-      content.skits.push_back(parsedSkit);
-      Serial.println("- Processing skit '" + fileName + "' - success. (" + String(parsedSkit.lines.size()) + " lines)");
-    } else {
-      Serial.println("- Processing skit '" + fileName + "' - WARNING: missing txt file.");
-    }
-  }
-
-  return content;
-}
-
-AudioPlayer* audioPlayer = new AudioPlayer(servoController);
-bluetooth_audio bluetoothAudio;
-
-// Add these lines near the top of the file, with other global declarations
 bool isPrimary = false;
-
-// Add this near the top of the file with other constants
-const char* BLUETOOTH_SPEAKER_NAME = "JBL Flip 5";
+const char* BLUETOOTH_SPEAKER_NAME = "JBL Flip 5";  // Replace with your actual speaker name
+AudioPlayer* audioPlayer = nullptr;  // We'll initialize this later
+bluetooth_audio bluetoothAudio;  // Declare the bluetoothAudio object
 
 bool initializeBluetooth() {
   audioPlayer->setBluetoothConnected(false);
@@ -276,6 +215,9 @@ void setup() {
   Serial.println("\n\n\n\n\n\nStarting setup ... ");
 
   lightController.begin();
+
+  // Initialize audioPlayer
+  audioPlayer = new AudioPlayer(servoController);
 
   // Determine Primary/Secondary role
   isPrimary = determinePrimaryRole();
@@ -295,21 +237,21 @@ void setup() {
   // Initialize servo
   servoController.initialize(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-  // SD Card initialization
-  bool sdCardInitialized;
-  sdCardInitialized = SD.begin();
+  // Initialize SD Card Manager
+  sdCardManager = new SDCardManager(audioPlayer);
+  bool sdCardInitialized = sdCardManager->begin();
 
   while (!sdCardInitialized) {
     Serial.println("SD Card: Mount Failed! Retrying...");
     audioPlayer->setJawPosition(30);
     delay(500);
-    sdCardInitialized = SD.begin();
+    sdCardInitialized = sdCardManager->begin();
     audioPlayer->setJawPosition(0);
     delay(500);
   }
 
-  // Initialize SD card and load content
-  sdCardContent = initSDCard();
+  // Load SD card content
+  sdCardContent = sdCardManager->loadContent();
 
   // Announce "System initialized" and role
   Serial.printf("Playing initialization audio\n");
