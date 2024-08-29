@@ -10,21 +10,7 @@
 #include <arduinoFFT.h>
 #include "esp32-hal-ledc.h"  // Include ESP32 specific PWM library
 #include "servo_controller.h"
-
-struct ParsedSkitLine {
-  char speaker;
-  unsigned long timestamp;
-  unsigned long duration;
-  float jawPosition;
-};
-
-struct ParsedSkit {
-  String audioFile;
-  String txtFile;
-  std::vector<ParsedSkitLine> lines;
-};
-
-typedef ParsedSkit Skit;
+#include "parsed_skit.h"
 
 struct AudioSegment {
   unsigned long start;
@@ -59,7 +45,6 @@ public:
   double getFFTResult(int index);
   ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile);
   ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name);
-  Skit getRandomSkit(const std::vector<Skit>& skits);
   void prepareSkitPlayback(const ParsedSkit& skit);
   bool fileExists(fs::FS& fs, const char* path);
   void handleBluetoothStateChange(esp_a2d_connection_state_t state);

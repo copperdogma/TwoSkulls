@@ -1,4 +1,5 @@
 #include "audio_player.h"
+#include "file_manager.h"
 #include <cmath>
 #include <algorithm>
 
@@ -111,17 +112,17 @@ int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
 }
 
 void AudioPlayer::startPlaying(const char* filePath) {
-  if (currentAudioFile && strcmp(currentAudioFile.name(), filePath) == 0) {
-    // If the current file is already the desired one, return.
-    return;
-  }
-  currentAudioFile.close();
-  currentAudioFile = SD.open(filePath);
-  if (!currentAudioFile) {
-    Serial.printf("Failed to open file: %s\n", filePath);
-  } else {
-    isPlaying = true;
-  }
+    if (currentAudioFile && strcmp(currentAudioFile.name(), filePath) == 0) {
+        // If the current file is already the desired one, return.
+        return;
+    }
+    currentAudioFile.close();
+    currentAudioFile = FileManager::openFile(filePath);
+    if (!currentAudioFile) {
+        Serial.printf("Failed to open file: %s\n", filePath);
+    } else {
+        isPlaying = true;
+    }
 }
 
 int32_t AudioPlayer::_provideAudioFrames(Frame* frame, int32_t frame_count) {
@@ -139,7 +140,7 @@ int32_t AudioPlayer::_provideAudioFrames(Frame* frame, int32_t frame_count) {
         currentBufferSize = requiredSize;
     }
 
-    size_t bytesRead = currentAudioFile.read(buffer, currentBufferSize);
+    size_t bytesRead = FileManager::readFileBytes(currentAudioFile, buffer, currentBufferSize);
 
     if (bytesRead < 1) {
         isPlaying = false;
@@ -198,84 +199,15 @@ double AudioPlayer::getFFTResult(int index) {
 }
 
 ParsedSkit AudioPlayer::parseSkitFile(const String& wavFile, const String& txtFile) {
-  ParsedSkit parsedSkit;
-  parsedSkit.audioFile = wavFile;
-  parsedSkit.txtFile = txtFile;
-
-  File file = SD.open(txtFile);
-  if (!file) {
-    Serial.println("Failed to open skit file: " + txtFile);
-    return parsedSkit;
-  }
-
-  while (file.available()) {
-    String line = file.readStringUntil('\n');
-    line.trim();
-    if (line.length() == 0) continue;
-
-    ParsedSkitLine skitLine;
-    int commaIndex1 = line.indexOf(',');
-    int commaIndex2 = line.indexOf(',', commaIndex1 + 1);
-    int commaIndex3 = line.indexOf(',', commaIndex2 + 1);
-
-    skitLine.speaker = line.charAt(0);
-    skitLine.timestamp = line.substring(commaIndex1 + 1, commaIndex2).toInt();
-    skitLine.duration = line.substring(commaIndex2 + 1, commaIndex3).toInt();
-
-    if (commaIndex3 != -1) {
-      skitLine.jawPosition = line.substring(commaIndex3 + 1).toFloat();
-    } else {
-      skitLine.jawPosition = -1;  // Indicating dynamic jaw movement
-    }
-
-    parsedSkit.lines.push_back(skitLine);
-  }
-
-  file.close();
-  return parsedSkit;
+    return FileManager::parseSkitFile(wavFile, txtFile);
 }
 
 ParsedSkit AudioPlayer::findSkitByName(const std::vector<ParsedSkit>& skits, const String& name) {
-  for (const auto& skit : skits) {
-    if (skit.audioFile.endsWith(name + ".wav")) {
-      return skit;
-    }
-  }
-  return { "", "", {} };  // Return empty ParsedSkit if not found
-}
-
-Skit AudioPlayer::getRandomSkit(const std::vector<Skit>& skits) {
-  if (skits.empty()) {
-    return Skit();  // Return an empty Skit if the vector is empty
-  }
-  int randomIndex = random(skits.size());
-  return skits[randomIndex];
-}
-
-void AudioPlayer::prepareSkitPlayback(const ParsedSkit& skit) {
-  audioSegments.clear();
-
-  for (const auto& line : skit.lines) {
-    bool shouldPlay = (m_isPlayingSkit && line.speaker == 'A') || (!m_isPlayingSkit && line.speaker == 'B');
-    audioSegments.push_back({ line.timestamp, line.duration, shouldPlay });
-  }
-
-  // Sort segments by start time
-  std::sort(audioSegments.begin(), audioSegments.end(),
-            [](const AudioSegment& a, const AudioSegment& b) {
-              return a.start < b.start;
-            });
-
-  currentSegment = 0;
+    return FileManager::findSkitByName(skits, name);
 }
 
 bool AudioPlayer::fileExists(fs::FS& fs, const char* path) {
-  File file = fs.open(path);
-  if (!file || file.isDirectory()) {
-    return false;
-  }
-  file.close();
-  return true;
+    return FileManager::fileExists(path);
 }
 
 void AudioPlayer::setJawPosition(int position) {
