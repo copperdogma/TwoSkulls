@@ -122,18 +122,12 @@ ISSUES
 #include "audio_player.h"
 
 #include <Servo.h> // This complains; I'm actually using the local ESP32_ESP32S2_AnalogWrite library to support the ESP32
+#include "light_controller.h"
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
 
 const int LEFT_EYE_PIN = 32;   // GPIO pin for left eye LED
 const int RIGHT_EYE_PIN = 33;  // GPIO pin for right eye LED
-
-// LED PWD setup
-const int PWM_CHANNEL_LEFT = 0;
-const int PWM_CHANNEL_RIGHT = 1;
-const int PWM_FREQUENCY = 5000;  // 5 kHz
-const int PWM_RESOLUTION = 8;    // 8-bit resolution, 0-255
-const int PWM_MAX = 255;         // Maximum PWM value
 
 // Ultrasonic sensor
 const int TRIGGER_PIN = 2;  // Pin number ultrasonic pulse trigger
@@ -155,7 +149,6 @@ const int SERVO_PIN = 15;  // Pin number ultrasonic pulse trigger
 const int SERVO_MIN_DEGREES = 0;
 const int SERVO_MAX_DEGREES = 70;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
 Servo jawServo = Servo();
-
 
 const unsigned long CONNECTION_CHECK_INTERVAL = 1000;  // Connection check interval in ms
 
@@ -181,15 +174,6 @@ const double RMS_MAX = 32768.0;        // Maximum possible RMS value for 16-bit 
 int mapRMSToServoPosition(double rms);
 void updateServoPosition(int targetPosition);
 
-// const double EXAGGERATION_FACTOR = 10;
-// int exaggeratePosition(int pos) {
-//   if (pos < 35) {  // Mid-point of 0-70
-//     return pos / EXAGGERATION_FACTOR;
-//   } else {
-//     return 35 + (pos - 35) * EXAGGERATION_FACTOR;
-//   }
-// }
-
 const int CHUNKS_NEEDED = 17;  // Number of chunks needed for 100ms (34)
 int chunkCounter = 0;          // Counter for accumulated chunks
 
@@ -197,24 +181,7 @@ std::vector<int16_t> rawSamples;
 std::vector<double> fftMagnitudes;
 std::vector<int> servoPositions;
 
-void setEyeBrightness(int brightness) {
-  ledcWrite(PWM_CHANNEL_LEFT, brightness);
-  ledcWrite(PWM_CHANNEL_RIGHT, brightness);
-}
-
-void blinkEyes(int numBlinks) {
-  for (int i = 0; i < numBlinks; i++) {
-    digitalWrite(LEFT_EYE_PIN, HIGH);
-    digitalWrite(RIGHT_EYE_PIN, HIGH);
-    delay(200);  // On for 200ms
-    digitalWrite(LEFT_EYE_PIN, LOW);
-    digitalWrite(RIGHT_EYE_PIN, LOW);
-    delay(200);  // Off for 200ms
-  }
-  // Ensure eyes are on after blinking
-  digitalWrite(LEFT_EYE_PIN, HIGH);
-  digitalWrite(RIGHT_EYE_PIN, HIGH);
-}
+LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
 
 bool determinePrimaryRole() {
   distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, 400);  // 400cm max range
@@ -313,46 +280,33 @@ void setup() {
 
   Serial.println("\n\n\n\n\n\nStarting setup ... ");
 
-  // LED standard on/off setup
-  pinMode(LEFT_EYE_PIN, OUTPUT);
-  pinMode(RIGHT_EYE_PIN, OUTPUT);
-
-  // Turn eyes on
-  digitalWrite(LEFT_EYE_PIN, HIGH);
-  digitalWrite(RIGHT_EYE_PIN, HIGH);
+  lightController.begin();
 
   // Determine Primary/Secondary role
   isPrimary = determinePrimaryRole();
   if (isPrimary) {
-    blinkEyes(3);  // Blink eyes 3 times for Primary
+    lightController.blinkEyes(4);  // Blink eyes 4 times for Primary
   } else {
-    blinkEyes(1);  // Blink eyes once for Secondary
-  }
-
-  // LED eyes
-
-  // LED PWM setup
-  if (SKIT_DEBUG) {
-    ledcSetup(PWM_CHANNEL_LEFT, PWM_FREQUENCY, PWM_RESOLUTION);
-    ledcSetup(PWM_CHANNEL_RIGHT, PWM_FREQUENCY, PWM_RESOLUTION);
-    ledcAttachPin(LEFT_EYE_PIN, PWM_CHANNEL_LEFT);
-    ledcAttachPin(RIGHT_EYE_PIN, PWM_CHANNEL_RIGHT);
+    lightController.blinkEyes(2);  // Blink eyes twice for Secondary
   }
 
   // Initialize ultrasonic sensor only if Primary
   if (isPrimary && distanceSensor == nullptr) {
-    blinkEyes(3);  // Blink eyes 3 times for Primary
     distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
-  } else {
-    blinkEyes(1);  // Blink eyes once for Secondary
   }
 
   initializeBluetooth();
 
   // Initialize servo
-  audioPlayer->initializeServo(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-
   Serial.println("Initializing servo");
+  audioPlayer->initializeServo(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+  Serial.printf("Servo animation init: %d (min) degrees\n", SERVO_MIN_DEGREES);  // 0
+  audioPlayer->setJawPosition(SERVO_MIN_DEGREES);
+  Serial.printf("Servo animation init: %d (max) degrees\n", SERVO_MAX_DEGREES);  // 70
+  delay(500);
+  audioPlayer->setJawPosition(SERVO_MAX_DEGREES);
+  Serial.println("Servo animation init complete; resetting to 0 degrees");
+  delay(500);
   audioPlayer->setJawPosition(SERVO_MIN_DEGREES);
 
   // SD Card initialization
