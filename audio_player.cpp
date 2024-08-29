@@ -74,23 +74,6 @@ bool AudioPlayer::hasFinishedPlaying() {
 
 // Public implementations --------------------------------------------------
 
-void AudioPlayer::setBluetoothConnected(bool connected) {
-  bluetoothConnected = connected;
-  audioReadyToPlay = connected;  // Assume audio is ready when Bluetooth is connected
-}
-
-void AudioPlayer::setAudioReadyToPlay(bool ready) {
-  audioReadyToPlay = ready;
-}
-
-bool AudioPlayer::isBluetoothConnected() const {
-  return bluetoothConnected;
-}
-
-bool AudioPlayer::canStartPlaying() const {
-  return bluetoothConnected && audioReadyToPlay;
-}
-
 void AudioPlayer::playNow(const char* filePath) {
   shouldPlayNow = true;
   startPlaying(filePath);
@@ -101,7 +84,7 @@ void AudioPlayer::playNext(const char* filePath) {
 }
 
 bool AudioPlayer::isCurrentlyPlaying() {
-  return canStartPlaying() && isPlaying;
+  return isPlaying;
 }
 
 int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
@@ -109,23 +92,16 @@ int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
 }
 
 void AudioPlayer::update() {
-  if (!canStartPlaying()) {
-    return;  // Don't start playing if not ready
-  }
-
   if (shouldPlayNow) {
     Serial.printf("AudioPlayer: Now playing file: %s\n", currentAudioFile.name());
     startPlaying(currentAudioFile.name());
     shouldPlayNow = false;
   } else if (hasFinishedPlaying()) {
-    Serial.println("Current audio finished playing");
     if (!audioQueue.empty()) {
       const char* nextAudioFile = audioQueue.front().c_str();
       Serial.printf("AudioPlayer: Playing next queued file: %s\n", nextAudioFile);
-      startPlaying(nextAudioFile);
-      audioQueue.pop();
-    } else {
-      Serial.println("Audio queue is empty");
+      startPlaying(nextAudioFile);  // Play the file at the front of the queue
+      audioQueue.pop();             // Remove the played file from the queue
     }
   }
 }

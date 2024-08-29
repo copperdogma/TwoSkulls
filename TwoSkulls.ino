@@ -173,31 +173,16 @@ const int TRIGGER_PIN = 2;  // Pin number ultrasonic pulse trigger
 const int ECHO_PIN = 22;    // Pin number ultrasonic echo detection
 
 // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
+//CAMKILL: death verison, now initialized only if exists (Primary): UltraSonicDistanceSensor distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
 UltraSonicDistanceSensor* distanceSensor = nullptr;
 
-struct ParsedSkitLine {
-  char speaker;
-  unsigned long timestamp;
-  unsigned long duration;
-  float jawPosition;
-};
-
 struct Skit {
-  String audioFile;
+  String wavFile;
   String txtFile;
-  std::vector<ParsedSkitLine> lines;
 };
-
-struct ParsedSkit {
-  String audioFile;
-  String txtFile;
-  std::vector<ParsedSkitLine> lines;
-};
-
-std::vector<ParsedSkit> parsedSkits;
 
 struct SDCardContent {
-  std::vector<ParsedSkit> skits;
+  std::vector<Skit> skits;
   String primaryInitAudio;
   String secondaryInitAudio;
 };
@@ -211,7 +196,7 @@ struct SkitLine {
   float jawPosition;
 };
 
-std::vector<ParsedSkitLine> currentSkit;
+std::vector<SkitLine> currentSkit;
 unsigned long skitStartTime = 0;
 size_t currentSkitLine = 0;
 bool isPlayingSkit = false;
@@ -330,22 +315,17 @@ bool determinePrimaryRole() {
 void onBluetoothConnectionStateChanged(esp_a2d_connection_state_t state, void* obj) {
   if (state == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
     Serial.printf("Lost connection to Bluetooth speaker '%s'.\n", BLUETOOTH_SPEAKER_NAME);
-    audioPlayer->setBluetoothConnected(false);
   } else if (state == ESP_A2D_CONNECTION_STATE_CONNECTED) {
     Serial.printf("Successfully connected to Bluetooth speaker '%s'.\n", BLUETOOTH_SPEAKER_NAME);
-    audioPlayer->setBluetoothConnected(true);
   }
 }
 
-ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile) {
-  ParsedSkit parsedSkit;
-  parsedSkit.audioFile = wavFile;
-  parsedSkit.txtFile = txtFile;
-
-  File file = SD.open(txtFile);
+std::vector<SkitLine> parseSkitFile(const String& txtFilePath) {
+  std::vector<SkitLine> skit;
+  File file = SD.open(txtFilePath);
   if (!file) {
-    Serial.println("Failed to open skit file: " + txtFile);
-    return parsedSkit;
+    Serial.println("Failed to open skit file: " + txtFilePath);
+    return skit;
   }
 
   while (file.available()) {
@@ -353,7 +333,7 @@ ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile) {
     line.trim();
     if (line.length() == 0) continue;
 
-    ParsedSkitLine skitLine;
+    SkitLine skitLine;
     int commaIndex1 = line.indexOf(',');
     int commaIndex2 = line.indexOf(',', commaIndex1 + 1);
     int commaIndex3 = line.indexOf(',', commaIndex2 + 1);
@@ -368,18 +348,17 @@ ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile) {
       skitLine.jawPosition = -1;  // Indicating dynamic jaw movement
     }
 
-    parsedSkit.lines.push_back(skitLine);
+    skit.push_back(skitLine);
   }
 
   file.close();
-  return parsedSkit;
+  return skit;
 }
 
 void playAudio(const String& wavFile, const String& txtFile = "") {
   if (txtFile.length() > 0 && SD.exists(txtFile)) {
     // This is a skit file
-    ParsedSkit parsedSkit = parseSkitFile(wavFile, txtFile);
-    currentSkit = parsedSkit.lines;
+    currentSkit = parseSkitFile(txtFile);
     skitStartTime = millis();
     currentSkitLine = 0;
     isPlayingSkit = true;
@@ -399,97 +378,69 @@ void playRandomSkit() {
     return;
   }
   int randomIndex = random(sdCardContent.skits.size());
-  const ParsedSkit& chosenSkit = sdCardContent.skits[randomIndex];
+  const Skit& chosenSkit = sdCardContent.skits[randomIndex];
   playSkit(chosenSkit);
 }
 
-void playSkit(const ParsedSkit& skit) {
-  currentSkit = skit.lines;
+void playSkit(const Skit& skit) {
+  currentSkit = parseSkitFile(skit.txtFile);
   skitStartTime = 0;  // Will be set when audio actually starts
   currentSkitLine = 0;
   isPlayingSkit = true;
-  audioPlayer->playNext(skit.audioFile.c_str());
+  audioPlayer->playNext(skit.wavFile.c_str());
 }
 
 void updateSkitPlayback() {
-  if (!isPlayingSkit || currentSkit.empty() || !audioPlayer->canStartPlaying()) {
-    return;
-  }
+    if (!isPlayingSkit || currentSkit.empty()) return;
 
-  if (skitStartTime == 0) {
-    skitStartTime = millis();
-  }
-
-  unsigned long currentTime = millis() - skitStartTime;
-  bool isThisSkullSpeaking = false;
-  static unsigned long lastDebugOutput = 0;
-
-  // Debug output every 100ms
-  if (SKIT_DEBUG && currentTime - lastDebugOutput >= 100) {
-    lastDebugOutput = currentTime;
-
-    // Find the current active line
-    const ParsedSkitLine* activeLine = nullptr;
-    for (size_t i = currentSkitLine; i < currentSkit.size(); i++) {
-      if (currentTime >= currentSkit[i].timestamp && currentTime < currentSkit[i].timestamp + currentSkit[i].duration) {
-        activeLine = &currentSkit[i];
-        break;
-      }
+    if (skitStartTime == 0 && audioPlayer->isCurrentlyPlaying()) {
+        skitStartTime = millis();
     }
 
-    if (activeLine) {
-      isThisSkullSpeaking = (isPrimary && activeLine->speaker == 'A') || (!isPrimary && activeLine->speaker == 'B');
-    }
+    if (skitStartTime == 0) return;  // Audio hasn't started yet
 
-    // Moved debug output here, outside of the if (activeLine) block
-    Serial.printf("Time: %lu ms, Speaking: %s, Line: %s, Audio: %s, BT: %s\n",
-                  currentTime,
-                  isThisSkullSpeaking ? "Yes" : "No",
-                  activeLine ? String(activeLine->speaker) + "," + String(activeLine->timestamp) + "," + String(activeLine->duration) : "No active line",
-                  audioPlayer->isCurrentlyPlaying() ? "Playing" : "Stopped",
-                  audioPlayer->isBluetoothConnected() ? "Connected" : "Disconnected");
+    unsigned long currentTime = millis() - skitStartTime;
 
-    setEyeBrightness(isThisSkullSpeaking ? 255 : 25);
-  }
+    while (currentSkitLine < currentSkit.size()) {
+        const SkitLine& line = currentSkit[currentSkitLine];
 
-  // Update current line and jaw position
-  for (size_t i = currentSkitLine; i < currentSkit.size(); i++) {
-    const ParsedSkitLine& line = currentSkit[i];
-
-    if (currentTime < line.timestamp) {
-      break;
-    }
-
-    if (currentTime >= line.timestamp && currentTime < line.timestamp + line.duration) {
-      isThisSkullSpeaking = (isPrimary && line.speaker == 'A') || (!isPrimary && line.speaker == 'B');
-
-      if (isThisSkullSpeaking) {
-        if (line.jawPosition >= 0) {
-          updateServoPosition(map(line.jawPosition * 100, 0, 100, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES));
+        if (currentTime < line.timestamp) {
+            break;  // Not time for this line yet
         }
-      } else {
+
+        if (currentTime >= line.timestamp && currentTime < line.timestamp + line.duration) {
+            // It's time for this line
+            bool isThisSkullSpeaking = (isPrimary && line.speaker == 'A') || (!isPrimary && line.speaker == 'B');
+            
+            if (SKIT_DEBUG) {
+                setEyeBrightness(isThisSkullSpeaking ? 255 : 25);  // 100% or 10% brightness
+            }
+
+            if (isThisSkullSpeaking) {
+                if (line.jawPosition >= 0) {
+                    updateServoPosition(map(line.jawPosition * 100, 0, 100, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES));
+                } else {
+                    processAudioForJaw();
+                }
+            } else {
+                updateServoPosition(SERVO_MIN_DEGREES);
+            }
+            return;  // Exit the function, we'll check the next line on the next call
+        }
+
+        // Move to next line
+        currentSkitLine++;
+    }
+
+    // If we've reached here, the skit is over
+    if (currentSkitLine >= currentSkit.size() && !audioPlayer->isCurrentlyPlaying()) {
+        isPlayingSkit = false;
         updateServoPosition(SERVO_MIN_DEGREES);
-      }
-
-      currentSkitLine = i;
-    } else if (currentTime >= line.timestamp + line.duration) {
-      currentSkitLine = i + 1;
+        if (SKIT_DEBUG) {
+            setEyeBrightness(255);  // Set eyes back to full brightness when skit is over
+        }
     }
-  }
-
-  // Check if skit has ended
-  if (currentSkitLine >= currentSkit.size() || !audioPlayer->isCurrentlyPlaying()) {
-    isPlayingSkit = false;
-    updateServoPosition(SERVO_MIN_DEGREES);
-    if (SKIT_DEBUG) {
-      setEyeBrightness(255);
-      Serial.printf("Skit ended at %lu ms. Reason: %s\n",
-                    currentTime,
-                    currentSkitLine >= currentSkit.size() ? "Reached end of script" : "Audio stopped");
-    }
-  }
 }
-
 
 void processAudioForJaw() {
   uint8_t* audioBuffer = audioPlayer->getCurrentAudioBuffer();
@@ -560,8 +511,7 @@ SDCardContent initSDCard() {
       String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
       String txtFileName = baseName + ".txt";
       if (fileExists(SD, ("/audio/" + txtFileName).c_str())) {
-        ParsedSkit parsedSkit = parseSkitFile("/audio/" + fileName, "/audio/" + txtFileName);
-        content.skits.push_back(parsedSkit);
+        content.skits.push_back({ "/audio/" + fileName, "/audio/" + txtFileName });
       } else {
         Serial.println("SD Card: WARNING: Missing txt file for " + fileName);
       }
@@ -581,13 +531,13 @@ Skit getRandomSkit(const std::vector<Skit>& skits) {
   return skits[randomIndex];
 }
 
-ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name) {
+Skit findSkitByName(const std::vector<Skit>& skits, const String& name) {
   for (const auto& skit : skits) {
-    if (skit.audioFile.endsWith(name + ".wav")) {
+    if (skit.wavFile.endsWith(name + ".wav")) {
       return skit;
     }
   }
-  return { "", "", {} };  // Return empty ParsedSkit if not found
+  return { "", "" };  // Return empty skit if not found
 }
 
 // Function to get initialization audio path
@@ -595,8 +545,8 @@ String getInitAudio(const SDCardContent& content, bool isPrimary) {
   return isPrimary ? content.primaryInitAudio : content.secondaryInitAudio;
 }
 
-void prepareSkitPlayback(const ParsedSkit& skit) {
-  currentSkit = skit.lines;
+void prepareSkitPlayback(const Skit& skit) {
+  currentSkit = parseSkitFile(skit.txtFile);
   audioSegments.clear();
 
   for (const auto& line : currentSkit) {
@@ -703,8 +653,6 @@ void setup() {
   }
 
   // Bluetooth
-  audioPlayer->setBluetoothConnected(false);
-  audioPlayer->setAudioReadyToPlay(false);
   a2dp_source.set_auto_reconnect(true);
   a2dp_source.set_on_connection_state_changed(onBluetoothConnectionStateChanged);
   a2dp_source.start(BLUETOOTH_SPEAKER_NAME, AudioPlayer::provideAudioFrames);  // Use the static method as the callback
@@ -753,11 +701,11 @@ void setup() {
   Serial.printf("Playing initialization audio\n");
   audioPlayer->playNext(isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav");
 
-  // Find the "Skit - names" skit
-  ParsedSkit namesSkit = findSkitByName(sdCardContent.skits, "Skit - names");
-  if (namesSkit.audioFile != "" && namesSkit.txtFile != "") {
+  // TEMP/TESTING: Find the "Skit - names" skit
+  Skit namesSkit = findSkitByName(sdCardContent.skits, "Skit - names");
+  if (namesSkit.wavFile != "" && namesSkit.txtFile != "") {
     // Queue the "Skit - names" skit to play next
-    playAudio(namesSkit.audioFile, namesSkit.txtFile);
+    playAudio(namesSkit.wavFile, namesSkit.txtFile);
   } else {
     Serial.println("'Skit - names' not found.");
   }
@@ -765,12 +713,7 @@ void setup() {
 
 
 void loop() {
-  static unsigned long lastLoopTime = 0;
   unsigned long currentMillis = millis();
-  if (currentMillis - lastLoopTime >= 1000) {  // Print every second
-    Serial.println("loop() called");
-    lastLoopTime = currentMillis;
-  }
 
   // Blink eyes
   // digitalWrite(LEFT_EYE_PIN, HIGH);
@@ -803,10 +746,11 @@ void loop() {
   // Check Bluetooth connection state every second
   if (currentMillis - lastConnectionCheck >= CONNECTION_CHECK_INTERVAL) {
     lastConnectionCheck = currentMillis;
-    if (!audioPlayer->isBluetoothConnected()) {
+    if (!a2dp_source.is_connected()) {
       Serial.printf("Trying to connect to Bluetooth speaker '%s' ...\n", BLUETOOTH_SPEAKER_NAME);
     }
   }
+
 
   //TODO: put back after modifying, and this is somethign only the Primary should do
   // if (currentMillis - lastUltrasonicRead >= ULTRASONIC_READ_INTERVAL) {
@@ -821,17 +765,13 @@ void loop() {
 
   // Play any queued audio and update skit playback
   audioPlayer->update();
-
-  // Only update skit playback if audio can start playing
-  if (audioPlayer->canStartPlaying()) {
-    updateSkitPlayback();
-  }
+  updateSkitPlayback();
 
   if (!isPlayingSkit && SKIT_DEBUG) {
     setEyeBrightness(255);  // Set eyes to full brightness when not in a skit
   }
 
-  // Process audio and update jaw position
+  // Check if audio is playing
   if (!audioPlayer->isCurrentlyPlaying()) {
     // If no audio is playing and jaw isn't closed, close it
     if (!isJawClosed) {
@@ -860,14 +800,12 @@ void loop() {
       if (isPlayingSkit) {
         // For skit playback
         if (!currentSkit.empty() && currentSkitLine < currentSkit.size()) {
-          const ParsedSkitLine& line = currentSkit[currentSkitLine];
-          bool isThisSkullSpeaking = (isPrimary && line.speaker == 'A') || (!isPrimary && line.speaker == 'B');
-          if (isThisSkullSpeaking) {
+          const SkitLine& line = currentSkit[currentSkitLine];
+          if ((isPrimary && line.speaker == 'A') || (!isPrimary && line.speaker == 'B')) {
             if (line.jawPosition < 0) {  // Dynamic jaw movement
               int targetPosition = mapRMSToServoPosition(rms);
               updateServoPosition(targetPosition);
             }
-            // Note: Fixed jaw positions are handled in updateSkitPlayback()
           }
         }
       } else {

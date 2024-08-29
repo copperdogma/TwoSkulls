@@ -15,8 +15,6 @@ private:
   size_t currentBufferSize = 0;  // Current size of the dynamic audio buffer
   std::queue<String> audioQueue;
   File currentAudioFile;
-  bool bluetoothConnected;
-  bool audioReadyToPlay;
   bool shouldPlayNow = false;
   volatile bool isPlaying = false;
 
@@ -27,12 +25,7 @@ private:
   bool hasFinishedPlaying();
 
 public:
-  AudioPlayer()
-    : bluetoothConnected(false), audioReadyToPlay(false) {}
-  void setBluetoothConnected(bool connected);
-  void setAudioReadyToPlay(bool ready);
-  bool isBluetoothConnected() const;
-  bool canStartPlaying() const;
+  AudioPlayer() {}
   uint8_t* getCurrentAudioBuffer();  // Expose the audio buffer
   size_t getCurrentAudioBufferSize();
   void playNow(const char* filePath);
