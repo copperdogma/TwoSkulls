@@ -115,51 +115,15 @@ ISSUES
 #include <algorithm>  // For std::sort
 #include <vector>
 #include <tuple>
-#include "BluetoothA2DPSource.h"
+#include "bluetooth_audio.h"
 #include "FS.h"
 #include "SD.h"
 #include <HCSR04.h>
 #include "audio_player.h"
 
-#include <arduinoFFT.h>
-#include <Servo.h>
+#include <Servo.h> // This complains; I'm actually using the local ESP32_ESP32S2_AnalogWrite library to support the ESP32
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
-
-const char* BLUETOOTH_SPEAKER_NAME = "JBL Flip 5";
-/*
- NOTE: To connect to a new speaker:
-    set a2dp_source.set_auto_reconnect(false);
-    The name of your speaker may NOT be what you expect. Check the output log on Debug to see what it says about devices it found.
-    It seems to keep a strong memory of the last speaker it connected to, so every time you want to connect to a new one
-    you seem to need to set auto_reconnect to false and manually pair it the first time.
-const char* BLUETOOTH_SPEAKER_NAME = "WH-CH710N";
-const char* BLUETOOTH_SPEAKER_NAME = "Cam's AirPods3 - Find My"; // aka Cam Marsollier's AirPods
-
-ESP32 doesn't natively support A2DP so I'm using a third-party library: https://github.com/pschatzmann/ESP32-A2DP
-BluetoothA2DPSource a2dp_source;
-*/
-
-// The supported audio codec in ESP32 A2DP is SBC. SBC audio stream is encoded
-// from PCM data normally formatted as 44.1kHz sampling rate, two-channel 16-bit sample data
-// If audio is playing back at double speed, you've given it mono instead of stereo files.
-
-int currentModeIndex = 0;  // Current audio file index
-
-// Stores mode names and corresponding file lists
-struct ModeFiles {
-  String modeName;
-  String modeTitleAudioFile;
-  std::vector<String> files;
-  int lastPlayedIndex = -1;
-};
-ModeFiles modeFiles[10];  // Assume we have at most 10 modes
-int modeCount = 0;
-
-bool isPrimary = false;
-
-//CAMKILL:
-//const char* AUDIO_INITIALIZED = "/audio/system_initialized.wav";
 
 const int LEFT_EYE_PIN = 32;   // GPIO pin for left eye LED
 const int RIGHT_EYE_PIN = 33;  // GPIO pin for right eye LED
@@ -185,22 +149,6 @@ struct SDCardContent {
 };
 
 SDCardContent sdCardContent;
-
-struct AudioSegment {
-  unsigned long start;
-  unsigned long duration;
-  bool shouldPlay;
-};
-
-std::vector<AudioSegment> audioSegments;
-size_t currentSegment = 0;
-
-// Audio analyzer
-const int SAMPLES = 256;        // Must be a power of 2
-const int SAMPLE_RATE = 44100;  // Default for audio library needs to be 44100
-double vReal[SAMPLES];
-double vImag[SAMPLES];
-arduinoFFT FFT = arduinoFFT(vReal, vImag, SAMPLES, SAMPLE_RATE);
 
 // Servo
 const int SERVO_PIN = 15;  // Pin number ultrasonic pulse trigger
@@ -231,7 +179,6 @@ const double MOVE_EXPONENT = 0.2;      // 0-1, smaller = more movement
 const double RMS_MAX = 32768.0;        // Maximum possible RMS value for 16-bit audio
 
 // Function prototypes
-double calculateRMS(const int16_t* samples, int numSamples);
 int mapRMSToServoPosition(double rms);
 void updateServoPosition(int targetPosition);
 
@@ -297,84 +244,6 @@ bool determinePrimaryRole() {
   }
 }
 
-void onBluetoothConnectionStateChanged(esp_a2d_connection_state_t state, void* obj) {
-  if (state == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
-    Serial.printf("Lost connection to Bluetooth speaker '%s'.\n", BLUETOOTH_SPEAKER_NAME);
-    audioPlayer->setBluetoothConnected(false);
-  } else if (state == ESP_A2D_CONNECTION_STATE_CONNECTED) {
-    Serial.printf("Successfully connected to Bluetooth speaker '%s'.\n", BLUETOOTH_SPEAKER_NAME);
-    audioPlayer->setBluetoothConnected(true);
-  }
-}
-
-ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile) {
-  ParsedSkit parsedSkit;
-  parsedSkit.audioFile = wavFile;
-  parsedSkit.txtFile = txtFile;
-
-  File file = SD.open(txtFile);
-  if (!file) {
-    Serial.println("Failed to open skit file: " + txtFile);
-    return parsedSkit;
-  }
-
-  while (file.available()) {
-    String line = file.readStringUntil('\n');
-    line.trim();
-    if (line.length() == 0) continue;
-
-    ParsedSkitLine skitLine;
-    int commaIndex1 = line.indexOf(',');
-    int commaIndex2 = line.indexOf(',', commaIndex1 + 1);
-    int commaIndex3 = line.indexOf(',', commaIndex2 + 1);
-
-    skitLine.speaker = line.charAt(0);
-    skitLine.timestamp = line.substring(commaIndex1 + 1, commaIndex2).toInt();
-    skitLine.duration = line.substring(commaIndex2 + 1, commaIndex3).toInt();
-
-    if (commaIndex3 != -1) {
-      skitLine.jawPosition = line.substring(commaIndex3 + 1).toFloat();
-    } else {
-      skitLine.jawPosition = -1;  // Indicating dynamic jaw movement
-    }
-
-    parsedSkit.lines.push_back(skitLine);
-  }
-
-  file.close();
-  return parsedSkit;
-}
-
-void playAudio(const String& wavFile, const String& txtFile = "") {
-  if (txtFile.length() > 0 && SD.exists(txtFile)) {
-    // This is a skit file
-    ParsedSkit parsedSkit = parseSkitFile(wavFile, txtFile);
-    audioPlayer->playSkitNext(parsedSkit);
-  } else {
-    // This is a regular audio file or skit without txt file
-    audioPlayer->playNext(wavFile.c_str());
-  }
-}
-
-void playRandomSkit() {
-  if (sdCardContent.skits.empty()) {
-    Serial.println("No skits available to play.");
-    return;
-  }
-  int randomIndex = random(sdCardContent.skits.size());
-  const ParsedSkit& chosenSkit = sdCardContent.skits[randomIndex];
-  audioPlayer->playSkitNext(chosenSkit);
-}
-
-bool fileExists(fs::FS& fs, const char* path) {
-  File file = fs.open(path);
-  if (!file || file.isDirectory()) {
-    return false;
-  }
-  file.close();
-  return true;
-}
-
 SDCardContent initSDCard() {
   SDCardContent content;
 
@@ -385,13 +254,13 @@ SDCardContent initSDCard() {
   Serial.println("SD Card: Mounted successfully");
 
   // Check for initialization files
-  if (fileExists(SD, "/audio/Initialized - Primary.wav")) {
+  if (audioPlayer->fileExists(SD, "/audio/Initialized - Primary.wav")) {
     content.primaryInitAudio = "/audio/Initialized - Primary.wav";
   } else {
     Serial.println("SD Card: ERROR: Missing Primary initialization audio file");
   }
 
-  if (fileExists(SD, "/audio/Initialized - Secondary.wav")) {
+  if (audioPlayer->fileExists(SD, "/audio/Initialized - Secondary.wav")) {
     content.secondaryInitAudio = "/audio/Initialized - Secondary.wav";
   } else {
     Serial.println("SD Card: ERROR: Missing Secondary initialization audio file");
@@ -410,8 +279,8 @@ SDCardContent initSDCard() {
     if (fileName.startsWith("Skit") && fileName.endsWith(".wav")) {
       String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
       String txtFileName = baseName + ".txt";
-      if (fileExists(SD, ("/audio/" + txtFileName).c_str())) {
-        ParsedSkit parsedSkit = parseSkitFile("/audio/" + fileName, "/audio/" + txtFileName);
+      if (audioPlayer->fileExists(SD, ("/audio/" + txtFileName).c_str())) {
+        ParsedSkit parsedSkit = audioPlayer->parseSkitFile("/audio/" + fileName, "/audio/" + txtFileName);
         content.skits.push_back(parsedSkit);
       } else {
         Serial.println("SD Card: WARNING: Missing txt file for " + fileName);
@@ -423,95 +292,28 @@ SDCardContent initSDCard() {
   return content;
 }
 
-// Function to get a random skit
-Skit getRandomSkit(const std::vector<Skit>& skits) {
-  if (skits.empty()) {
-    return Skit();  // Return an empty Skit if the vector is empty
-  }
-  int randomIndex = random(skits.size());
-  return skits[randomIndex];
-}
-
-ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name) {
-  for (const auto& skit : skits) {
-    if (skit.audioFile.endsWith(name + ".wav")) {
-      return skit;
-    }
-  }
-  return { "", "", {} };  // Return empty ParsedSkit if not found
-}
-
-// Function to get initialization audio path
-String getInitAudio(const SDCardContent& content, bool isPrimary) {
-  return isPrimary ? content.primaryInitAudio : content.secondaryInitAudio;
-}
-
-void prepareSkitPlayback(const ParsedSkit& skit) {
-  audioSegments.clear();
-
-  for (const auto& line : skit.lines) {
-    bool shouldPlay = (isPrimary && line.speaker == 'A') || (!isPrimary && line.speaker == 'B');
-    audioSegments.push_back({ line.timestamp, line.duration, shouldPlay });
-  }
-
-  // Sort segments by start time
-  std::sort(audioSegments.begin(), audioSegments.end(),
-            [](const AudioSegment& a, const AudioSegment& b) {
-              return a.start < b.start;
-            });
-
-  currentSegment = 0;
-}
-
-double calculateRMS(const int16_t* samples, int numSamples) {
-  double sum = 0;
-  for (int i = 0; i < numSamples; i++) {
-    sum += samples[i] * samples[i];
-  }
-  return sqrt(sum / numSamples);
-}
-
-int mapRMSToServoPosition(double rms) {
-  // Check for silence or very low volume
-  if (rms < SILENCE_THRESHOLD) {
-    return SERVO_MIN_DEGREES;  // Close the jaw completely
-  }
-
-  // Update max observed RMS
-  if (rms > maxObservedRMS) {
-    maxObservedRMS = rms;
-  }
-
-  // Normalize RMS to 0-1 range, using the max observed RMS
-  double normalizedRMS = std::min(rms / maxObservedRMS, 1.0);
-
-  // Apply non-linear mapping for more pronounced mouth movement
-  double mappedValue = pow(normalizedRMS, MOVE_EXPONENT);
-
-  // Increase the minimum jaw opening
-  int minJawOpening = SERVO_MIN_DEGREES + 5;  // 5 degrees minimum opening
-
-  return map(mappedValue * 1000, 0, 1000, minJawOpening, SERVO_MAX_DEGREES);
-}
-
-void updateServoPosition(int targetPosition) {
-  // Apply exponential smoothing
-  smoothedPosition = ALPHA * targetPosition + (1 - ALPHA) * smoothedPosition;
-
-  // Round and constrain the position
-  int newPosition = round(smoothedPosition);
-  newPosition = constrain(newPosition, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-
-  // Only move the servo if the change is significant
-  static int lastServoPosition = SERVO_MIN_DEGREES;
-  if (abs(newPosition - lastServoPosition) > MIN_MOVEMENT_THRESHOLD) {
-    jawServo.write(SERVO_PIN, newPosition);
-    lastServoPosition = newPosition;
-  }
-}
-
 AudioPlayer* audioPlayer = new AudioPlayer();
-BluetoothA2DPSource a2dp_source;
+bluetooth_audio bluetoothAudio;
+
+// Add these lines near the top of the file, with other global declarations
+bool isPrimary = false;
+
+// Add this line with other function prototypes
+void onBluetoothConnectionStateChanged(esp_a2d_connection_state_t state, void* obj);
+
+// Add this near the top of the file with other constants
+const char* BLUETOOTH_SPEAKER_NAME = "JBL Flip 5";
+
+bool initializeBluetooth() {
+  Serial.println("Initializing Bluetooth...");
+  audioPlayer->setBluetoothConnected(false);
+  audioPlayer->setAudioReadyToPlay(false);
+  bluetoothAudio.begin(BLUETOOTH_SPEAKER_NAME, AudioPlayer::provideAudioFrames);
+  bluetoothAudio.set_connection_state_callback(onBluetoothConnectionStateChanged);
+  bluetoothAudio.set_volume(100);
+  Serial.printf("Bluetooth initialization complete. Connected: %d\n", bluetoothAudio.is_connected());
+  return bluetoothAudio.is_connected();
+}
 
 void setup() {
   Serial.begin(115200);
@@ -553,29 +355,15 @@ void setup() {
   }
 
   // Bluetooth
-  audioPlayer->setBluetoothConnected(false);
-  audioPlayer->setAudioReadyToPlay(false);
-  a2dp_source.set_auto_reconnect(true);
-  a2dp_source.set_on_connection_state_changed(onBluetoothConnectionStateChanged);
-  a2dp_source.start(BLUETOOTH_SPEAKER_NAME, AudioPlayer::provideAudioFrames);
-
-  Serial.printf("setup a2dp_source.is_connected(): %d\n", a2dp_source.is_connected());
-
-  a2dp_source.set_volume(100);
-
+  if (!initializeBluetooth()) {
+    // Handle initialization failure
+  }
 
   // Initialize servo
-  jawServo.attach(SERVO_PIN);
+  audioPlayer->initializeServo(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-  Serial.println("Initializing servo - basic");
-  Serial.printf("Servo animation init: %d degrees\n", SERVO_MIN_DEGREES);  // 0
-  jawServo.write(SERVO_PIN, SERVO_MIN_DEGREES);
-  Serial.printf("Servo animation init: %d degrees\n", SERVO_MAX_DEGREES);  // 70
-  delay(500);
-  jawServo.write(SERVO_PIN, SERVO_MAX_DEGREES);
-  Serial.println("Servo animation init complete; resetting to 0 degrees");
-  delay(500);
-  jawServo.write(SERVO_PIN, SERVO_MIN_DEGREES);
+  Serial.println("Initializing servo");
+  audioPlayer->setJawPosition(SERVO_MIN_DEGREES);
 
   // SD Card initialization
   bool sdCardInitialized;
@@ -583,10 +371,10 @@ void setup() {
 
   while (!sdCardInitialized) {
     Serial.println("SD Card: Mount Failed! Retrying...");
-    jawServo.write(SERVO_PIN, 30);
+    audioPlayer->setJawPosition(30);
     delay(500);
     sdCardInitialized = SD.begin();
-    jawServo.write(SERVO_PIN, 0);
+    audioPlayer->setJawPosition(0);
     delay(500);
   }
 
@@ -598,7 +386,7 @@ void setup() {
   audioPlayer->playNext(isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav");
 
   // Find the "Skit - names" skit
-  ParsedSkit namesSkit = findSkitByName(sdCardContent.skits, "Skit - names");
+  ParsedSkit namesSkit = audioPlayer->findSkitByName(sdCardContent.skits, "Skit - names");
   if (namesSkit.audioFile != "" && namesSkit.txtFile != "") {
     // Queue the "Skit - names" skit to play next
     audioPlayer->playSkitNext(namesSkit);
@@ -611,8 +399,8 @@ void loop() {
   unsigned long currentMillis = millis();
   static unsigned long lastMillis = 0;
 
-  // Every 100ms output "loop() running"
-  if (currentMillis - lastMillis >= 500) {
+  // Every 1000ms output "loop() running"
+  if (currentMillis - lastMillis >= 1000) {
     Serial.printf("%d loop() running\n", currentMillis);
     lastMillis = currentMillis;
   }
@@ -626,13 +414,17 @@ void loop() {
     size_t audioBufferSize = audioPlayer->getCurrentAudioBufferSize();
 
     // Process audio in chunks of SAMPLES
-    for (size_t offset = 0; offset < audioBufferSize; offset += SAMPLES * 2) {
-      std::vector<int16_t> samples(SAMPLES);
-      for (int i = 0; i < SAMPLES && (offset + i * 2 + 1) < audioBufferSize; i++) {
+    for (size_t offset = 0; offset < audioBufferSize; offset += AudioPlayer::SAMPLES * 2) {
+      std::vector<int16_t> samples(AudioPlayer::SAMPLES);
+      for (int i = 0; i < AudioPlayer::SAMPLES && (offset + i * 2 + 1) < audioBufferSize; i++) {
         samples[i] = (audioBuffer[offset + i * 2 + 1] << 8) | audioBuffer[offset + i * 2];
       }
 
-      double rms = calculateRMS(samples.data(), samples.size());
+      double rms = audioPlayer->calculateRMS(samples.data(), samples.size());
+
+      // Perform FFT if needed
+      audioPlayer->performFFT();
+      // You can now get FFT results using audioPlayer->getFFTResult(index)
 
       if (audioPlayer->isPlayingSkit()) {
         const ParsedSkit& currentSkit = audioPlayer->getCurrentSkit();
@@ -640,25 +432,40 @@ void loop() {
           const ParsedSkitLine& line = currentSkit.lines[audioPlayer->getCurrentSkitLine()];
           bool isThisSkullSpeaking = (isPrimary && line.speaker == 'A') || (!isPrimary && line.speaker == 'B');
           if (isThisSkullSpeaking && line.jawPosition < 0) {  // Dynamic jaw movement
-            int targetPosition = mapRMSToServoPosition(rms);
-            updateServoPosition(targetPosition);
+            int targetPosition = audioPlayer->mapRMSToServoPosition(rms, SILENCE_THRESHOLD, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+            audioPlayer->updateServoPosition(targetPosition, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES, ALPHA, MIN_MOVEMENT_THRESHOLD);
           } else if (isThisSkullSpeaking && line.jawPosition >= 0) {
-            updateServoPosition(map(line.jawPosition * 100, 0, 100, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES));
+            int targetPosition = map(line.jawPosition * 100, 0, 100, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+            audioPlayer->setJawPosition(targetPosition);
           } else {
-            updateServoPosition(SERVO_MIN_DEGREES);
+            audioPlayer->setJawPosition(SERVO_MIN_DEGREES);
           }
         }
       } else {
         // For non-skit audio, always animate
-        int targetPosition = mapRMSToServoPosition(rms);
-        updateServoPosition(targetPosition);
+        int targetPosition = audioPlayer->mapRMSToServoPosition(rms, SILENCE_THRESHOLD, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+        audioPlayer->updateServoPosition(targetPosition, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES, ALPHA, MIN_MOVEMENT_THRESHOLD);
       }
     }
   } else {
     // If no audio is playing, ensure jaw is closed
-    updateServoPosition(SERVO_MIN_DEGREES);
+    audioPlayer->setJawPosition(SERVO_MIN_DEGREES);
   }
 
   // Allow other tasks to run
   delay(1);
+
+  // Update Bluetooth audio (includes reconnection attempts)
+  bluetoothAudio.update();
+
+  static unsigned long lastBluetoothCheck = 0;
+  if (currentMillis - lastBluetoothCheck >= 5000) { // Check every 5 seconds
+    Serial.printf("Bluetooth connected: %d\n", bluetoothAudio.is_connected());
+    lastBluetoothCheck = currentMillis;
+  }
+}
+
+void onBluetoothConnectionStateChanged(esp_a2d_connection_state_t state, void* obj) {
+    Serial.println("onBluetoothConnectionStateChanged called in Two_Skulls.ino");
+    audioPlayer->handleBluetoothStateChange(state);
 }
