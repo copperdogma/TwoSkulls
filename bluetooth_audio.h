@@ -11,7 +11,6 @@ public:
     void set_connection_state_callback(void (*callback)(esp_a2d_connection_state_t state, void* obj));
     bool is_connected();
     void set_volume(uint8_t volume);
-    void update();
 
 private:
     BluetoothA2DPSource a2dp_source;

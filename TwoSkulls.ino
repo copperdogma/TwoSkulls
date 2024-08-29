@@ -157,7 +157,6 @@ const int SERVO_MAX_DEGREES = 70;  //Anything past this will grind the servo hor
 Servo jawServo = Servo();
 
 
-unsigned long lastConnectionCheck = 0;                 // Last time the Bluetooth connection was checked
 const unsigned long CONNECTION_CHECK_INTERVAL = 1000;  // Connection check interval in ms
 
 unsigned long lastButtonCheck = 0;        // Last time the button was checked
@@ -298,20 +297,14 @@ bluetooth_audio bluetoothAudio;
 // Add these lines near the top of the file, with other global declarations
 bool isPrimary = false;
 
-// Add this line with other function prototypes
-void onBluetoothConnectionStateChanged(esp_a2d_connection_state_t state, void* obj);
-
 // Add this near the top of the file with other constants
 const char* BLUETOOTH_SPEAKER_NAME = "JBL Flip 5";
 
 bool initializeBluetooth() {
-  Serial.println("Initializing Bluetooth...");
   audioPlayer->setBluetoothConnected(false);
   audioPlayer->setAudioReadyToPlay(false);
   bluetoothAudio.begin(BLUETOOTH_SPEAKER_NAME, AudioPlayer::provideAudioFrames);
-  bluetoothAudio.set_connection_state_callback(onBluetoothConnectionStateChanged);
   bluetoothAudio.set_volume(100);
-  Serial.printf("Bluetooth initialization complete. Connected: %d\n", bluetoothAudio.is_connected());
   return bluetoothAudio.is_connected();
 }
 
@@ -354,10 +347,7 @@ void setup() {
     blinkEyes(1);  // Blink eyes once for Secondary
   }
 
-  // Bluetooth
-  if (!initializeBluetooth()) {
-    // Handle initialization failure
-  }
+  initializeBluetooth();
 
   // Initialize servo
   audioPlayer->initializeServo(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
@@ -454,18 +444,4 @@ void loop() {
 
   // Allow other tasks to run
   delay(1);
-
-  // Update Bluetooth audio (includes reconnection attempts)
-  bluetoothAudio.update();
-
-  static unsigned long lastBluetoothCheck = 0;
-  if (currentMillis - lastBluetoothCheck >= 5000) { // Check every 5 seconds
-    Serial.printf("Bluetooth connected: %d\n", bluetoothAudio.is_connected());
-    lastBluetoothCheck = currentMillis;
-  }
-}
-
-void onBluetoothConnectionStateChanged(esp_a2d_connection_state_t state, void* obj) {
-    Serial.println("onBluetoothConnectionStateChanged called in Two_Skulls.ino");
-    audioPlayer->handleBluetoothStateChange(state);
 }
