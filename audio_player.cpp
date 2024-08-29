@@ -8,6 +8,7 @@ AudioPlayer::AudioPlayer(ServoController& servoController)
       buffer(nullptr), currentBufferSize(0), shouldPlayNow(false), isPlaying(false),
       m_isPlayingSkit(false), m_currentSkitLine(0), m_skitStartTime(0),
       m_hasStartedPlaying(false), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false),
+      m_reachedEndOfFile(false),
       m_servoController(servoController) {}  // Initialize m_servoController
 
 void AudioPlayer::begin() {
@@ -19,15 +20,24 @@ void AudioPlayer::update() {
     Serial.printf("AudioPlayer: Now playing file: %s\n", currentAudioFile.name());
     startPlaying(currentAudioFile.name());
     shouldPlayNow = false;
-  } else if (hasFinishedPlaying()) {
-    if (!audioQueue.empty()) {
+  } else if (hasFinishedPlaying() && !audioQueue.empty()) {
+    const char* nextAudioFile = audioQueue.front().c_str();
+    Serial.printf("AudioPlayer: Playing next queued file: %s\n", nextAudioFile);
+    startPlaying(nextAudioFile);
+    audioQueue.pop();
+  }
+
+  if (m_reachedEndOfFile && !audioQueue.empty()) {
       const char* nextAudioFile = audioQueue.front().c_str();
       Serial.printf("AudioPlayer: Playing next queued file: %s\n", nextAudioFile);
       startPlaying(nextAudioFile);
       audioQueue.pop();
-    }
   }
 
+  updateSkit();
+}
+
+void AudioPlayer::updateSkit() {
   if (m_isPlayingSkit && m_hasStartedPlaying) {
     if (m_skitStartTime == 0) {
       m_skitStartTime = millis();
@@ -113,27 +123,29 @@ int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
 
 void AudioPlayer::startPlaying(const char* filePath) {
     if (currentAudioFile && strcmp(currentAudioFile.name(), filePath) == 0) {
-        // If the current file is already the desired one, return.
         return;
     }
     currentAudioFile.close();
     currentAudioFile = FileManager::openFile(filePath);
-    if (!currentAudioFile) {
+    isPlaying = currentAudioFile;
+    m_reachedEndOfFile = false;  // Reset this flag when starting a new file
+    if (!isPlaying) {
         Serial.printf("Failed to open file: %s\n", filePath);
-    } else {
-        isPlaying = true;
     }
 }
 
 int32_t AudioPlayer::_provideAudioFrames(Frame* frame, int32_t frame_count) {
-    if (!isPlaying) return 0;
+    if (m_reachedEndOfFile) {
+        return 0;  // Don't keep trying to read if we've reached the end
+    }
 
-    if (!currentAudioFile) {
-        Serial.println("_provideAudioFrames: currentAudioFile not ready. Exiting early to await data.");
+    if (!isPlaying || !currentAudioFile) {
+        m_reachedEndOfFile = true;  // Mark as reached end if not playing or file not open
+        Serial.println("_provideAudioFrames: Not playing or currentAudioFile not ready. Exiting early.");
         return 0;
     }
 
-    size_t requiredSize = frame_count * 2 * 2;  // Stereo, 2 channels
+    size_t requiredSize = frame_count * 4;  // Stereo, 2 channels, 2 bytes per sample
     if (requiredSize != currentBufferSize) {
         delete[] buffer;
         buffer = new uint8_t[requiredSize];
@@ -144,10 +156,10 @@ int32_t AudioPlayer::_provideAudioFrames(Frame* frame, int32_t frame_count) {
 
     if (bytesRead < 1) {
         isPlaying = false;
+        m_reachedEndOfFile = true;
+        Serial.println("Reached end of audio file.");
         return 0;
     }
-
-    isPlaying = true;
 
     for (int i = 0, j = 0; i < bytesRead; i += 4, ++j) {
         frame[j].channel1 = (buffer[i + 1] << 8) | buffer[i];

@@ -26,6 +26,7 @@ public:
   AudioPlayer(ServoController& servoController);  // Modified constructor
   void begin();
   void update();
+  void updateSkit();  // Add this line
   uint8_t* getCurrentAudioBuffer();
   size_t getCurrentAudioBufferSize();
   void playNow(const char* filePath);
@@ -86,6 +87,9 @@ private:
 
   // New private members for jaw movement
   ServoController& m_servoController;  // Reference to ServoController
+
+  // New member to track end of file
+  bool m_reachedEndOfFile;
 };
 
 extern AudioPlayer* audioPlayer;

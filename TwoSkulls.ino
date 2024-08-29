@@ -97,6 +97,8 @@ ISSUES
   ** why is the audio clicking before and after playing
   ** use the Audio Player Class for other functionality like FFT and SD support: https://github.com/pschatzmann/arduino-audio-tools/wiki/The-Audio-Player-Class
   ** reconnecting to bluetooth is flaky now that I'm relying on the library's auto-reconnect.. can I poke it?
+  ** do a pre-pass on the audio to get max volume so we can peg that at max jaw movement. PER SKULL. Should be doable cuz we can do it on startup and save with the skit/skitline info. So it can be slowish.
+  ** temp: init + read from the Sd card 20 times in a row to see how consistent it is
 
   ** creashing fixes?
     ** Buffer Management: The buffer management in AudioPlayer::_provideAudioFrames could be improved. Consider using a circular buffer or a more efficient memory management strategy.  
