@@ -67,3 +67,22 @@ ParsedSkit FileManager::findSkitByName(const std::vector<ParsedSkit>& skits, con
 size_t FileManager::readFileBytes(File& file, uint8_t* buffer, size_t bufferSize) {
     return file.read(buffer, bufferSize);
 }
+
+String FileManager::constructValidPath(const String& basePath, const String& fileName) {
+    String result = basePath;
+    
+    // Ensure base path ends with a separator
+    if (result.length() > 0 && result.charAt(result.length() - 1) != '/') {
+        result += '/';
+    }
+    
+    // Append fileName without modification
+    result += fileName;
+    
+    return result;
+}
+
+bool FileManager::isValidPathChar(char c) {
+    // Allow alphanumeric characters, underscore, hyphen, and period
+    return isalnum(c) || c == '_' || c == '-' || c == '.';
+}
