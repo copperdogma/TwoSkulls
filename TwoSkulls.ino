@@ -123,6 +123,7 @@ ISSUES
 #include "light_controller.h"
 #include "servo_controller.h"
 #include "sd_card_manager.h"
+#include "skull_audio_animator.h"
 #include </Users/cam/Library/Arduino15/libraries/Servo/src/Servo.h>
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
@@ -209,6 +210,8 @@ bool initializeBluetooth() {
   return bluetoothAudio.is_connected();
 }
 
+SkullAudioAnimator* skullAnimator = nullptr;
+
 void setup() {
   Serial.begin(115200);
 
@@ -265,6 +268,9 @@ void setup() {
   } else {
     Serial.println("'Skit - names' not found.");
   }
+
+  // Initialize SkullAudioAnimator after audioPlayer and servoController are set up
+  skullAnimator = new SkullAudioAnimator(audioPlayer, servoController, isPrimary);
 }
 
 void loop() {
@@ -280,49 +286,8 @@ void loop() {
   // Update audio player and process any queued audio
   audioPlayer->update();
 
-  // Process audio and update jaw position
-  if (audioPlayer->isCurrentlyPlaying()) {
-    uint8_t* audioBuffer = audioPlayer->getCurrentAudioBuffer();
-    size_t audioBufferSize = audioPlayer->getCurrentAudioBufferSize();
-
-    // Process audio in chunks of SAMPLES
-    for (size_t offset = 0; offset < audioBufferSize; offset += AudioPlayer::SAMPLES * 2) {
-      std::vector<int16_t> samples(AudioPlayer::SAMPLES);
-      for (int i = 0; i < AudioPlayer::SAMPLES && (offset + i * 2 + 1) < audioBufferSize; i++) {
-        samples[i] = (audioBuffer[offset + i * 2 + 1] << 8) | audioBuffer[offset + i * 2];
-      }
-
-      double rms = audioPlayer->calculateRMS(samples.data(), samples.size());
-
-      // Perform FFT if needed
-      audioPlayer->performFFT();
-      // You can now get FFT results using audioPlayer->getFFTResult(index)
-
-      if (audioPlayer->isPlayingSkit()) {
-        const ParsedSkit& currentSkit = audioPlayer->getCurrentSkit();
-        if (!currentSkit.lines.empty() && audioPlayer->getCurrentSkitLine() < currentSkit.lines.size()) {
-          const ParsedSkitLine& line = currentSkit.lines[audioPlayer->getCurrentSkitLine()];
-          bool isThisSkullSpeaking = (isPrimary && line.speaker == 'A') || (!isPrimary && line.speaker == 'B');
-          if (isThisSkullSpeaking && line.jawPosition < 0) {  // Dynamic jaw movement
-            int targetPosition = servoController.mapRMSToPosition(rms, SILENCE_THRESHOLD);
-            servoController.updatePosition(targetPosition, ALPHA, MIN_MOVEMENT_THRESHOLD);
-          } else if (isThisSkullSpeaking && line.jawPosition >= 0) {
-            int targetPosition = map(line.jawPosition * 100, 0, 100, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-            servoController.setPosition(targetPosition);
-          } else {
-            servoController.setPosition(SERVO_MIN_DEGREES);
-          }
-        }
-      } else {
-        // For non-skit audio, always animate
-        int targetPosition = servoController.mapRMSToPosition(rms, SILENCE_THRESHOLD);
-        servoController.updatePosition(targetPosition, ALPHA, MIN_MOVEMENT_THRESHOLD);
-      }
-    }
-  } else {
-    // If no audio is playing, ensure jaw is closed
-    servoController.setPosition(SERVO_MIN_DEGREES);
-  }
+  // Update SkullAudioAnimator
+  skullAnimator->update();
 
   // Allow other tasks to run
   delay(1);
