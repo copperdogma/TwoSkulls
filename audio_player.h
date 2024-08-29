@@ -65,10 +65,7 @@ public:
   bool fileExists(fs::FS& fs, const char* path);
   void handleBluetoothStateChange(esp_a2d_connection_state_t state);
 
-  void initializeServo(int pin, int minDegrees, int maxDegrees);
   void setJawPosition(int position);
-  int mapRMSToServoPosition(double rms, double silenceThreshold, int servoMinDegrees, int servoMaxDegrees);
-  void updateServoPosition(int targetPosition, int servoMinDegrees, int servoMaxDegrees, double alpha, int minMovementThreshold);
 
 private:
   uint8_t* buffer;

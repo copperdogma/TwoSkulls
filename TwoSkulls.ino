@@ -351,24 +351,24 @@ void loop() {
           const ParsedSkitLine& line = currentSkit.lines[audioPlayer->getCurrentSkitLine()];
           bool isThisSkullSpeaking = (isPrimary && line.speaker == 'A') || (!isPrimary && line.speaker == 'B');
           if (isThisSkullSpeaking && line.jawPosition < 0) {  // Dynamic jaw movement
-            int targetPosition = audioPlayer->mapRMSToServoPosition(rms, SILENCE_THRESHOLD, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-            audioPlayer->updateServoPosition(targetPosition, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES, ALPHA, MIN_MOVEMENT_THRESHOLD);
+            int targetPosition = servoController.mapRMSToPosition(rms, SILENCE_THRESHOLD);
+            servoController.updatePosition(targetPosition, ALPHA, MIN_MOVEMENT_THRESHOLD);
           } else if (isThisSkullSpeaking && line.jawPosition >= 0) {
             int targetPosition = map(line.jawPosition * 100, 0, 100, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-            audioPlayer->setJawPosition(targetPosition);
+            servoController.setPosition(targetPosition);
           } else {
-            audioPlayer->setJawPosition(SERVO_MIN_DEGREES);
+            servoController.setPosition(SERVO_MIN_DEGREES);
           }
         }
       } else {
         // For non-skit audio, always animate
-        int targetPosition = audioPlayer->mapRMSToServoPosition(rms, SILENCE_THRESHOLD, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-        audioPlayer->updateServoPosition(targetPosition, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES, ALPHA, MIN_MOVEMENT_THRESHOLD);
+        int targetPosition = servoController.mapRMSToPosition(rms, SILENCE_THRESHOLD);
+        servoController.updatePosition(targetPosition, ALPHA, MIN_MOVEMENT_THRESHOLD);
       }
     }
   } else {
     // If no audio is playing, ensure jaw is closed
-    audioPlayer->setJawPosition(SERVO_MIN_DEGREES);
+    servoController.setPosition(SERVO_MIN_DEGREES);
   }
 
   // Allow other tasks to run

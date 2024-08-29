@@ -282,10 +282,7 @@ void AudioPlayer::setJawPosition(int position) {
     m_servoController.setPosition(position);
 }
 
-int AudioPlayer::mapRMSToServoPosition(double rms, double silenceThreshold, int servoMinDegrees, int servoMaxDegrees) {
-    return m_servoController.mapRMSToPosition(rms, silenceThreshold);
-}
-
-void AudioPlayer::updateServoPosition(int targetPosition, int servoMinDegrees, int servoMaxDegrees, double alpha, int minMovementThreshold) {
-    m_servoController.updatePosition(targetPosition, alpha, minMovementThreshold);
-}
+// Removed methods
+// void AudioPlayer::initializeServo(int pin, int minDegrees, int maxDegrees) { ... }
+// int AudioPlayer::mapRMSToServoPosition(double rms, double silenceThreshold, int servoMinDegrees, int servoMaxDegrees) { ... }
+// void AudioPlayer::updateServoPosition(int targetPosition, int servoMinDegrees, int servoMaxDegrees, double alpha, int minMovementThreshold) { ... }
