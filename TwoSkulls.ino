@@ -116,8 +116,6 @@ ISSUES
 #include "SD.h"
 #include <HCSR04.h>
 #include "audio_player.h"
-
-#include <Servo.h>  // This complains; I'm actually using the local ESP32_ESP32S2_AnalogWrite library to support the ESP32
 #include "light_controller.h"
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
@@ -145,13 +143,6 @@ const int SERVO_PIN = 15;  // Servo control pin
 const int SERVO_MIN_DEGREES = 0;
 const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
 Servo jawServo = Servo();
-
-const unsigned long CONNECTION_CHECK_INTERVAL = 1000;  // Connection check interval in ms
-
-unsigned long lastButtonCheck = 0;        // Last time the button was checked
-const unsigned long DEBOUNCE_DELAY = 50;  // Debounce delay in ms
-int lastButtonState = HIGH;               // Last state of the button
-volatile bool isButtonPressed = false;    // Button press has happened, to be handled as soon as we can
 
 const unsigned long ULTRASONIC_READ_INTERVAL = 300;  // Ultrasonic read interval in ms
 unsigned long lastUltrasonicRead = 0;                // Last time the ultrasonic sensor was read
