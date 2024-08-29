@@ -208,16 +208,16 @@ SDCardContent initSDCard() {
   Serial.println("SD Card: Mounted successfully");
 
   // Check for initialization files
+  Serial.println("Required file '/audio/Initialized - Primary.wav' " + 
+    String(audioPlayer->fileExists(SD, "/audio/Initialized - Primary.wav") ? "found." : "missing."));
+  Serial.println("Required file '/audio/Initialized - Secondary.wav' " + 
+    String(audioPlayer->fileExists(SD, "/audio/Initialized - Secondary.wav") ? "found." : "missing."));
+
   if (audioPlayer->fileExists(SD, "/audio/Initialized - Primary.wav")) {
     content.primaryInitAudio = "/audio/Initialized - Primary.wav";
-  } else {
-    Serial.println("SD Card: ERROR: Missing Primary initialization audio file");
   }
-
   if (audioPlayer->fileExists(SD, "/audio/Initialized - Secondary.wav")) {
     content.secondaryInitAudio = "/audio/Initialized - Secondary.wav";
-  } else {
-    Serial.println("SD Card: ERROR: Missing Secondary initialization audio file");
   }
 
   // Process skit files
@@ -227,20 +227,27 @@ SDCardContent initSDCard() {
     return content;
   }
 
+  std::vector<String> skitFiles;
   File file = root.openNextFile();
   while (file) {
     String fileName = file.name();
     if (fileName.startsWith("Skit") && fileName.endsWith(".wav")) {
-      String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-      String txtFileName = baseName + ".txt";
-      if (audioPlayer->fileExists(SD, ("/audio/" + txtFileName).c_str())) {
-        ParsedSkit parsedSkit = audioPlayer->parseSkitFile("/audio/" + fileName, "/audio/" + txtFileName);
-        content.skits.push_back(parsedSkit);
-      } else {
-        Serial.println("SD Card: WARNING: Missing txt file for " + fileName);
-      }
+      skitFiles.push_back(fileName);
     }
     file = root.openNextFile();
+  }
+
+  Serial.println("Processing " + String(skitFiles.size()) + " skits:");
+  for (const auto& fileName : skitFiles) {
+    String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
+    String txtFileName = baseName + ".txt";
+    if (audioPlayer->fileExists(SD, ("/audio/" + txtFileName).c_str())) {
+      ParsedSkit parsedSkit = audioPlayer->parseSkitFile("/audio/" + fileName, "/audio/" + txtFileName);
+      content.skits.push_back(parsedSkit);
+      Serial.println("- Processing skit '" + fileName + "' - success. (" + String(parsedSkit.lines.size()) + " lines)");
+    } else {
+      Serial.println("- Processing skit '" + fileName + "' - WARNING: missing txt file.");
+    }
   }
 
   return content;
