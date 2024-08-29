@@ -10,6 +10,7 @@
 #include <arduinoFFT.h>
 #include <Servo.h>
 #include "esp32-hal-ledc.h"  // Include ESP32 specific PWM library
+#include "servo_controller.h"
 
 struct ParsedSkitLine {
   char speaker;
@@ -62,12 +63,12 @@ public:
   Skit getRandomSkit(const std::vector<Skit>& skits);
   void prepareSkitPlayback(const ParsedSkit& skit);
   bool fileExists(fs::FS& fs, const char* path);
+  void handleBluetoothStateChange(esp_a2d_connection_state_t state);
+
+  void initializeServo(int pin, int minDegrees, int maxDegrees);
+  void setJawPosition(int position);
   int mapRMSToServoPosition(double rms, double silenceThreshold, int servoMinDegrees, int servoMaxDegrees);
   void updateServoPosition(int targetPosition, int servoMinDegrees, int servoMaxDegrees, double alpha, int minMovementThreshold);
-  void setJawPosition(int position);
-  void initializeServo(int servoPin, int minDegrees, int maxDegrees);
-
-  void handleBluetoothStateChange(esp_a2d_connection_state_t state);
 
 private:
   uint8_t* buffer;
@@ -103,18 +104,7 @@ private:
   void processSkitLine();
 
   // New private members for jaw movement
-  double smoothedPosition;
-  double maxObservedRMS;
-  int lastServoPosition;
-
-  // Add these new private members
-  Servo jawServo = Servo();
-  int servoPin;
-  int servoMinDegrees;
-  int servoMaxDegrees;
-  int servoChannel;  // Add this line
-
-  // ... (previous private methods)
+  ServoController servoController;
 };
 
 extern AudioPlayer* audioPlayer;

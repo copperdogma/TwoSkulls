@@ -6,10 +6,7 @@ AudioPlayer::AudioPlayer()
     : FFT(vReal, vImag, SAMPLES, SAMPLE_RATE),
       buffer(nullptr), currentBufferSize(0), shouldPlayNow(false), isPlaying(false),
       m_isPlayingSkit(false), m_currentSkitLine(0), m_skitStartTime(0),
-      m_hasStartedPlaying(false), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false),
-      smoothedPosition(0), maxObservedRMS(0), lastServoPosition(0),
-      servoPin(0), servoMinDegrees(0), servoMaxDegrees(0),
-      jawServo() {}  // Initialize jawServo
+      m_hasStartedPlaying(false), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false) {}
 
 void AudioPlayer::begin() {
     // Initialize audio player
@@ -280,53 +277,8 @@ bool AudioPlayer::fileExists(fs::FS& fs, const char* path) {
   return true;
 }
 
-int AudioPlayer::mapRMSToServoPosition(double rms, double silenceThreshold, int servoMinDegrees, int servoMaxDegrees) {
-  // Check for silence or very low volume
-  if (rms < silenceThreshold) {
-    return servoMinDegrees;  // Close the jaw completely
-  }
-
-  // Update max observed RMS
-  if (rms > maxObservedRMS) {
-    maxObservedRMS = rms;
-  }
-
-  // Normalize RMS to 0-1 range, using the max observed RMS
-  double normalizedRMS = std::min(rms / maxObservedRMS, 1.0);
-
-  // Apply non-linear mapping for more pronounced mouth movement
-  double mappedValue = pow(normalizedRMS, 0.2);  // 0.2 is the MOVE_EXPONENT
-
-  // Increase the minimum jaw opening
-  int minJawOpening = servoMinDegrees + 5;  // 5 degrees minimum opening
-
-  return map(mappedValue * 1000, 0, 1000, minJawOpening, servoMaxDegrees);
-}
-
-void AudioPlayer::updateServoPosition(int targetPosition, int servoMinDegrees, int servoMaxDegrees, double alpha, int minMovementThreshold) {
-    smoothedPosition = alpha * targetPosition + (1 - alpha) * smoothedPosition;
-    int newPosition = round(smoothedPosition);
-    newPosition = constrain(newPosition, servoMinDegrees, servoMaxDegrees);
-
-    if (abs(newPosition - lastServoPosition) > minMovementThreshold) {
-        setJawPosition(newPosition);
-        lastServoPosition = newPosition;
-    }
-}
-
 void AudioPlayer::initializeServo(int pin, int minDegrees, int maxDegrees) {
-    servoPin = pin;
-    servoMinDegrees = minDegrees;
-    servoMaxDegrees = maxDegrees;
-    Serial.printf("Initializing servo on pin %d (min: %d, max: %d)\n", servoPin, servoMinDegrees, servoMaxDegrees);
-    
-    // No need for attach() with this library
-    setJawPosition(servoMinDegrees);
-}
-
-void AudioPlayer::setJawPosition(int position) {
-    position = constrain(position, servoMinDegrees, servoMaxDegrees);
-    jawServo.write(servoPin, position);
+    servoController.initialize(pin, minDegrees, maxDegrees);
 }
 
 void AudioPlayer::handleBluetoothStateChange(esp_a2d_connection_state_t state) {
@@ -334,7 +286,14 @@ void AudioPlayer::handleBluetoothStateChange(esp_a2d_connection_state_t state) {
   // Additional logic as needed
 }
 
-// Remove the following function as it's already defined earlier in the file
-// bool AudioPlayer::isBluetoothConnected() const {
-//   return m_isBluetoothConnected;
-// }
+void AudioPlayer::setJawPosition(int position) {
+    servoController.setPosition(position);
+}
+
+int AudioPlayer::mapRMSToServoPosition(double rms, double silenceThreshold, int servoMinDegrees, int servoMaxDegrees) {
+    return servoController.mapRMSToPosition(rms, silenceThreshold);
+}
+
+void AudioPlayer::updateServoPosition(int targetPosition, int servoMinDegrees, int servoMaxDegrees, double alpha, int minMovementThreshold) {
+    servoController.updatePosition(targetPosition, alpha, minMovementThreshold);
+}

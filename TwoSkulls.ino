@@ -88,14 +88,12 @@ Servo: Power HD HD-1160A
 ISSUES
 
   TODO
-  ** Primary/Secondary init: check for ultrasonic sensor. true=Primary, false=Secondary
   ** Primary/Secondary setup: connect to different bluetooth speakers, play different init file... maybe make struct?
   ** use githib?
   
   ** start overall log to document these issues/components
   ** try ArduinoFFT as simple audio analysis we can use to sync skull jaw motion to audio
   ** make permanent mount for servo in skull
-  ** try using better servo library to control rotation rate for animation.. or see if default library can do it
   ** why is the audio clicking before and after playing
   ** use the Audio Player Class for other functionality like FFT and SD support: https://github.com/pschatzmann/arduino-audio-tools/wiki/The-Audio-Player-Class
 
@@ -103,8 +101,6 @@ ISSUES
   - 20240707: Fixed initialization issue. Finally connected the power directly to the board's 3.3v pin to power it. Before I connected the 3.3 pin to the positive bar on the breadboard and it only worked 1/20 times. Bizarre. Took forever to debug.
   - The pins I am using are NOT what the docs say to use.. Not sure where I got them, but it works. But I also can't see in the setup where I told it to use those pins. But perhaps those are just the standard SPI communication pins for this board?
     - WHY are there NO pins set for the SD carD? Not in here, not in audio_player.cpp/.h... Am I just using the default pins expected by SD.h so we're good? At least doc that.
-
-  ** wire this hardware up more permanently
 
 20231022: Created.
 20231023: Exposed buffer + buffer size so they could be read in loop() by audio analysis code.
@@ -145,9 +141,9 @@ struct SDCardContent {
 SDCardContent sdCardContent;
 
 // Servo
-const int SERVO_PIN = 15;  // Pin number ultrasonic pulse trigger
+const int SERVO_PIN = 15;  // Servo control pin
 const int SERVO_MIN_DEGREES = 0;
-const int SERVO_MAX_DEGREES = 70;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
+const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
 Servo jawServo = Servo();
 
 const unsigned long CONNECTION_CHECK_INTERVAL = 1000;  // Connection check interval in ms
@@ -169,10 +165,6 @@ const double SILENCE_THRESHOLD = 200;  // Higher = vol needs to be louder to be 
 const int MIN_MOVEMENT_THRESHOLD = 3;  // Minimum degree change to move the servo
 const double MOVE_EXPONENT = 0.2;      // 0-1, smaller = more movement
 const double RMS_MAX = 32768.0;        // Maximum possible RMS value for 16-bit audio
-
-// Function prototypes
-int mapRMSToServoPosition(double rms);
-void updateServoPosition(int targetPosition);
 
 const int CHUNKS_NEEDED = 17;  // Number of chunks needed for 100ms (34)
 int chunkCounter = 0;          // Counter for accumulated chunks
