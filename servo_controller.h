@@ -1,24 +1,26 @@
 #ifndef SERVO_CONTROLLER_H
 #define SERVO_CONTROLLER_H
 
-#include <Servo.h> // This complains; I'm actually using the local ESP32_ESP32S2_AnalogWrite library to support the ESP32
+#include <Servo.h>
 
 class ServoController {
-public:
-    ServoController();
-    void initialize(int pin, int minDegrees, int maxDegrees);
-    void setPosition(int position);
-    int mapRMSToPosition(double rms, double silenceThreshold);
-    void updatePosition(int targetPosition, double alpha, int minMovementThreshold);
-
 private:
-    Servo jawServo;
+    Servo servo;
     int servoPin;
-    int servoMinDegrees;
-    int servoMaxDegrees;
+    int currentPosition;
+    int minDegrees;
+    int maxDegrees;
     double smoothedPosition;
     int lastPosition;
     double maxObservedRMS;
+
+public:
+    ServoController();  // Add constructor declaration
+    void initialize(int pin, int minDeg, int maxDeg);
+    void setPosition(int degrees);
+    int getCurrentPosition() const { return currentPosition; }
+    int mapRMSToPosition(double rms, double silenceThreshold);
+    void updatePosition(int targetPosition, double alpha, int minMovementThreshold);
 };
 
 #endif // SERVO_CONTROLLER_H

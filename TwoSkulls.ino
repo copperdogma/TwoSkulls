@@ -98,7 +98,7 @@ ISSUES
   ** use the Audio Player Class for other functionality like FFT and SD support: https://github.com/pschatzmann/arduino-audio-tools/wiki/The-Audio-Player-Class
   ** reconnecting to bluetooth is flaky now that I'm relying on the library's auto-reconnect.. can I poke it?
   ** do a pre-pass on the audio to get max volume so we can peg that at max jaw movement. PER SKULL. Should be doable cuz we can do it on startup and save with the skit/skitline info. So it can be slowish.
-  ** temp: init + read from the Sd card 20 times in a row to see how consistent it is
+  ** SD card flakiness: Did a test where I looped 20 times in a row, and if it doesn't read them all first try it does second or third try. Maybe a verified number and a retry till success?
 
   ** creashing fixes?
     ** Buffer Management: The buffer management in AudioPlayer::_provideAudioFrames could be improved. Consider using a circular buffer or a more efficient memory management strategy.  
@@ -152,9 +152,15 @@ const unsigned long ULTRASONIC_READ_INTERVAL = 300;  // Ultrasonic read interval
 unsigned long lastUltrasonicRead = 0;                // Last time the ultrasonic sensor was read
 
 // Exponential smoothing
-double smoothedPosition = 0;
-double maxObservedRMS = 0;
-bool isJawClosed = false;
+struct AudioState {
+    double smoothedPosition = 0;
+    double maxObservedRMS = 0;
+    bool isJawClosed = true;
+    int chunkCounter = 0;
+};
+
+AudioState audioState;
+
 const double ALPHA = 0.2;              // Smoothing factor; 0-1, lower=smoother
 const double SILENCE_THRESHOLD = 200;  // Higher = vol needs to be louder to be considered "not silence", max 2000?
 const int MIN_MOVEMENT_THRESHOLD = 3;  // Minimum degree change to move the servo
@@ -162,7 +168,6 @@ const double MOVE_EXPONENT = 0.2;      // 0-1, smaller = more movement
 const double RMS_MAX = 32768.0;        // Maximum possible RMS value for 16-bit audio
 
 const int CHUNKS_NEEDED = 17;  // Number of chunks needed for 100ms (34)
-int chunkCounter = 0;          // Counter for accumulated chunks
 
 LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
 
@@ -208,7 +213,7 @@ bool initializeBluetooth() {
   return bluetoothAudio.is_connected();
 }
 
-SkullAudioAnimator* skullAnimator = nullptr;
+std::unique_ptr<SkullAudioAnimator> skullAnimator = nullptr;
 
 void setup() {
   Serial.begin(115200);
@@ -268,7 +273,7 @@ void setup() {
   }
 
   // Initialize SkullAudioAnimator after audioPlayer and servoController are set up
-  skullAnimator = new SkullAudioAnimator(audioPlayer, servoController, isPrimary);
+  skullAnimator.reset(new SkullAudioAnimator(audioPlayer, servoController, isPrimary));
 }
 
 void loop() {
@@ -285,8 +290,43 @@ void loop() {
   audioPlayer->update();
 
   // Update SkullAudioAnimator
-  skullAnimator->update();
+  if (skullAnimator) {
+    skullAnimator->update();
+  }
 
   // Allow other tasks to run
   delay(1);
+}
+
+// Move audio processing to a separate function
+void processAudio(const int16_t* buffer, size_t bufferSize) {
+    if (!buffer || bufferSize == 0) return;
+
+    double rms = 0;
+    for (size_t i = 0; i < bufferSize; i++) {
+        rms += buffer[i] * buffer[i];
+    }
+    rms = sqrt(rms / bufferSize);
+
+    audioState.maxObservedRMS = std::max(audioState.maxObservedRMS, rms);
+
+    if (rms < SILENCE_THRESHOLD) {
+        audioState.smoothedPosition = 0;
+        audioState.isJawClosed = true;
+    } else {
+        double normalizedRMS = rms / RMS_MAX;
+        double targetPosition = pow(normalizedRMS, MOVE_EXPONENT) * SERVO_MAX_DEGREES;
+        audioState.smoothedPosition = ALPHA * targetPosition + (1 - ALPHA) * audioState.smoothedPosition;
+        audioState.isJawClosed = false;
+    }
+
+    audioState.chunkCounter++;
+
+    if (audioState.chunkCounter >= CHUNKS_NEEDED) {
+        int newPosition = round(audioState.smoothedPosition);
+        if (abs(newPosition - servoController.getCurrentPosition()) >= MIN_MOVEMENT_THRESHOLD) {
+            servoController.setPosition(newPosition);
+        }
+        audioState.chunkCounter = 0;
+    }
 }

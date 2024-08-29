@@ -3,39 +3,27 @@
 #include <cmath>
 
 ServoController::ServoController()
-    : servoPin(0), servoMinDegrees(0), servoMaxDegrees(0),
+    : servoPin(-1), currentPosition(0), minDegrees(0), maxDegrees(0),
       smoothedPosition(0), lastPosition(0), maxObservedRMS(0) {}
 
-void ServoController::initialize(int pin, int minDegrees, int maxDegrees) {
+void ServoController::initialize(int pin, int minDeg, int maxDeg) {
     servoPin = pin;
-    servoMinDegrees = minDegrees;
-    servoMaxDegrees = maxDegrees;
-
-    Serial.printf("Initializing servo on pin %d (min: %d, max: %d)\n", servoPin, servoMinDegrees, servoMaxDegrees);
-    jawServo.attach(servoPin);
-
-    Serial.printf("Servo animation init: %d (min) degrees\n", servoMinDegrees);
-    setPosition(servoMinDegrees);
-    Serial.printf("Servo animation init: %d (max) degrees\n", servoMaxDegrees);
-    delay(500);
-    setPosition(servoMaxDegrees);
-    Serial.println("Servo animation init complete; resetting to 0 degrees");
-    delay(500);
-    setPosition(servoMinDegrees);
+    servo.attach(servoPin);
+    minDegrees = minDeg;
+    maxDegrees = maxDeg;
+    currentPosition = minDeg;
+    servo.write(servoPin, currentPosition);
 }
 
-void ServoController::setPosition(int position) {
-    if (position > servoMaxDegrees) { 
-        Serial.printf("WARNING: requested jaw position %d is greater than max degrees %d\n", position, servoMaxDegrees);
-        position = servoMaxDegrees;
-    }
-
-    jawServo.write(servoPin, position);
+void ServoController::setPosition(int degrees) {
+    int constrainedDegrees = constrain(degrees, minDegrees, maxDegrees);
+    servo.write(servoPin, constrainedDegrees);
+    currentPosition = constrainedDegrees;
 }
 
 int ServoController::mapRMSToPosition(double rms, double silenceThreshold) {
     if (rms < silenceThreshold) {
-        return servoMinDegrees;
+        return minDegrees;
     }
 
     if (rms > maxObservedRMS) {
@@ -45,15 +33,15 @@ int ServoController::mapRMSToPosition(double rms, double silenceThreshold) {
     double normalizedRMS = std::min(rms / maxObservedRMS, 1.0);
     double mappedValue = pow(normalizedRMS, 0.2);  // 0.2 is the MOVE_EXPONENT
 
-    int minJawOpening = servoMinDegrees + 5;  // 5 degrees minimum opening
+    int minJawOpening = minDegrees + 5;  // 5 degrees minimum opening
 
-    return map(mappedValue * 1000, 0, 1000, minJawOpening, servoMaxDegrees);
+    return map(mappedValue * 1000, 0, 1000, minJawOpening, maxDegrees);
 }
 
 void ServoController::updatePosition(int targetPosition, double alpha, int minMovementThreshold) {
     smoothedPosition = alpha * targetPosition + (1 - alpha) * smoothedPosition;
     int newPosition = round(smoothedPosition);
-    newPosition = constrain(newPosition, servoMinDegrees, servoMaxDegrees);
+    newPosition = constrain(newPosition, minDegrees, maxDegrees);
 
     if (abs(newPosition - lastPosition) > minMovementThreshold) {
         setPosition(newPosition);

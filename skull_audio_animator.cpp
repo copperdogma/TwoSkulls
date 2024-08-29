@@ -35,24 +35,10 @@ void SkullAudioAnimator::processAudio() {
 }
 
 void SkullAudioAnimator::updateJawPosition(double rms) {
-    if (audioPlayer->isPlayingSkit()) {
-        const ParsedSkit& currentSkit = audioPlayer->getCurrentSkit();
-        if (!currentSkit.lines.empty() && audioPlayer->getCurrentSkitLine() < currentSkit.lines.size()) {
-            const ParsedSkitLine& line = currentSkit.lines[audioPlayer->getCurrentSkitLine()];
-            bool isThisSkullSpeaking = (isPrimary && line.speaker == 'A') || (!isPrimary && line.speaker == 'B');
-            if (isThisSkullSpeaking && line.jawPosition < 0) {
-                int targetPosition = mapRMSToPosition(rms, SILENCE_THRESHOLD);
-                servoController.updatePosition(targetPosition, ALPHA, MIN_MOVEMENT_THRESHOLD);
-            } else if (isThisSkullSpeaking && line.jawPosition >= 0) {
-                int targetPosition = map(line.jawPosition * 100, 0, 100, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-                servoController.setPosition(targetPosition);
-            } else {
-                servoController.setPosition(SERVO_MIN_DEGREES);
-            }
-        }
-    } else {
-        int targetPosition = mapRMSToPosition(rms, SILENCE_THRESHOLD);
-        servoController.updatePosition(targetPosition, ALPHA, MIN_MOVEMENT_THRESHOLD);
+    int targetPosition = servoController.mapRMSToPosition(rms, SILENCE_THRESHOLD);
+    
+    if (abs(targetPosition - servoController.getCurrentPosition()) >= MIN_MOVEMENT_THRESHOLD) {
+        servoController.setPosition(targetPosition);
     }
 }
 
