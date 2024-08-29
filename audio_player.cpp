@@ -281,8 +281,3 @@ bool AudioPlayer::fileExists(fs::FS& fs, const char* path) {
 void AudioPlayer::setJawPosition(int position) {
     m_servoController.setPosition(position);
 }
-
-// Removed methods
-// void AudioPlayer::initializeServo(int pin, int minDegrees, int maxDegrees) { ... }
-// int AudioPlayer::mapRMSToServoPosition(double rms, double silenceThreshold, int servoMinDegrees, int servoMaxDegrees) { ... }
-// void AudioPlayer::updateServoPosition(int targetPosition, int servoMinDegrees, int servoMaxDegrees, double alpha, int minMovementThreshold) { ... }

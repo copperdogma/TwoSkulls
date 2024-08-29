@@ -8,7 +8,6 @@
 #include <vector>
 #include <string>
 #include <arduinoFFT.h>
-#include <Servo.h>
 #include "esp32-hal-ledc.h"  // Include ESP32 specific PWM library
 #include "servo_controller.h"
 
