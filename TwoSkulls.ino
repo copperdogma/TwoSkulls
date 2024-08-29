@@ -162,10 +162,6 @@ const double RMS_MAX = 32768.0;        // Maximum possible RMS value for 16-bit 
 const int CHUNKS_NEEDED = 17;  // Number of chunks needed for 100ms (34)
 int chunkCounter = 0;          // Counter for accumulated chunks
 
-std::vector<int16_t> rawSamples;
-std::vector<double> fftMagnitudes;
-std::vector<int> servoPositions;
-
 LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
 
 bool determinePrimaryRole() {
@@ -219,20 +215,19 @@ void setup() {
 
   lightController.begin();
 
-  // Initialize audioPlayer
   audioPlayer = new AudioPlayer(servoController);
 
   // Determine Primary/Secondary role
   isPrimary = determinePrimaryRole();
   if (isPrimary) {
     lightController.blinkEyes(4);  // Blink eyes 4 times for Primary
+    
+    // Initialize ultrasonic sensor only if Primary
+    if (distanceSensor == nullptr) {
+      distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
+    }
   } else {
     lightController.blinkEyes(2);  // Blink eyes twice for Secondary
-  }
-
-  // Initialize ultrasonic sensor only if Primary
-  if (isPrimary && distanceSensor == nullptr) {
-    distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
   }
 
   initializeBluetooth();
@@ -264,6 +259,7 @@ void setup() {
   ParsedSkit namesSkit = audioPlayer->findSkitByName(sdCardContent.skits, "Skit - names");
   if (namesSkit.audioFile != "" && namesSkit.txtFile != "") {
     // Queue the "Skit - names" skit to play next
+    Serial.println("'Skit - names' found; playing next.");
     audioPlayer->playSkitNext(namesSkit);
   } else {
     Serial.println("'Skit - names' not found.");
