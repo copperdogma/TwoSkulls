@@ -29,41 +29,47 @@ void AudioPlayer::startPlaying(const char* filePath) {
   }
 }
 
+int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
+    // This static method should call the instance method
+    if (audioPlayer) {
+        return audioPlayer->_provideAudioFrames(frame, frame_count);
+    }
+    return 0;
+}
+
 int32_t AudioPlayer::_provideAudioFrames(Frame* frame, int32_t frame_count) {
-  if (!isPlaying) return 0;
+    // Implement this method to provide audio data to the Bluetooth A2DP source
+    // Return the number of frames written
+    if (!isPlaying) return 0;
 
-  if (!currentAudioFile) {
-    Serial.println("_provideAudioFrames: currentAudioFile not ready. Exitting early to await data.");
-    return 0;
-  }
+    if (!currentAudioFile) {
+        Serial.println("_provideAudioFrames: currentAudioFile not ready. Exiting early to await data.");
+        return 0;
+    }
 
-  // Determine the required buffer size
-  size_t requiredSize = frame_count * 2 * 2;  // Stereo, 2 channels
-  if (requiredSize != currentBufferSize) {
-    delete[] buffer;                     // Free the old buffer
-    buffer = new uint8_t[requiredSize];  // Allocate a new buffer
-    currentBufferSize = requiredSize;    // Update the current buffer size
-  }
+    // Determine the required buffer size
+    size_t requiredSize = frame_count * 2 * 2;  // Stereo, 2 channels
+    if (requiredSize != currentBufferSize) {
+        delete[] buffer;                     // Free the old buffer
+        buffer = new uint8_t[requiredSize];  // Allocate a new buffer
+        currentBufferSize = requiredSize;    // Update the current buffer size
+    }
 
-  size_t bytesRead = currentAudioFile.read(buffer, currentBufferSize);
+    size_t bytesRead = currentAudioFile.read(buffer, currentBufferSize);
 
-  if (bytesRead < 1) {
-    //Serial.println("_provideAudioFrames: No bytes read. Exitting early to await data.");
-    isPlaying = false;
-    return 0;
-  }
+    if (bytesRead < 1) {
+        isPlaying = false;
+        return 0;
+    }
 
-  isPlaying = true;
+    isPlaying = true;
 
-  size_t currentFilePos = currentAudioFile.position();
-  size_t totalFileSize = currentAudioFile.size();
+    for (int i = 0, j = 0; i < bytesRead; i += 4, ++j) {
+        frame[j].channel1 = (buffer[i + 1] << 8) | buffer[i];
+        frame[j].channel2 = (buffer[i + 3] << 8) | buffer[i + 2];
+    }
 
-  for (int i = 0, j = 0; i < bytesRead; i += 4, ++j) {
-    frame[j].channel1 = (buffer[i + 1] << 8) | buffer[i];
-    frame[j].channel2 = (buffer[i + 3] << 8) | buffer[i + 2];
-  }
-
-  return bytesRead / 4;
+    return bytesRead / 4;
 }
 
 bool AudioPlayer::hasFinishedPlaying() {
@@ -87,8 +93,40 @@ bool AudioPlayer::isCurrentlyPlaying() {
   return isPlaying;
 }
 
-int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
-  return audioPlayer->_provideAudioFrames(frame, frame_count);
+void AudioPlayer::playSkitNext(const ParsedSkit& skit) {
+    m_currentSkit = skit;
+    m_isPlayingSkit = true;
+    m_currentSkitLine = 0;
+    m_skitStartTime = 0;  // Will be set when audio actually starts
+    playNext(skit.audioFile.c_str());
+}
+
+bool AudioPlayer::isPlayingSkit() const {
+    return m_isPlayingSkit;
+}
+
+const ParsedSkit& AudioPlayer::getCurrentSkit() const {
+    return m_currentSkit;
+}
+
+size_t AudioPlayer::getCurrentSkitLine() const {
+    return m_currentSkitLine;
+}
+
+bool AudioPlayer::hasStartedPlaying() const {
+    return m_hasStartedPlaying;
+}
+
+bool AudioPlayer::isBluetoothConnected() const {
+    return m_isBluetoothConnected;
+}
+
+void AudioPlayer::setBluetoothConnected(bool connected) {
+    m_isBluetoothConnected = connected;
+}
+
+void AudioPlayer::setAudioReadyToPlay(bool ready) {
+    m_isAudioReadyToPlay = ready;
 }
 
 void AudioPlayer::update() {
@@ -102,6 +140,25 @@ void AudioPlayer::update() {
       Serial.printf("AudioPlayer: Playing next queued file: %s\n", nextAudioFile);
       startPlaying(nextAudioFile);  // Play the file at the front of the queue
       audioQueue.pop();             // Remove the played file from the queue
+    }
+  }
+
+  if (m_isPlayingSkit && m_hasStartedPlaying) {
+    if (m_skitStartTime == 0) {
+      m_skitStartTime = millis();
+    }
+
+    unsigned long currentTime = millis() - m_skitStartTime;
+
+    while (m_currentSkitLine < m_currentSkit.lines.size() && 
+           currentTime >= m_currentSkit.lines[m_currentSkitLine].timestamp) {
+      // Process current skit line
+      // ... (implement skit line processing here)
+      m_currentSkitLine++;
+    }
+
+    if (m_currentSkitLine >= m_currentSkit.lines.size()) {
+      m_isPlayingSkit = false;
     }
   }
 }

@@ -5,6 +5,23 @@
 #include "BluetoothA2DPSource.h"
 #include "FS.h"
 #include "SD.h"
+#include <vector>
+#include <string>
+
+struct ParsedSkitLine {
+  char speaker;
+  unsigned long timestamp;
+  unsigned long duration;
+  float jawPosition;
+};
+
+struct ParsedSkit {
+  String audioFile;
+  String txtFile;
+  std::vector<ParsedSkitLine> lines;
+};
+
+typedef ParsedSkit Skit; // Add this line to create an alias for ParsedSkit
 
 class AudioPlayer;
 extern AudioPlayer* audioPlayer;
@@ -17,6 +34,13 @@ private:
   File currentAudioFile;
   bool shouldPlayNow = false;
   volatile bool isPlaying = false;
+  bool m_isPlayingSkit;
+  ParsedSkit m_currentSkit;
+  size_t m_currentSkitLine;
+  unsigned long m_skitStartTime;
+  bool m_hasStartedPlaying;
+  bool m_isBluetoothConnected;
+  bool m_isAudioReadyToPlay;
 
   void lock();
   void unlock();
@@ -33,5 +57,13 @@ public:
   bool isCurrentlyPlaying();
   static int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
   void update();
+  void playSkitNext(const ParsedSkit& skit);
+  bool isPlayingSkit() const;
+  const ParsedSkit& getCurrentSkit() const;
+  size_t getCurrentSkitLine() const;
+  bool hasStartedPlaying() const;
+  bool isBluetoothConnected() const;
+  void setBluetoothConnected(bool connected);
+  void setAudioReadyToPlay(bool ready);
 };
 #endif  // AUDIO_PLAYER_H
