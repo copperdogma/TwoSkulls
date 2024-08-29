@@ -2,11 +2,12 @@
 #include <cmath>
 #include <algorithm>
 
-AudioPlayer::AudioPlayer() 
+AudioPlayer::AudioPlayer(ServoController& servoController) 
     : FFT(vReal, vImag, SAMPLES, SAMPLE_RATE),
       buffer(nullptr), currentBufferSize(0), shouldPlayNow(false), isPlaying(false),
       m_isPlayingSkit(false), m_currentSkitLine(0), m_skitStartTime(0),
-      m_hasStartedPlaying(false), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false) {}
+      m_hasStartedPlaying(false), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false),
+      m_servoController(servoController) {}  // Initialize m_servoController
 
 void AudioPlayer::begin() {
     // Initialize audio player
@@ -277,23 +278,14 @@ bool AudioPlayer::fileExists(fs::FS& fs, const char* path) {
   return true;
 }
 
-void AudioPlayer::initializeServo(int pin, int minDegrees, int maxDegrees) {
-    servoController.initialize(pin, minDegrees, maxDegrees);
-}
-
-void AudioPlayer::handleBluetoothStateChange(esp_a2d_connection_state_t state) {
-  m_isBluetoothConnected = (state == ESP_A2D_CONNECTION_STATE_CONNECTED);
-  // Additional logic as needed
-}
-
 void AudioPlayer::setJawPosition(int position) {
-    servoController.setPosition(position);
+    m_servoController.setPosition(position);
 }
 
 int AudioPlayer::mapRMSToServoPosition(double rms, double silenceThreshold, int servoMinDegrees, int servoMaxDegrees) {
-    return servoController.mapRMSToPosition(rms, silenceThreshold);
+    return m_servoController.mapRMSToPosition(rms, silenceThreshold);
 }
 
 void AudioPlayer::updateServoPosition(int targetPosition, int servoMinDegrees, int servoMaxDegrees, double alpha, int minMovementThreshold) {
-    servoController.updatePosition(targetPosition, alpha, minMovementThreshold);
+    m_servoController.updatePosition(targetPosition, alpha, minMovementThreshold);
 }

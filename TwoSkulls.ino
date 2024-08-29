@@ -117,6 +117,7 @@ ISSUES
 #include <HCSR04.h>
 #include "audio_player.h"
 #include "light_controller.h"
+#include "servo_controller.h"
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
 
@@ -142,7 +143,7 @@ SDCardContent sdCardContent;
 const int SERVO_PIN = 15;  // Servo control pin
 const int SERVO_MIN_DEGREES = 0;
 const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
-Servo jawServo = Servo();
+ServoController servoController;
 
 const unsigned long ULTRASONIC_READ_INTERVAL = 300;  // Ultrasonic read interval in ms
 unsigned long lastUltrasonicRead = 0;                // Last time the ultrasonic sensor was read
@@ -241,7 +242,7 @@ SDCardContent initSDCard() {
   return content;
 }
 
-AudioPlayer* audioPlayer = new AudioPlayer();
+AudioPlayer* audioPlayer = new AudioPlayer(servoController);
 bluetooth_audio bluetoothAudio;
 
 // Add these lines near the top of the file, with other global declarations
@@ -281,7 +282,7 @@ void setup() {
   initializeBluetooth();
 
   // Initialize servo
-  audioPlayer->initializeServo(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+  servoController.initialize(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
   // SD Card initialization
   bool sdCardInitialized;

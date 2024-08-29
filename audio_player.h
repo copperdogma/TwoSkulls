@@ -38,7 +38,7 @@ public:
   static const int SAMPLES = 256;
   static const int SAMPLE_RATE = 44100;
 
-  AudioPlayer();
+  AudioPlayer(ServoController& servoController);  // Modified constructor
   void begin();
   void update();
   uint8_t* getCurrentAudioBuffer();
@@ -104,7 +104,7 @@ private:
   void processSkitLine();
 
   // New private members for jaw movement
-  ServoController servoController;
+  ServoController& m_servoController;  // Reference to ServoController
 };
 
 extern AudioPlayer* audioPlayer;
