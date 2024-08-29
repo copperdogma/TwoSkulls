@@ -10,9 +10,17 @@ void ServoController::initialize(int pin, int minDegrees, int maxDegrees) {
     servoPin = pin;
     servoMinDegrees = minDegrees;
     servoMaxDegrees = maxDegrees;
+
     Serial.printf("Initializing servo on pin %d (min: %d, max: %d)\n", servoPin, servoMinDegrees, servoMaxDegrees);
-    
     jawServo.attach(servoPin);
+
+    Serial.printf("Servo animation init: %d (min) degrees\n", servoMinDegrees);
+    setPosition(servoMinDegrees);
+    Serial.printf("Servo animation init: %d (max) degrees\n", servoMaxDegrees);
+    delay(500);
+    setPosition(servoMaxDegrees);
+    Serial.println("Servo animation init complete; resetting to 0 degrees");
+    delay(500);
     setPosition(servoMinDegrees);
 }
 

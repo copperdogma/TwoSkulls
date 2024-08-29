@@ -117,7 +117,7 @@ ISSUES
 #include <HCSR04.h>
 #include "audio_player.h"
 
-#include <Servo.h> // This complains; I'm actually using the local ESP32_ESP32S2_AnalogWrite library to support the ESP32
+#include <Servo.h>  // This complains; I'm actually using the local ESP32_ESP32S2_AnalogWrite library to support the ESP32
 #include "light_controller.h"
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
@@ -290,16 +290,7 @@ void setup() {
   initializeBluetooth();
 
   // Initialize servo
-  Serial.println("Initializing servo");
   audioPlayer->initializeServo(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-  Serial.printf("Servo animation init: %d (min) degrees\n", SERVO_MIN_DEGREES);  // 0
-  audioPlayer->setJawPosition(SERVO_MIN_DEGREES);
-  Serial.printf("Servo animation init: %d (max) degrees\n", SERVO_MAX_DEGREES);  // 70
-  delay(500);
-  audioPlayer->setJawPosition(SERVO_MAX_DEGREES);
-  Serial.println("Servo animation init complete; resetting to 0 degrees");
-  delay(500);
-  audioPlayer->setJawPosition(SERVO_MIN_DEGREES);
 
   // SD Card initialization
   bool sdCardInitialized;
