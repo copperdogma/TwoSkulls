@@ -18,12 +18,12 @@ void SkullAudioAnimator::update() {
 }
 
 void SkullAudioAnimator::processAudio() {
-    uint8_t* audioBuffer = audioPlayer->getCurrentAudioBuffer();
+    const uint8_t* audioBuffer = audioPlayer->getCurrentAudioBuffer();
     size_t audioBufferSize = audioPlayer->getCurrentAudioBufferSize();
 
     for (size_t offset = 0; offset < audioBufferSize; offset += AudioPlayer::SAMPLES * 2) {
         std::vector<int16_t> samples(AudioPlayer::SAMPLES);
-        for (int i = 0; i < AudioPlayer::SAMPLES && (offset + i * 2 + 1) < audioBufferSize; i++) {
+        for (size_t i = 0; i < AudioPlayer::SAMPLES && (offset + i * 2 + 1) < audioBufferSize; ++i) {
             samples[i] = (audioBuffer[offset + i * 2 + 1] << 8) | audioBuffer[offset + i * 2];
         }
 

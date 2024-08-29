@@ -198,7 +198,7 @@ bool determinePrimaryRole() {
   }
 }
 
-SDCardManager* sdCardManager;
+SDCardManager* sdCardManager = nullptr;
 
 bool isPrimary = false;
 const char* BLUETOOTH_SPEAKER_NAME = "JBL Flip 5";  // Replace with your actual speaker name
@@ -213,7 +213,7 @@ bool initializeBluetooth() {
   return bluetoothAudio.is_connected();
 }
 
-std::unique_ptr<SkullAudioAnimator> skullAnimator = nullptr;
+SkullAudioAnimator* skullAnimator = nullptr;
 
 void setup() {
   Serial.begin(115200);
@@ -230,7 +230,7 @@ void setup() {
     lightController.blinkEyes(4);  // Blink eyes 4 times for Primary
     
     // Initialize ultrasonic sensor only if Primary
-    if (distanceSensor == nullptr) {
+    if (!distanceSensor) {
       distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
     }
   } else {
@@ -273,7 +273,7 @@ void setup() {
   }
 
   // Initialize SkullAudioAnimator after audioPlayer and servoController are set up
-  skullAnimator.reset(new SkullAudioAnimator(audioPlayer, servoController, isPrimary));
+  skullAnimator = new SkullAudioAnimator(audioPlayer, servoController, isPrimary);
 }
 
 void loop() {
@@ -303,12 +303,12 @@ void processAudio(const int16_t* buffer, size_t bufferSize) {
     if (!buffer || bufferSize == 0) return;
 
     double rms = 0;
-    for (size_t i = 0; i < bufferSize; i++) {
+    for (size_t i = 0; i < bufferSize; ++i) {
         rms += buffer[i] * buffer[i];
     }
     rms = sqrt(rms / bufferSize);
 
-    audioState.maxObservedRMS = std::max(audioState.maxObservedRMS, rms);
+    audioState.maxObservedRMS = max(audioState.maxObservedRMS, rms);
 
     if (rms < SILENCE_THRESHOLD) {
         audioState.smoothedPosition = 0;
@@ -329,4 +329,12 @@ void processAudio(const int16_t* buffer, size_t bufferSize) {
         }
         audioState.chunkCounter = 0;
     }
+}
+
+// Add this function to clean up resources
+void cleanup() {
+    delete distanceSensor;
+    delete sdCardManager;
+    delete skullAnimator;
+    delete audioPlayer;
 }

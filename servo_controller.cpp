@@ -18,7 +18,7 @@ void ServoController::initialize(int pin, int minDeg, int maxDeg) {
 void ServoController::setPosition(int degrees) {
     int constrainedDegrees = constrain(degrees, minDegrees, maxDegrees);
     servo.write(servoPin, constrainedDegrees);
-    currentPosition = constrainedDegrees;
+    currentPosition.store(constrainedDegrees, std::memory_order_relaxed);
 }
 
 int ServoController::mapRMSToPosition(double rms, double silenceThreshold) {
@@ -39,12 +39,16 @@ int ServoController::mapRMSToPosition(double rms, double silenceThreshold) {
 }
 
 void ServoController::updatePosition(int targetPosition, double alpha, int minMovementThreshold) {
-    smoothedPosition = alpha * targetPosition + (1 - alpha) * smoothedPosition;
-    int newPosition = round(smoothedPosition);
+    double current = smoothedPosition.load(std::memory_order_relaxed);
+    double updated = alpha * targetPosition + (1 - alpha) * current;
+    smoothedPosition.store(updated, std::memory_order_relaxed);
+
+    int newPosition = round(updated);
     newPosition = constrain(newPosition, minDegrees, maxDegrees);
 
-    if (abs(newPosition - lastPosition) > minMovementThreshold) {
+    int last = lastPosition.load(std::memory_order_relaxed);
+    if (abs(newPosition - last) > minMovementThreshold) {
         setPosition(newPosition);
-        lastPosition = newPosition;
+        lastPosition.store(newPosition, std::memory_order_relaxed);
     }
 }
