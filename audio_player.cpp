@@ -2,6 +2,45 @@
 #include "file_manager.h"
 #include <cmath>
 #include <algorithm>
+#include <Arduino.h>
+#include <esp_task_wdt.h>  // Include ESP32 watchdog timer library
+
+// Define __guard type
+typedef int __guard __attribute__((mode(__DI__)));
+
+// Function to capture stack trace (placeholder)
+void captureStackTrace() {
+  Serial.println("Capturing stack trace...");
+  // Implement platform-specific stack trace capture here
+  // For example, you can print the values of important registers
+}
+
+// Custom error handler
+void customErrorHandler(const char* errorMessage) {
+  Serial.println(errorMessage);
+  captureStackTrace();
+  while (1);  // Halt the system
+}
+
+// Override the default abort function to capture the stack trace
+extern "C" void __cxa_pure_virtual() {
+  customErrorHandler("Pure virtual function called!");
+}
+
+// Move these definitions to a single location, e.g., TwoSkulls.ino
+/*
+extern "C" void __cxa_guard_abort() {
+  customErrorHandler("Guard abort!");
+}
+
+extern "C" int __cxa_guard_acquire(__guard* g) {
+  return !*(char*)(g);
+}
+
+extern "C" void __cxa_guard_release(__guard* g) {
+  *(char*)g = 1;
+}
+*/
 
 AudioPlayer::AudioPlayer(ServoController& servoController) 
     : FFT(vReal, vImag, SAMPLES, SAMPLE_RATE),
@@ -121,52 +160,75 @@ int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
     return 0;
 }
 
+// Add detailed debug prints in critical sections
 void AudioPlayer::startPlaying(const char* filePath) {
-    if (currentAudioFile && strcmp(currentAudioFile.name(), filePath) == 0) {
-        return;
-    }
-    currentAudioFile.close();
-    currentAudioFile = FileManager::openFile(filePath);
-    isPlaying = currentAudioFile;
-    m_reachedEndOfFile = false;  // Reset this flag when starting a new file
-    if (!isPlaying) {
-        Serial.printf("Failed to open file: %s\n", filePath);
-    }
+  Serial.printf("startPlaying: Attempting to play file: %s\n", filePath);
+  if (currentAudioFile && strcmp(currentAudioFile.name(), filePath) == 0) {
+    Serial.println("startPlaying: File is already playing.");
+    return;
+  }
+  currentAudioFile.close();
+  currentAudioFile = FileManager::openFile(filePath);
+  isPlaying = currentAudioFile;
+  m_reachedEndOfFile = false;  // Reset this flag when starting a new file
+  if (!isPlaying) {
+    Serial.printf("startPlaying: Failed to open file: %s\n", filePath);
+  } else {
+    Serial.printf("startPlaying: Successfully opened file: %s\n", filePath);
+  }
 }
 
 int32_t AudioPlayer::_provideAudioFrames(Frame* frame, int32_t frame_count) {
-    if (m_reachedEndOfFile) {
-        return 0;  // Don't keep trying to read if we've reached the end
+  static bool lastIsPlaying = false;
+  static const char* lastFileName = nullptr;
+
+  if (!isPlaying || !currentAudioFile) {
+    Serial.println("_provideAudioFrames: Not playing or currentAudioFile not ready. Exiting early.");
+    return 0;
+  }
+
+  // Print debug message only when the state changes
+  if (isPlaying != lastIsPlaying || currentAudioFile.name() != lastFileName) {
+    Serial.printf("AudioPlayer: Providing audio frames. isPlaying: %d, currentAudioFile: %s\n", isPlaying, currentAudioFile.name());
+    lastIsPlaying = isPlaying;
+    lastFileName = currentAudioFile.name();
+  }
+
+  if (m_reachedEndOfFile) {
+    Serial.println("_provideAudioFrames: Reached end of file. Exiting.");
+    isPlaying = false;
+    // Check if there is another file in the queue to play
+    if (!audioQueue.empty()) {
+      const char* nextAudioFile = audioQueue.front().c_str();
+      Serial.printf("AudioPlayer: Playing next queued file: %s\n", nextAudioFile);
+      startPlaying(nextAudioFile);
+      audioQueue.pop();
     }
+    return 0;  // Don't keep trying to read if we've reached the end
+  }
 
-    if (!isPlaying || !currentAudioFile) {
-        m_reachedEndOfFile = true;  // Mark as reached end if not playing or file not open
-        Serial.println("_provideAudioFrames: Not playing or currentAudioFile not ready. Exiting early.");
-        return 0;
-    }
+  size_t requiredSize = frame_count * 4;  // Stereo, 2 channels, 2 bytes per sample
+  if (requiredSize != currentBufferSize) {
+    delete[] buffer;
+    buffer = new uint8_t[requiredSize];
+    currentBufferSize = requiredSize;
+  }
 
-    size_t requiredSize = frame_count * 4;  // Stereo, 2 channels, 2 bytes per sample
-    if (requiredSize != currentBufferSize) {
-        delete[] buffer;
-        buffer = new uint8_t[requiredSize];
-        currentBufferSize = requiredSize;
-    }
+  size_t bytesRead = FileManager::readFileBytes(currentAudioFile, buffer, currentBufferSize);
 
-    size_t bytesRead = FileManager::readFileBytes(currentAudioFile, buffer, currentBufferSize);
+  if (bytesRead < 1) {
+    isPlaying = false;
+    m_reachedEndOfFile = true;
+    Serial.println("Reached end of audio file.");
+    return 0;
+  }
 
-    if (bytesRead < 1) {
-        isPlaying = false;
-        m_reachedEndOfFile = true;
-        Serial.println("Reached end of audio file.");
-        return 0;
-    }
+  for (int i = 0, j = 0; i < bytesRead; i += 4, ++j) {
+    frame[j].channel1 = (buffer[i + 1] << 8) | buffer[i];
+    frame[j].channel2 = (buffer[i + 3] << 8) | buffer[i + 2];
+  }
 
-    for (int i = 0, j = 0; i < bytesRead; i += 4, ++j) {
-        frame[j].channel1 = (buffer[i + 1] << 8) | buffer[i];
-        frame[j].channel2 = (buffer[i + 3] << 8) | buffer[i + 2];
-    }
-
-    return bytesRead / 4;
+  return bytesRead / 4;
 }
 
 bool AudioPlayer::hasFinishedPlaying() {
