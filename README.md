@@ -101,6 +101,9 @@ ISSUES
   ** reconnecting to bluetooth is flaky now that I'm relying on the library's auto-reconnect.. can I poke it?
   ** do a pre-pass on the audio to get max volume so we can peg that at max jaw movement. PER SKULL. Should be doable cuz we can do it on startup and save with the skit/skitline info. So it can be slowish.
   ** SD card flakiness: Did a test where I looped 20 times in a row, and if it doesn't read them all first try it does second or third try. Maybe a verified number and a retry till success?
+    ** SD: keep re-reading card until we get all 9 skits (store number of skits in a dedicated SD card file)
+  ** MVP: work on the skull only speaking/animating its OWN lines
+  ** CRASHING
 
   ** creashing fixes?
     ** Buffer Management: The buffer management in AudioPlayer::_provideAudioFrames could be improved. Consider using a circular buffer or a more efficient memory management strategy.  

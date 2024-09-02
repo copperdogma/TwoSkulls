@@ -100,7 +100,9 @@ bool initializeBluetooth() {
   audioPlayer->setAudioReadyToPlay(false);
   bluetoothAudio.begin(BLUETOOTH_SPEAKER_NAME, AudioPlayer::provideAudioFrames);
   bluetoothAudio.set_volume(100);
-  return bluetoothAudio.is_connected();
+  bool connected = bluetoothAudio.is_connected();
+  Serial.printf("Bluetooth connected: %d\n", connected);
+  return connected;
 }
 
 SkullAudioAnimator* skullAnimator = nullptr;
@@ -145,8 +147,17 @@ void setup() {
     delay(500);
   }
 
+  if (!sdCardInitialized) {
+    Serial.println("SD Card initialization failed. Halting setup.");
+    return;
+  }
+
   // Load SD card content
   sdCardContent = sdCardManager->loadContent();
+  if (sdCardContent.skits.empty()) {
+    Serial.println("No skits found on SD card. Halting setup.");
+    return;
+  }
 
   // Announce "System initialized" and role
   Serial.printf("Playing initialization audio\n");
@@ -177,7 +188,9 @@ void loop() {
   }
 
   // Update audio player and process any queued audio
-  audioPlayer->update();
+  if (audioPlayer) {
+    audioPlayer->update();
+  }
 
   // Update SkullAudioAnimator
   if (skullAnimator) {
@@ -219,12 +232,28 @@ void processAudio(const int16_t* buffer, size_t bufferSize) {
         }
         audioState.chunkCounter = 0;
     }
+
+    // Add debug print
+    Serial.printf("Processed audio: RMS=%.2f, smoothedPosition=%.2f, isJawClosed=%d\n", rms, audioState.smoothedPosition, audioState.isJawClosed);
 }
 
 // Add this function to clean up resources
 void cleanup() {
     delete distanceSensor;
+    distanceSensor = nullptr;
     delete sdCardManager;
+    sdCardManager = nullptr;
     delete skullAnimator;
+    skullAnimator = nullptr;
     delete audioPlayer;
+    audioPlayer = nullptr;
+    Serial.println("Resources cleaned up.");
+}
+
+// Add function to monitor free memory
+void printFreeMemory() {
+    extern int __heap_start, *__brkval;
+    int v;
+    int freeMemory = (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
+    Serial.printf("Free memory: %d bytes\n", freeMemory);
 }
