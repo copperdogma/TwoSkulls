@@ -8,15 +8,15 @@
 #include <vector>
 #include <tuple>
 #include "bluetooth_audio.h"
-#include "FS.h"
-#include "SD.h"
-#include <HCSR04.h>
+#include "FS.h"  // Ensure ESP32 board package is installed
+#include "SD.h"  // Ensure ESP32 board package is installed
+#include <HCSR04.h>  // Install HCSR04 library via Arduino Library Manager
 #include "audio_player.h"
 #include "light_controller.h"
 #include "servo_controller.h"
 #include "sd_card_manager.h"
 #include "skull_audio_animator.h"
-#include </Users/cam/Library/Arduino15/libraries/Servo/src/Servo.h>
+#include </Users/cam/Library/Arduino15/libraries/Servo/src/Servo.h>  // Ensure Servo library is installed
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
 
@@ -96,6 +96,10 @@ AudioPlayer* audioPlayer = nullptr;  // We'll initialize this later
 bluetooth_audio bluetoothAudio;  // Declare the bluetoothAudio object
 
 bool initializeBluetooth() {
+  if (!audioPlayer) {
+    Serial.println("Error: audioPlayer is not initialized.");
+    return false;
+  }
   audioPlayer->setBluetoothConnected(false);
   audioPlayer->setAudioReadyToPlay(false);
   bluetoothAudio.begin(BLUETOOTH_SPEAKER_NAME, AudioPlayer::provideAudioFrames);
@@ -111,6 +115,11 @@ void setup() {
   Serial.begin(115200);
 
   Serial.println("\n\n\n\n\n\nStarting setup ... ");
+
+  // Enable watchdog timer with a timeout of 8 seconds
+  esp_task_wdt_init(8, true);  // Enable panic so ESP32 restarts
+  esp_task_wdt_add(NULL);  // Add current thread to WDT watch
+
 
   lightController.begin();
 
@@ -181,10 +190,14 @@ void loop() {
   unsigned long currentMillis = millis();
   static unsigned long lastMillis = 0;
 
+  // Reset the watchdog timer
+  esp_task_wdt_reset();
+
   // Every 1000ms output "loop() running"
   if (currentMillis - lastMillis >= 1000) {
     Serial.printf("%d loop() running\n", currentMillis);
     lastMillis = currentMillis;
+    printFreeMemory();  // Monitor free memory
   }
 
   // Update audio player and process any queued audio
@@ -252,8 +265,6 @@ void cleanup() {
 
 // Add function to monitor free memory
 void printFreeMemory() {
-    extern int __heap_start, *__brkval;
-    int v;
-    int freeMemory = (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
-    Serial.printf("Free memory: %d bytes\n", freeMemory);
+    size_t freeHeap = ESP.getFreeHeap();
+    Serial.printf("Free memory: %d bytes\n", freeHeap);
 }
