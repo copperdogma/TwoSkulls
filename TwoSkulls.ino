@@ -16,7 +16,10 @@
 #include "servo_controller.h"
 #include "sd_card_manager.h"
 #include "skull_audio_animator.h"
-#include </Users/cam/Library/Arduino15/libraries/Servo/src/Servo.h>  // Ensure Servo library is installed
+#include <Servo.h>  // Use ESP32-specific Servo library
+#include "esp_system.h"
+#include "esp_task_wdt.h"
+#include "esp32-hal-log.h"
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
 
@@ -111,6 +114,30 @@ bool initializeBluetooth() {
 
 SkullAudioAnimator* skullAnimator = nullptr;
 
+void custom_crash_handler() {
+  Serial.println("Crash detected!");
+  Serial.printf("Free memory at crash: %d bytes\n", ESP.getFreeHeap());
+  
+  // Print some basic debug info
+  esp_chip_info_t chip_info;
+  esp_chip_info(&chip_info);
+  Serial.printf("ESP32 Chip Revision: %d\n", chip_info.revision);
+  Serial.printf("CPU Cores: %d\n", chip_info.cores);
+  Serial.printf("Flash Size: %d MB\n", spi_flash_get_chip_size() / (1024 * 1024));
+  
+  // Print last error
+  Serial.printf("Last error: %s\n", esp_err_to_name(esp_get_minimum_free_heap_size()));
+  
+  // Flush serial output
+  Serial.flush();
+  
+  // Wait a bit before restarting
+  delay(1000);
+  
+  // Restart the ESP32
+  esp_restart();
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -120,6 +147,8 @@ void setup() {
   esp_task_wdt_init(8, true);  // Enable panic so ESP32 restarts
   esp_task_wdt_add(NULL);  // Add current thread to WDT watch
 
+  // Register custom crash handler
+  esp_register_shutdown_handler((shutdown_handler_t)custom_crash_handler);
 
   lightController.begin();
 
@@ -189,15 +218,25 @@ void setup() {
 void loop() {
   unsigned long currentMillis = millis();
   static unsigned long lastMillis = 0;
+  static unsigned long lastMemoryCheck = 0;
 
   // Reset the watchdog timer
   esp_task_wdt_reset();
 
-  // Every 1000ms output "loop() running"
+  // Every 1000ms output "loop() running" and check memory
   if (currentMillis - lastMillis >= 1000) {
     Serial.printf("%d loop() running\n", currentMillis);
     lastMillis = currentMillis;
     printFreeMemory();  // Monitor free memory
+  }
+
+  // Check memory every 100ms
+  if (currentMillis - lastMemoryCheck >= 100) {
+    size_t freeHeap = ESP.getFreeHeap();
+    if (freeHeap < 10000) {  // Adjust this threshold as needed
+      Serial.printf("WARNING: Low memory: %d bytes\n", freeHeap);
+    }
+    lastMemoryCheck = currentMillis;
   }
 
   // Update audio player and process any queued audio
@@ -212,55 +251,6 @@ void loop() {
 
   // Allow other tasks to run
   delay(1);
-}
-
-// Move audio processing to a separate function
-void processAudio(const int16_t* buffer, size_t bufferSize) {
-    if (!buffer || bufferSize == 0) return;
-
-    double rms = 0;
-    for (size_t i = 0; i < bufferSize; ++i) {
-        rms += buffer[i] * buffer[i];
-    }
-    rms = sqrt(rms / bufferSize);
-
-    audioState.maxObservedRMS = max(audioState.maxObservedRMS, rms);
-
-    if (rms < SILENCE_THRESHOLD) {
-        audioState.smoothedPosition = 0;
-        audioState.isJawClosed = true;
-    } else {
-        double normalizedRMS = rms / RMS_MAX;
-        double targetPosition = pow(normalizedRMS, MOVE_EXPONENT) * SERVO_MAX_DEGREES;
-        audioState.smoothedPosition = ALPHA * targetPosition + (1 - ALPHA) * audioState.smoothedPosition;
-        audioState.isJawClosed = false;
-    }
-
-    audioState.chunkCounter++;
-
-    if (audioState.chunkCounter >= CHUNKS_NEEDED) {
-        int newPosition = round(audioState.smoothedPosition);
-        if (abs(newPosition - servoController.getCurrentPosition()) >= MIN_MOVEMENT_THRESHOLD) {
-            servoController.setPosition(newPosition);
-        }
-        audioState.chunkCounter = 0;
-    }
-
-    // Add debug print
-    Serial.printf("Processed audio: RMS=%.2f, smoothedPosition=%.2f, isJawClosed=%d\n", rms, audioState.smoothedPosition, audioState.isJawClosed);
-}
-
-// Add this function to clean up resources
-void cleanup() {
-    delete distanceSensor;
-    distanceSensor = nullptr;
-    delete sdCardManager;
-    sdCardManager = nullptr;
-    delete skullAnimator;
-    skullAnimator = nullptr;
-    delete audioPlayer;
-    audioPlayer = nullptr;
-    Serial.println("Resources cleaned up.");
 }
 
 // Add function to monitor free memory

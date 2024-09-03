@@ -91,11 +91,9 @@ ISSUES
 
   TODO
   ** Primary/Secondary setup: connect to different bluetooth speakers, play different init file... maybe make struct?
-  ** use githib?
   
   ** start overall log to document these issues/components
   ** try ArduinoFFT as simple audio analysis we can use to sync skull jaw motion to audio
-  ** make permanent mount for servo in skull
   ** why is the audio clicking before and after playing
   ** use the Audio Player Class for other functionality like FFT and SD support: https://github.com/pschatzmann/arduino-audio-tools/wiki/The-Audio-Player-Class
   ** reconnecting to bluetooth is flaky now that I'm relying on the library's auto-reconnect.. can I poke it?
@@ -103,7 +101,9 @@ ISSUES
   ** SD card flakiness: Did a test where I looped 20 times in a row, and if it doesn't read them all first try it does second or third try. Maybe a verified number and a retry till success?
     ** SD: keep re-reading card until we get all 9 skits (store number of skits in a dedicated SD card file)
   ** MVP: work on the skull only speaking/animating its OWN lines
+  ** fix primary skull's servo seat; carve out jawbone a bit more so it catches better
   ** CRASHING
+  ** the processAudio function in TwoSkulls.ino hasn't been modified to work with the new AudioPlayer implementation. This function might not be used anymore, as the audio processing is now handled within the AudioPlayer class.
 
   ** creashing fixes?
     ** Buffer Management: The buffer management in AudioPlayer::_provideAudioFrames could be improved. Consider using a circular buffer or a more efficient memory management strategy.  

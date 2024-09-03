@@ -90,6 +90,10 @@ private:
 
   // New member to track end of file
   bool m_reachedEndOfFile;
+
+  size_t m_totalFileSize;
+  size_t m_totalBytesRead;
+  bool m_isEndOfFile;
 };
 
 extern AudioPlayer* audioPlayer;
