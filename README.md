@@ -102,16 +102,12 @@ ISSUES
     ** SD: keep re-reading card until we get all 9 skits (store number of skits in a dedicated SD card file)
   ** MVP: work on the skull only speaking/animating its OWN lines
   ** fix primary skull's servo seat; carve out jawbone a bit more so it catches better
-  ** ISSUE: stops playing long file partway through
-    - it's not playNext() vs playSkitNext(); I tested it
-
-  ** creashing fixes?
-    ** Buffer Management: The buffer management in AudioPlayer::_provideAudioFrames could be improved. Consider using a circular buffer or a more efficient memory management strategy.  
-
+  
   SD CARD
   - 20240707: Fixed initialization issue. Finally connected the power directly to the board's 3.3v pin to power it. Before I connected the 3.3 pin to the positive bar on the breadboard and it only worked 1/20 times. Bizarre. Took forever to debug.
   - The pins I am using are NOT what the docs say to use.. Not sure where I got them, but it works. But I also can't see in the setup where I told it to use those pins. But perhaps those are just the standard SPI communication pins for this board?
     - WHY are there NO pins set for the SD carD? Not in here, not in audio_player.cpp/.h... Am I just using the default pins expected by SD.h so we're good? At least doc that.
+  - NEEDS SHIELDING from servo, which is electrically noisy. Otherwise it will fail to read within 10 seconds of audio playing. Ask me how I know;)
 
 20231022: Created.
 20231023: Exposed buffer + buffer size so they could be read in loop() by audio analysis code.

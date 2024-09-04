@@ -56,26 +56,13 @@ void AudioPlayer::begin() {
 }
 
 void AudioPlayer::update() {
-  // Remove logState() call from here
-
   if (shouldPlayNow) {
     Serial.printf("AudioPlayer: Now playing file: %s\n", currentAudioFile.name());
     startPlaying(currentAudioFile.name());
     shouldPlayNow = false;
-  } else if (hasFinishedPlaying() && !audioQueue.empty()) {
-    const char* nextAudioFile = audioQueue.front().c_str();
-    Serial.printf("AudioPlayer: Playing next queued file: %s\n", nextAudioFile);
-    startPlaying(nextAudioFile);
-    audioQueue.pop();
   }
 
-  if (m_reachedEndOfFile && !audioQueue.empty()) {
-      const char* nextAudioFile = audioQueue.front().c_str();
-      Serial.printf("AudioPlayer: Playing next queued file: %s\n", nextAudioFile);
-      startPlaying(nextAudioFile);
-      audioQueue.pop();
-      logState();  // Log state after starting a new file
-  }
+  // Remove the queue checking here, as it's now handled in _provideAudioFrames
 
   updateSkit();
 
@@ -204,8 +191,20 @@ void AudioPlayer::startPlaying(const char* filePath) {
 
 int32_t AudioPlayer::_provideAudioFrames(Frame* frame, int32_t frame_count) {
   if (!isPlaying || !currentAudioFile || m_isEndOfFile) {
-    Serial.println("_provideAudioFrames: Playback stopped or file ended.");
-    return 0;
+    // If playback has ended, check if there's another file in the queue
+    if (!audioQueue.empty()) {
+      const char* nextAudioFile = audioQueue.front().c_str();
+      startPlaying(nextAudioFile);
+      audioQueue.pop();
+      // If we've successfully started a new file, continue with playback
+      if (isPlaying) {
+        return this->_provideAudioFrames(frame, frame_count); // Recursive call to handle the new file
+      }
+    }
+    
+    // If there's no next file or we couldn't start playing, return silence
+    memset(frame, 0, frame_count * sizeof(Frame));
+    return frame_count; // Return the requested number of frames, but filled with silence
   }
 
   size_t requiredSize = frame_count * 4;
