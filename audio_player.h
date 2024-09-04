@@ -52,6 +52,10 @@ public:
 
   void setJawPosition(int position);
 
+  void logState();  // Add this line to declare the logState method
+
+  size_t getTotalBytesRead() const { return m_totalBytesRead; }
+
 private:
   uint8_t* buffer;
   size_t currentBufferSize;

@@ -251,10 +251,23 @@ void loop() {
 
   // Allow other tasks to run
   delay(1);
+
+  static unsigned long lastAudioProgress = 0;
+  static unsigned long lastAudioCheck = 0;
+  unsigned long currentTime = millis();
+
+  if (audioPlayer && audioPlayer->isCurrentlyPlaying() && currentTime - lastAudioCheck > 5000) {
+    if (audioPlayer->getTotalBytesRead() == lastAudioProgress) {
+      Serial.println("WARNING: Audio playback seems to be stalled!");
+      audioPlayer->logState();
+    }
+    lastAudioProgress = audioPlayer->getTotalBytesRead();
+    lastAudioCheck = currentTime;
+  }
 }
 
-// Add function to monitor free memory
+// Add this function declaration before loop()
 void printFreeMemory() {
-    size_t freeHeap = ESP.getFreeHeap();
-    Serial.printf("Free memory: %d bytes\n", freeHeap);
+  size_t freeHeap = ESP.getFreeHeap();
+  Serial.printf("Free memory: %d bytes\n", freeHeap);
 }

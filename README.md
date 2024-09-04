@@ -102,8 +102,8 @@ ISSUES
     ** SD: keep re-reading card until we get all 9 skits (store number of skits in a dedicated SD card file)
   ** MVP: work on the skull only speaking/animating its OWN lines
   ** fix primary skull's servo seat; carve out jawbone a bit more so it catches better
-  ** CRASHING
-  ** the processAudio function in TwoSkulls.ino hasn't been modified to work with the new AudioPlayer implementation. This function might not be used anymore, as the audio processing is now handled within the AudioPlayer class.
+  ** ISSUE: stops playing long file partway through
+    - it's not playNext() vs playSkitNext(); I tested it
 
   ** creashing fixes?
     ** Buffer Management: The buffer management in AudioPlayer::_provideAudioFrames could be improved. Consider using a circular buffer or a more efficient memory management strategy.  

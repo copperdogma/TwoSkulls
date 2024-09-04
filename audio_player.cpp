@@ -56,6 +56,8 @@ void AudioPlayer::begin() {
 }
 
 void AudioPlayer::update() {
+  // Remove logState() call from here
+
   if (shouldPlayNow) {
     Serial.printf("AudioPlayer: Now playing file: %s\n", currentAudioFile.name());
     startPlaying(currentAudioFile.name());
@@ -72,9 +74,23 @@ void AudioPlayer::update() {
       Serial.printf("AudioPlayer: Playing next queued file: %s\n", nextAudioFile);
       startPlaying(nextAudioFile);
       audioQueue.pop();
+      logState();  // Log state after starting a new file
   }
 
   updateSkit();
+
+  static unsigned long lastPlaybackProgress = 0;
+  static unsigned long lastPlaybackCheck = 0;
+  unsigned long currentTime = millis();
+
+  if (isPlaying && currentTime - lastPlaybackCheck > 30000) {  // Check every 30 seconds instead of 5
+    if (m_totalBytesRead == lastPlaybackProgress) {
+      Serial.println("WARNING: Audio playback seems to be stalled!");
+      logState();  // Only log state when stalled
+    }
+    lastPlaybackProgress = m_totalBytesRead;
+    lastPlaybackCheck = currentTime;
+  }
 }
 
 void AudioPlayer::updateSkit() {
@@ -174,17 +190,21 @@ void AudioPlayer::startPlaying(const char* filePath) {
   currentAudioFile = FileManager::openFile(filePath);
   isPlaying = currentAudioFile;
   m_isEndOfFile = false;
+  m_reachedEndOfFile = false;  // Reset this flag when starting a new file
   m_totalFileSize = currentAudioFile.size();
   m_totalBytesRead = 0;
+  m_hasStartedPlaying = true;  // Set this flag when starting playback
   if (!isPlaying) {
     Serial.printf("startPlaying: Failed to open file: %s\n", filePath);
   } else {
     Serial.printf("startPlaying: Successfully opened file: %s (size: %d bytes)\n", filePath, m_totalFileSize);
   }
+  logState();  // Log state after starting playback
 }
 
 int32_t AudioPlayer::_provideAudioFrames(Frame* frame, int32_t frame_count) {
   if (!isPlaying || !currentAudioFile || m_isEndOfFile) {
+    Serial.println("_provideAudioFrames: Playback stopped or file ended.");
     return 0;
   }
 
@@ -192,19 +212,35 @@ int32_t AudioPlayer::_provideAudioFrames(Frame* frame, int32_t frame_count) {
   if (requiredSize != currentBufferSize) {
     delete[] buffer;
     buffer = new uint8_t[requiredSize];
+    if (!buffer) {
+      Serial.println("_provideAudioFrames: Failed to allocate buffer!");
+      return 0;
+    }
     currentBufferSize = requiredSize;
+    Serial.printf("_provideAudioFrames: Buffer resized to %d bytes\n", currentBufferSize);
   }
 
   size_t bytesRead = FileManager::readFileBytes(currentAudioFile, buffer, currentBufferSize);
+  if (bytesRead == 0) {
+    Serial.println("_provideAudioFrames: Failed to read from file!");
+    return 0;
+  }
   m_totalBytesRead += bytesRead;
+
+  // Log progress every 1MB of data read
+  if (m_totalBytesRead / 1000000 > (m_totalBytesRead - bytesRead) / 1000000) {
+    Serial.printf("_provideAudioFrames: Total read: %d / %d MB\n", m_totalBytesRead / 1000000, m_totalFileSize / 1000000);
+  }
 
   if (bytesRead < currentBufferSize || m_totalBytesRead >= m_totalFileSize) {
     m_isEndOfFile = true;
     isPlaying = false;
     currentAudioFile.close();
-    Serial.printf("Reached end of audio file. Total bytes read: %d / %d\n", m_totalBytesRead, m_totalFileSize);
+    Serial.printf("_provideAudioFrames: Reached end of audio file. Total bytes read: %d / %d\n", m_totalBytesRead, m_totalFileSize);
     return 0;
   }
+
+  // Remove the frame counter and logging here
 
   for (int i = 0, j = 0; i < bytesRead; i += 4, ++j) {
     frame[j].channel1 = (buffer[i + 1] << 8) | buffer[i];
@@ -269,4 +305,16 @@ bool AudioPlayer::fileExists(fs::FS& fs, const char* path) {
 
 void AudioPlayer::setJawPosition(int position) {
     m_servoController.setPosition(position);
+}
+
+void AudioPlayer::logState() {
+  Serial.println("AudioPlayer State:");
+  Serial.printf("  isPlaying: %d\n", isPlaying);
+  Serial.printf("  m_isEndOfFile: %d\n", m_isEndOfFile);
+  Serial.printf("  m_totalBytesRead: %d\n", m_totalBytesRead);
+  Serial.printf("  m_totalFileSize: %d\n", m_totalFileSize);
+  Serial.printf("  currentBufferSize: %d\n", currentBufferSize);
+  Serial.printf("  audioQueue size: %d\n", audioQueue.size());
+  Serial.printf("  m_isPlayingSkit: %d\n", m_isPlayingSkit);
+  Serial.printf("  m_currentSkitLine: %d\n", m_currentSkitLine);
 }
