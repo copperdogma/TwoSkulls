@@ -46,7 +46,6 @@ const int SERVO_MIN_DEGREES = 0;
 const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
 ServoController servoController;
 
-const unsigned long ULTRASONIC_READ_INTERVAL = 300;  // Ultrasonic read interval in ms
 unsigned long lastUltrasonicRead = 0;                // Last time the ultrasonic sensor was read
 
 // Exponential smoothing
@@ -102,7 +101,7 @@ bool isPrimary = false;
 AudioPlayer* audioPlayer = nullptr;  // We'll initialize this later
 bluetooth_audio bluetoothAudio;      // Declare the bluetoothAudio object
 
-bool initializeBluetooth(const String& speakerName) {
+bool initializeBluetooth(const String& speakerName, int volume) {
   if (!audioPlayer) {
     Serial.println("Error: audioPlayer is not initialized.");
     return false;
@@ -110,9 +109,9 @@ bool initializeBluetooth(const String& speakerName) {
   audioPlayer->setBluetoothConnected(false);
   audioPlayer->setAudioReadyToPlay(false);
   bluetoothAudio.begin(speakerName.c_str(), AudioPlayer::provideAudioFrames);
-  bluetoothAudio.set_volume(100);
+  bluetoothAudio.set_volume(volume);
   bool connected = bluetoothAudio.is_connected();
-  Serial.printf("Bluetooth connected to %s: %d\n", speakerName.c_str(), connected);
+  Serial.printf("Bluetooth connected to %s: %d, Volume: %d\n", speakerName.c_str(), connected, volume);
   return connected;
 }
 
@@ -147,6 +146,8 @@ void setup() {
 
   // Register custom crash handler
   esp_register_shutdown_handler((shutdown_handler_t)custom_crash_handler);
+
+  delay(1000);
 
   Serial.println("\n\n\n\n\n\nStarting setup ... ");
 
@@ -183,6 +184,7 @@ void setup() {
   String bluetoothSpeakerName = config.getBluetoothSpeakerName();
   String role = config.getRole();
   int ultrasonicTriggerDistance = config.getUltrasonicTriggerDistance();
+  int speakerVolume = config.getSpeakerVolume();
 
   audioPlayer = new AudioPlayer(servoController);
   audioPlayer->begin();
@@ -194,13 +196,13 @@ void setup() {
 
     // Initialize ultrasonic sensor only if Primary
     if (!distanceSensor) {
-      distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
+      distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
     }
   } else {
     lightController.blinkEyes(2);  // Blink eyes twice for Secondary
   }
 
-  initializeBluetooth(bluetoothSpeakerName);
+  initializeBluetooth(bluetoothSpeakerName, speakerVolume);
 
   // Initialize servo
   servoController.initialize(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);

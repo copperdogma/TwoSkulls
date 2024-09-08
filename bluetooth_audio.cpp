@@ -43,6 +43,7 @@ bool bluetooth_audio::is_connected() {
 }
 
 void bluetooth_audio::set_volume(uint8_t volume) {
+    Serial.printf("Setting bluetooth speaker volume to %d\n", volume);
     a2dp_source.set_volume(volume);
 }
 

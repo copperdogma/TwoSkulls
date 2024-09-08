@@ -32,6 +32,13 @@ bool ConfigManager::loadConfig() {
 
     configFile.close();
 
+    // Validate speaker volume
+    speakerVolume = getValue("speaker_volume", "100").toInt();
+    if (speakerVolume < 0 || speakerVolume > 100) {
+        Serial.println("Invalid speaker volume. Using default value of 100.");
+        speakerVolume = 100;
+    }
+
     return true;
 }
 
@@ -61,4 +68,11 @@ String ConfigManager::getRole() const {
 
 int ConfigManager::getUltrasonicTriggerDistance() const {
     return getValue("ultrasonic_trigger_distance", "100").toInt();
+}
+
+void ConfigManager::printConfig() const {  // Add 'const' here
+    for (const auto& pair : m_config) {
+        Serial.printf("%s: %s\n", pair.first.c_str(), pair.second.c_str());
+    }
+    Serial.printf("Speaker Volume: %d\n", speakerVolume);
 }

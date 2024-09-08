@@ -14,10 +14,13 @@ public:
     String getRole() const;
     int getUltrasonicTriggerDistance() const;
     String getValue(const String& key, const String& defaultValue = "") const;
+    int getSpeakerVolume() const { return speakerVolume; }
+    void printConfig() const;  // Add this line
 
 private:
     ConfigManager() {}
     std::map<String, String> m_config;
+    int speakerVolume;
 
     void parseConfigLine(const String& line);
 };

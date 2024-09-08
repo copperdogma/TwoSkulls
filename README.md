@@ -115,31 +115,14 @@ ISSUES
   ** do a pre-pass on the audio to get max volume so we can peg that at max jaw movement. PER SKULL. Should be doable cuz we can do it on startup and save with the skit/skitline info. So it can be slowish.
   ** MVP: work on the skull only speaking/animating its OWN lines
   ** fix primary skull's servo seat; carve out jawbone a bit more so it catches better
-  ** CRASHES when playing audio when servo is connected
-    - To address these issues, you might consider:
-      - NOPE (tried it, even grounding the tinfoil): Improving shielding and cable routing to minimize EMI.
-      - Optimizing the code to handle servo control and audio playback more efficiently.
-      ** ugh... optimizing power/hardware is hard. Go back to Death code. It didn't crash then (but it was on a breadboard). See if it works.
-      ** try the other perfboard
-      ** try the other esp32
-      ** try a different SD card reader
-      ** NOPE (<1mb RAM): read in all audio files at the start?
-      - WORKS!! Using separate power supplies for the servo and the digital components. Using stripped USB cable connected to power brick.
-        - solution: use 5v USB power cable: servo power->USB power, servo ground->ESP32 ground, USB ground->ESP32 ground
-        - two possibilities for why the common power supply is an issue:
-          1. there isn't enough power for the entire system when the servo is moving, and the SD card reader crashes when it doesn't get enough power
-            - solution is above
-          2. electrical noise from the servo is affecting the SD card reader
-            - solutions:
-              a. Decoupling capacitors:  Add a 0.1µF ceramic capacitor and a 100µF electrolytic capacitor as close to the servo's power connections as possible.
-                 This helps filter out high-frequency noise and stabilize the power supply
-              b. Ferrite beads: Add ferrite beads on the servo's power and signal lines. These act as high-frequency noise filters.
   ** external 5v, 1A power needed for servo
+    - original issue was it would crash when servo would run, because it was drawing too many amps (.8 at stall whereas esp32 supplied max .4?), which dropped the voltage enough to crash SD reader
     - wall wart + usb cable: I really don't want to have to plug in the skulls
     - battery pack: ISSUE: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
     - power board, providing power to both the ESP32 board and the servo: I think I only have one
   ** move ultrasonic handling back out to INO (why is it in audio_player??) and have code that randomly chooses a skit in INO or a new module
-  ** change default ULTRASONIC_READ_INTERVAL = 300
+  ** have it choose primary/secondary based on SD config.txt, but still have it ping ultrasonic sensor 10 times for the log
+  ** rebuild secondary perfboard with dupont connectors
 
   
   SD CARD
