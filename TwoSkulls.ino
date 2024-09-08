@@ -11,7 +11,6 @@
 #include "FS.h"      // Ensure ESP32 board package is installed
 #include "SD.h"      // Ensure ESP32 board package is installed
 #include <HCSR04.h>  // Install HCSR04 library via Arduino Library Manager
-#include "audio_player.h"
 #include "light_controller.h"
 #include "servo_controller.h"
 #include "sd_card_manager.h"
@@ -25,6 +24,9 @@
 #include "esp_bt_main.h"
 #include "esp_bt_device.h"
 #include "nvs_flash.h"
+
+// Remove this line
+// AudioPlayer* audioPlayer = nullptr;
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
 
@@ -42,9 +44,9 @@ SDCardManager* sdCardManager = nullptr;
 SDCardContent sdCardContent;
 
 bool isPrimary = false;
-AudioPlayer* audioPlayer = nullptr;  // We'll initialize this later
+ServoController servoController;  // Keep this line
+SkullAudioAnimator* skullAudioAnimator = nullptr;  // Change this line
 bluetooth_audio bluetoothAudio;      // Declare the bluetoothAudio object
-SkullAudioAnimator* skullAudioAnimator = nullptr;  // We'll initialize this later
 
 // Exponential smoothing
 struct AudioState {
@@ -68,16 +70,16 @@ const int CHUNKS_NEEDED = 17;  // Number of chunks needed for 100ms (34)
 const int SERVO_PIN = 15;  // Servo control pin
 const int SERVO_MIN_DEGREES = 0;
 const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
-ServoController servoController;
+// Remove this line as it's a duplicate
+// ServoController servoController;
 
 bool initializeBluetooth(const String& speakerName, int volume) {
-  if (!audioPlayer || !skullAudioAnimator) {
-    Serial.println("Error: audioPlayer or skullAudioAnimator is not initialized.");
-    return false;
-  }
   skullAudioAnimator->setBluetoothConnected(false);
   skullAudioAnimator->setAudioReadyToPlay(false);
-  bluetoothAudio.begin(speakerName.c_str(), AudioPlayer::provideAudioFrames);
+  // Change this line to use a lambda function
+  bluetoothAudio.begin(speakerName.c_str(), [](Frame* frame, int32_t frame_count) {
+    return skullAudioAnimator->provideAudioFrames(frame, frame_count);
+  });
   bluetoothAudio.set_volume(volume);
   bool connected = bluetoothAudio.is_connected();
   Serial.printf("Bluetooth connected to %s: %d, Volume: %d\n", speakerName.c_str(), connected, volume);
@@ -121,8 +123,18 @@ void setup() {
   // Initialize light controller first for blinking
   lightController.begin();
 
+  // Initialize servo
+  servoController.initialize(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+
+  // Initialize AudioPlayer
+  AudioPlayer* audioPlayer = new AudioPlayer(servoController);
+
+  // Initialize SkullAudioAnimator
+  skullAudioAnimator = new SkullAudioAnimator(*audioPlayer, servoController);
+  skullAudioAnimator->begin();
+
   // Initialize SD Card Manager
-  sdCardManager = new SDCardManager(audioPlayer);
+  sdCardManager = new SDCardManager(skullAudioAnimator);
   bool sdCardInitialized = false;
 
   while (!sdCardInitialized) {
@@ -163,13 +175,6 @@ void setup() {
     delay(100);  // Wait between readings
   }
 
-  audioPlayer = new AudioPlayer(servoController);
-  audioPlayer->begin();
-
-  // Initialize SkullAudioAnimator after audioPlayer and servoController are set up
-  skullAudioAnimator = new SkullAudioAnimator(*audioPlayer, servoController);
-  skullAudioAnimator->begin();
-
   // Determine role based on settings.txt
   if (role.equals("primary")) {
     isPrimary = true;
@@ -186,9 +191,6 @@ void setup() {
   }
 
   initializeBluetooth(bluetoothSpeakerName, speakerVolume);
-
-  // Initialize servo
-  servoController.initialize(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
   // Load SD card content
   sdCardContent = sdCardManager->loadContent();
@@ -248,9 +250,7 @@ void loop() {
   }
 
   // Update SkullAudioAnimator
-  if (skullAudioAnimator) {
-    skullAudioAnimator->update();
-  }
+  skullAudioAnimator->update();
 
   // Allow other tasks to run
   delay(1);
@@ -259,7 +259,7 @@ void loop() {
   static unsigned long lastAudioCheck = 0;
   unsigned long currentTime = millis();
 
-  if (skullAudioAnimator && skullAudioAnimator->isCurrentlyPlaying() && currentTime - lastAudioCheck > 5000) {
+  if (skullAudioAnimator->isCurrentlyPlaying() && currentTime - lastAudioCheck > 5000) {
     if (skullAudioAnimator->getTotalBytesRead() == lastAudioProgress) {
       Serial.println("WARNING: Audio playback seems to be stalled!");
       skullAudioAnimator->logState();

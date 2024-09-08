@@ -40,7 +40,7 @@ public:
   bool isBluetoothConnected() const;
   void setBluetoothConnected(bool connected);
   void setAudioReadyToPlay(bool ready);
-  static int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
+  int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
   double calculateRMS(const int16_t* samples, int numSamples);
   void performFFT();
   double getFFTResult(int index);
@@ -101,6 +101,7 @@ private:
   bool m_isEndOfFile;
 };
 
-extern AudioPlayer* audioPlayer;
+// Remove this line
+// extern AudioPlayer* audioPlayer;
 
 #endif // AUDIO_PLAYER_H

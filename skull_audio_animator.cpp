@@ -54,3 +54,34 @@ size_t SkullAudioAnimator::getTotalBytesRead() const {
 void SkullAudioAnimator::logState() {
     m_audioPlayer.logState();
 }
+
+// Remove this entire block
+// void SkullAudioAnimator::loadAudioFile(const char* filename) {
+//     m_audioPlayer.loadAudioFile(filename);
+// }
+
+// Update this method to use the AudioPlayer's fileExists method
+bool SkullAudioAnimator::fileExists(fs::FS &fs, const char* path) {
+    return m_audioPlayer.fileExists(fs, path);
+}
+
+// Review and adjust these methods if necessary
+double SkullAudioAnimator::calculateRMS(const int16_t* samples, int numSamples) {
+    return m_audioPlayer.calculateRMS(samples, numSamples);
+}
+
+void SkullAudioAnimator::performFFT() {
+    m_audioPlayer.performFFT();
+}
+
+double SkullAudioAnimator::getFFTResult(int index) {
+    return m_audioPlayer.getFFTResult(index);
+}
+
+int32_t SkullAudioAnimator::provideAudioFrames(Frame* frame, int32_t frame_count) {
+    return m_audioPlayer.provideAudioFrames(frame, frame_count);
+}
+
+ParsedSkit SkullAudioAnimator::parseSkitFile(const String& wavFile, const String& txtFile) {
+    return m_audioPlayer.parseSkitFile(wavFile, txtFile);
+}

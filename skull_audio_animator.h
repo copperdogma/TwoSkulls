@@ -4,6 +4,7 @@
 #include "audio_player.h"
 #include "servo_controller.h"
 #include <vector>
+#include "FS.h"
 
 class SkullAudioAnimator {
 public:
@@ -22,6 +23,16 @@ public:
     ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name);
     size_t getTotalBytesRead() const;
     void logState();
+    bool fileExists(fs::FS &fs, const char* path);
+    ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile);
+
+    // Add these method declarations
+    double calculateRMS(const int16_t* samples, int numSamples);
+    void performFFT();
+    double getFFTResult(int index);
+
+    // Change this to a non-static member function
+    int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
 
 private:
     AudioPlayer& m_audioPlayer;

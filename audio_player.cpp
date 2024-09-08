@@ -143,10 +143,8 @@ void AudioPlayer::setAudioReadyToPlay(bool ready) {
 }
 
 int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
-    if (audioPlayer) {
-        return audioPlayer->_provideAudioFrames(frame, frame_count);
-    }
-    return 0;
+    // Replace 'audioPlayer->' with 'this->'
+    return this->_provideAudioFrames(frame, frame_count);
 }
 
 // Add detailed debug prints in critical sections

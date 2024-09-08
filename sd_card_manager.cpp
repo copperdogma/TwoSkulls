@@ -1,6 +1,7 @@
 #include "sd_card_manager.h"
 
-SDCardManager::SDCardManager(AudioPlayer* audioPlayer) : audioPlayer(audioPlayer) {}
+SDCardManager::SDCardManager(SkullAudioAnimator* skullAudioAnimator)
+    : m_skullAudioAnimator(skullAudioAnimator) {}
 
 bool SDCardManager::begin() {
     if (!SD.begin()) {
@@ -16,14 +17,14 @@ SDCardContent SDCardManager::loadContent() {
 
     // Check for initialization files
     Serial.println("Required file '/audio/Initialized - Primary.wav' " + 
-        String(audioPlayer->fileExists(SD, "/audio/Initialized - Primary.wav") ? "found." : "missing."));
+        String(m_skullAudioAnimator->fileExists(SD, "/audio/Initialized - Primary.wav") ? "found." : "missing."));
     Serial.println("Required file '/audio/Initialized - Secondary.wav' " + 
-        String(audioPlayer->fileExists(SD, "/audio/Initialized - Secondary.wav") ? "found." : "missing."));
+        String(m_skullAudioAnimator->fileExists(SD, "/audio/Initialized - Secondary.wav") ? "found." : "missing."));
 
-    if (audioPlayer->fileExists(SD, "/audio/Initialized - Primary.wav")) {
+    if (m_skullAudioAnimator->fileExists(SD, "/audio/Initialized - Primary.wav")) {
         content.primaryInitAudio = "/audio/Initialized - Primary.wav";
     }
-    if (audioPlayer->fileExists(SD, "/audio/Initialized - Secondary.wav")) {
+    if (m_skullAudioAnimator->fileExists(SD, "/audio/Initialized - Secondary.wav")) {
         content.secondaryInitAudio = "/audio/Initialized - Secondary.wav";
     }
 
@@ -53,8 +54,8 @@ bool SDCardManager::processSkitFiles(SDCardContent& content) {
     for (const auto& fileName : skitFiles) {
         String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
         String txtFileName = baseName + ".txt";
-        if (audioPlayer->fileExists(SD, ("/audio/" + txtFileName).c_str())) {
-            ParsedSkit parsedSkit = audioPlayer->parseSkitFile("/audio/" + fileName, "/audio/" + txtFileName);
+        if (m_skullAudioAnimator->fileExists(SD, ("/audio/" + txtFileName).c_str())) {
+            ParsedSkit parsedSkit = m_skullAudioAnimator->parseSkitFile("/audio/" + fileName, "/audio/" + txtFileName);
             content.skits.push_back(parsedSkit);
             Serial.println("- Processing skit '" + fileName + "' - success. (" + String(parsedSkit.lines.size()) + " lines)");
         } else {
