@@ -28,8 +28,7 @@ extern "C" void __cxa_pure_virtual() {
 }
 
 AudioPlayer::AudioPlayer(ServoController& servoController) 
-    : FFT(vReal, vImag, SAMPLES, SAMPLE_RATE),
-      buffer(nullptr), currentBufferSize(0), shouldPlayNow(false), isPlaying(false),
+    : buffer(nullptr), currentBufferSize(0), shouldPlayNow(false), isPlaying(false),
       m_isPlayingSkit(false), m_currentSkitLine(0), m_skitStartTime(0),
       m_hasStartedPlaying(false), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false),
       m_reachedEndOfFile(false),
@@ -250,27 +249,6 @@ double AudioPlayer::calculateRMS(const int16_t* samples, int numSamples) {
         sum += samples[i] * samples[i];
     }
     return sqrt(sum / numSamples);
-}
-
-void AudioPlayer::performFFT() {
-    // Assuming the buffer is filled with samples
-    for (int i = 0; i < SAMPLES; i++) {
-        // Combine two 8-bit values into a 16-bit sample
-        int16_t sample = (int16_t)((buffer[i * 2 + 1] << 8) | buffer[i * 2]);
-        vReal[i] = (double)sample;
-        vImag[i] = 0;
-    }
-
-    FFT.Windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-    FFT.Compute(FFT_FORWARD);
-    FFT.ComplexToMagnitude();
-}
-
-double AudioPlayer::getFFTResult(int index) {
-    if (index >= 0 && index < SAMPLES / 2) {
-        return vReal[index];
-    }
-    return 0;
 }
 
 ParsedSkit AudioPlayer::parseSkitFile(const String& wavFile, const String& txtFile) {

@@ -1,7 +1,15 @@
 #include "skull_audio_animator.h"
+#include <cmath>
 
 SkullAudioAnimator::SkullAudioAnimator(AudioPlayer& audioPlayer, ServoController& servoController)
-    : m_audioPlayer(audioPlayer), m_servoController(servoController) {}
+    : m_audioPlayer(audioPlayer), m_servoController(servoController),
+      FFT(vReal, vImag, SAMPLES, SAMPLE_RATE) {
+    // Initialize FFT-related variables
+    for (uint16_t i = 0; i < SAMPLES; i++) {
+        vReal[i] = 0;
+        vImag[i] = 0;
+    }
+}
 
 void SkullAudioAnimator::begin() {
     m_audioPlayer.begin();
@@ -9,6 +17,21 @@ void SkullAudioAnimator::begin() {
 
 void SkullAudioAnimator::update() {
     m_audioPlayer.update();
+
+    if (m_audioPlayer.isCurrentlyPlaying()) {
+        // Perform FFT analysis
+        performFFT();
+        
+        // Use FFT results for animation (e.g., jaw movement)
+        double bassEnergy = 0;
+        for (int i = 1; i < 10; i++) {  // Analyze first 10 frequency bins (adjust as needed)
+            bassEnergy += getFFTResult(i);
+        }
+        
+        // Map bass energy to jaw position (adjust thresholds as needed)
+        int jawPosition = map(bassEnergy, 0, 1000, 0, 90);
+        m_servoController.setPosition(jawPosition);
+    }
 }
 
 void SkullAudioAnimator::playNow(const char* filePath) {
@@ -67,15 +90,40 @@ bool SkullAudioAnimator::fileExists(fs::FS &fs, const char* path) {
 
 // Review and adjust these methods if necessary
 double SkullAudioAnimator::calculateRMS(const int16_t* samples, int numSamples) {
-    return m_audioPlayer.calculateRMS(samples, numSamples);
+    double sum = 0;
+    for (int i = 0; i < numSamples; i++) {
+        sum += samples[i] * samples[i];
+    }
+    return sqrt(sum / numSamples);
 }
 
 void SkullAudioAnimator::performFFT() {
-    m_audioPlayer.performFFT();
+    // Get the current audio buffer
+    uint8_t* buffer = m_audioPlayer.getCurrentAudioBuffer();
+    size_t bufferSize = m_audioPlayer.getCurrentAudioBufferSize();
+
+    // Fill vReal with audio samples
+    for (uint16_t i = 0; i < SAMPLES; i++) {
+        if (i * 2 + 1 < bufferSize) {
+            int16_t sample = (buffer[i * 2 + 1] << 8) | buffer[i * 2];
+            vReal[i] = (double)sample;
+        } else {
+            vReal[i] = 0;
+        }
+        vImag[i] = 0;
+    }
+
+    // Perform FFT
+    FFT.Windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);
+    FFT.Compute(FFT_FORWARD);
+    FFT.ComplexToMagnitude();
 }
 
 double SkullAudioAnimator::getFFTResult(int index) {
-    return m_audioPlayer.getFFTResult(index);
+    if (index >= 0 && index < SAMPLES / 2) {
+        return vReal[index];
+    }
+    return 0;
 }
 
 int32_t SkullAudioAnimator::provideAudioFrames(Frame* frame, int32_t frame_count) {

@@ -5,6 +5,7 @@
 #include "servo_controller.h"
 #include <vector>
 #include "FS.h"
+#include "arduinoFFT.h"
 
 class SkullAudioAnimator {
 public:
@@ -37,6 +38,13 @@ public:
 private:
     AudioPlayer& m_audioPlayer;
     ServoController& m_servoController;
+
+    // Add FFT-related member variables
+    static const uint16_t SAMPLES = 128;  // Must be a power of 2
+    static const uint16_t SAMPLE_RATE = 44100;
+    double vReal[SAMPLES];
+    double vImag[SAMPLES];
+    arduinoFFT FFT;  // Changed from arduinoFFT<double> to arduinoFFT
 };
 
 #endif // SKULL_AUDIO_ANIMATOR_H
