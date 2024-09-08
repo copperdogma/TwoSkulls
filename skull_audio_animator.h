@@ -1,29 +1,31 @@
 #ifndef SKULL_AUDIO_ANIMATOR_H
 #define SKULL_AUDIO_ANIMATOR_H
 
-#include <Arduino.h>
 #include "audio_player.h"
 #include "servo_controller.h"
+#include <vector>
 
 class SkullAudioAnimator {
 public:
-    SkullAudioAnimator(AudioPlayer* audioPlayer, ServoController& servoController, bool isPrimary);
+    SkullAudioAnimator(AudioPlayer& audioPlayer, ServoController& servoController);
+
+    void begin();
     void update();
+    void playNow(const char* filePath);
+    void playNext(const char* filePath);
+    void playSkitNext(const ParsedSkit& skit);
+    bool isCurrentlyPlaying();
+    bool isPlayingSkit() const;
+    bool hasFinishedPlaying();
+    void setBluetoothConnected(bool connected);
+    void setAudioReadyToPlay(bool ready);
+    ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name);
+    size_t getTotalBytesRead() const;
+    void logState();
 
 private:
-    AudioPlayer* audioPlayer;
-    ServoController& servoController;
-    bool isPrimary;
-
-    void processAudio();
-    void updateJawPosition(double rms);
-    int mapRMSToPosition(double rms, double silenceThreshold);
-
-    static const double ALPHA;
-    static const double SILENCE_THRESHOLD;
-    static const int MIN_MOVEMENT_THRESHOLD;
-    static const int SERVO_MIN_DEGREES;
-    static const int SERVO_MAX_DEGREES;
+    AudioPlayer& m_audioPlayer;
+    ServoController& m_servoController;
 };
 
 #endif // SKULL_AUDIO_ANIMATOR_H

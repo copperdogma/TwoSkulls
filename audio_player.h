@@ -56,6 +56,8 @@ public:
 
   size_t getTotalBytesRead() const { return m_totalBytesRead; }
 
+  bool hasFinishedPlaying();  // Keep this public declaration
+
 private:
   uint8_t* buffer;
   size_t currentBufferSize;
@@ -85,7 +87,6 @@ private:
   void unlock();
   void startPlaying(const char* filePath);
   int32_t _provideAudioFrames(Frame* frame, int32_t frame_count);
-  bool hasFinishedPlaying();
   void loadAudioFile(const char* filename);
   void processSkitLine();
 

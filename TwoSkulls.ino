@@ -44,6 +44,7 @@ SDCardContent sdCardContent;
 bool isPrimary = false;
 AudioPlayer* audioPlayer = nullptr;  // We'll initialize this later
 bluetooth_audio bluetoothAudio;      // Declare the bluetoothAudio object
+SkullAudioAnimator* skullAudioAnimator = nullptr;  // We'll initialize this later
 
 // Exponential smoothing
 struct AudioState {
@@ -70,20 +71,18 @@ const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo hor
 ServoController servoController;
 
 bool initializeBluetooth(const String& speakerName, int volume) {
-  if (!audioPlayer) {
-    Serial.println("Error: audioPlayer is not initialized.");
+  if (!audioPlayer || !skullAudioAnimator) {
+    Serial.println("Error: audioPlayer or skullAudioAnimator is not initialized.");
     return false;
   }
-  audioPlayer->setBluetoothConnected(false);
-  audioPlayer->setAudioReadyToPlay(false);
+  skullAudioAnimator->setBluetoothConnected(false);
+  skullAudioAnimator->setAudioReadyToPlay(false);
   bluetoothAudio.begin(speakerName.c_str(), AudioPlayer::provideAudioFrames);
   bluetoothAudio.set_volume(volume);
   bool connected = bluetoothAudio.is_connected();
   Serial.printf("Bluetooth connected to %s: %d, Volume: %d\n", speakerName.c_str(), connected, volume);
   return connected;
 }
-
-SkullAudioAnimator* skullAnimator = nullptr;
 
 void custom_crash_handler() {
   Serial.println("detected!");
@@ -167,6 +166,10 @@ void setup() {
   audioPlayer = new AudioPlayer(servoController);
   audioPlayer->begin();
 
+  // Initialize SkullAudioAnimator after audioPlayer and servoController are set up
+  skullAudioAnimator = new SkullAudioAnimator(*audioPlayer, servoController);
+  skullAudioAnimator->begin();
+
   // Determine role based on settings.txt
   if (role.equals("primary")) {
     isPrimary = true;
@@ -197,20 +200,17 @@ void setup() {
 
   // Announce "System initialized" and role
   Serial.printf("Playing initialization audio\n");
-  audioPlayer->playNext(isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav");
+  skullAudioAnimator->playNext(isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav");
 
   // Find the "Skit - names" skit
-  ParsedSkit namesSkit = audioPlayer->findSkitByName(sdCardContent.skits, "Skit - names");
+  ParsedSkit namesSkit = skullAudioAnimator->findSkitByName(sdCardContent.skits, "Skit - names");
   if (namesSkit.audioFile != "" && namesSkit.txtFile != "") {
     // Queue the "Skit - names" skit to play next
     Serial.println("'Skit - names' found; playing next.");
-    audioPlayer->playSkitNext(namesSkit);
+    skullAudioAnimator->playSkitNext(namesSkit);
   } else {
     Serial.println("'Skit - names' not found.");
   }
-
-  // Initialize SkullAudioAnimator after audioPlayer and servoController are set up
-  skullAnimator = new SkullAudioAnimator(audioPlayer, servoController, isPrimary);
 }
 
 void blinkEyesForFailure(int numBlinks) {
@@ -247,14 +247,9 @@ void loop() {
     lastMemoryCheck = currentMillis;
   }
 
-  // Update audio player and process any queued audio
-  if (audioPlayer) {
-    audioPlayer->update();
-  }
-
   // Update SkullAudioAnimator
-  if (skullAnimator) {
-    skullAnimator->update();
+  if (skullAudioAnimator) {
+    skullAudioAnimator->update();
   }
 
   // Allow other tasks to run
@@ -264,12 +259,12 @@ void loop() {
   static unsigned long lastAudioCheck = 0;
   unsigned long currentTime = millis();
 
-  if (audioPlayer && audioPlayer->isCurrentlyPlaying() && currentTime - lastAudioCheck > 5000) {
-    if (audioPlayer->getTotalBytesRead() == lastAudioProgress) {
+  if (skullAudioAnimator && skullAudioAnimator->isCurrentlyPlaying() && currentTime - lastAudioCheck > 5000) {
+    if (skullAudioAnimator->getTotalBytesRead() == lastAudioProgress) {
       Serial.println("WARNING: Audio playback seems to be stalled!");
-      audioPlayer->logState();
+      skullAudioAnimator->logState();
     }
-    lastAudioProgress = audioPlayer->getTotalBytesRead();
+    lastAudioProgress = skullAudioAnimator->getTotalBytesRead();
     lastAudioCheck = currentTime;
   }
 }
