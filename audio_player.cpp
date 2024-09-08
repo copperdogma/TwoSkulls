@@ -27,21 +27,6 @@ extern "C" void __cxa_pure_virtual() {
   customErrorHandler("Pure virtual function called!");
 }
 
-// Move these definitions to a single location, e.g., TwoSkulls.ino
-/*
-extern "C" void __cxa_guard_abort() {
-  customErrorHandler("Guard abort!");
-}
-
-extern "C" int __cxa_guard_acquire(__guard* g) {
-  return !*(char*)(g);
-}
-
-extern "C" void __cxa_guard_release(__guard* g) {
-  *(char*)g = 1;
-}
-*/
-
 AudioPlayer::AudioPlayer(ServoController& servoController) 
     : FFT(vReal, vImag, SAMPLES, SAMPLE_RATE),
       buffer(nullptr), currentBufferSize(0), shouldPlayNow(false), isPlaying(false),

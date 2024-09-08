@@ -8,8 +8,8 @@
 #include <vector>
 #include <tuple>
 #include "bluetooth_audio.h"
-#include "FS.h"  // Ensure ESP32 board package is installed
-#include "SD.h"  // Ensure ESP32 board package is installed
+#include "FS.h"      // Ensure ESP32 board package is installed
+#include "SD.h"      // Ensure ESP32 board package is installed
 #include <HCSR04.h>  // Install HCSR04 library via Arduino Library Manager
 #include "audio_player.h"
 #include "light_controller.h"
@@ -20,6 +20,11 @@
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp32-hal-log.h"
+#include "config_manager.h"
+#include "esp_bt.h"
+#include "esp_bt_main.h"
+#include "esp_bt_device.h"
+#include "nvs_flash.h"
 
 const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
 
@@ -46,10 +51,10 @@ unsigned long lastUltrasonicRead = 0;                // Last time the ultrasonic
 
 // Exponential smoothing
 struct AudioState {
-    double smoothedPosition = 0;
-    double maxObservedRMS = 0;
-    bool isJawClosed = true;
-    int chunkCounter = 0;
+  double smoothedPosition = 0;
+  double maxObservedRMS = 0;
+  bool isJawClosed = true;
+  int chunkCounter = 0;
 };
 
 AudioState audioState;
@@ -94,46 +99,45 @@ bool determinePrimaryRole() {
 SDCardManager* sdCardManager = nullptr;
 
 bool isPrimary = false;
-const char* BLUETOOTH_SPEAKER_NAME = "JBL Flip 5";  // Replace with your actual speaker name
 AudioPlayer* audioPlayer = nullptr;  // We'll initialize this later
-bluetooth_audio bluetoothAudio;  // Declare the bluetoothAudio object
+bluetooth_audio bluetoothAudio;      // Declare the bluetoothAudio object
 
-bool initializeBluetooth() {
+bool initializeBluetooth(const String& speakerName) {
   if (!audioPlayer) {
     Serial.println("Error: audioPlayer is not initialized.");
     return false;
   }
   audioPlayer->setBluetoothConnected(false);
   audioPlayer->setAudioReadyToPlay(false);
-  bluetoothAudio.begin(BLUETOOTH_SPEAKER_NAME, AudioPlayer::provideAudioFrames);
+  bluetoothAudio.begin(speakerName.c_str(), AudioPlayer::provideAudioFrames);
   bluetoothAudio.set_volume(100);
   bool connected = bluetoothAudio.is_connected();
-  Serial.printf("Bluetooth connected: %d\n", connected);
+  Serial.printf("Bluetooth connected to %s: %d\n", speakerName.c_str(), connected);
   return connected;
 }
 
 SkullAudioAnimator* skullAnimator = nullptr;
 
 void custom_crash_handler() {
-  Serial.println("Crash detected!");
+  Serial.println("detected!");
   Serial.printf("Free memory at crash: %d bytes\n", ESP.getFreeHeap());
-  
+
   // Print some basic debug info
   esp_chip_info_t chip_info;
   esp_chip_info(&chip_info);
   Serial.printf("ESP32 Chip Revision: %d\n", chip_info.revision);
   Serial.printf("CPU Cores: %d\n", chip_info.cores);
   Serial.printf("Flash Size: %d MB\n", spi_flash_get_chip_size() / (1024 * 1024));
-  
+
   // Print last error
   Serial.printf("Last error: %s\n", esp_err_to_name(esp_get_minimum_free_heap_size()));
-  
+
   // Flush serial output
   Serial.flush();
-  
+
   // Wait a bit before restarting
   delay(1000);
-  
+
   // Restart the ESP32
   esp_restart();
 }
@@ -141,24 +145,53 @@ void custom_crash_handler() {
 void setup() {
   Serial.begin(115200);
 
-  Serial.println("\n\n\n\n\n\nStarting setup ... ");
-
-  // Enable watchdog timer with a timeout of 8 seconds
-  esp_task_wdt_init(8, true);  // Enable panic so ESP32 restarts
-  esp_task_wdt_add(NULL);  // Add current thread to WDT watch
-
   // Register custom crash handler
   esp_register_shutdown_handler((shutdown_handler_t)custom_crash_handler);
 
+  Serial.println("\n\n\n\n\n\nStarting setup ... ");
+
+  // Initialize light controller first for blinking
   lightController.begin();
 
+  // Initialize SD Card Manager
+  sdCardManager = new SDCardManager(audioPlayer);
+  bool sdCardInitialized = false;
+
+  while (!sdCardInitialized) {
+    sdCardInitialized = sdCardManager->begin();
+    if (!sdCardInitialized) {
+      Serial.println("SD Card: Mount Failed! Retrying...");
+      blinkEyesForFailure(3);  // 3 blinks for SD card failure
+      delay(500);
+    }
+  }
+
+  // Now that SD card is initialized, load configuration
+  ConfigManager& config = ConfigManager::getInstance();
+  bool configLoaded = false;
+
+  while (!configLoaded) {
+    configLoaded = config.loadConfig();
+    if (!configLoaded) {
+      Serial.println("Failed to load configuration. Retrying...");
+      blinkEyesForFailure(5);  // 5 blinks for config file failure
+      delay(500);
+    }
+  }
+
+  // Configuration loaded successfully, now we can use it
+  String bluetoothSpeakerName = config.getBluetoothSpeakerName();
+  String role = config.getRole();
+  int ultrasonicTriggerDistance = config.getUltrasonicTriggerDistance();
+
   audioPlayer = new AudioPlayer(servoController);
+  audioPlayer->begin();
 
   // Determine Primary/Secondary role
   isPrimary = determinePrimaryRole();
   if (isPrimary) {
     lightController.blinkEyes(4);  // Blink eyes 4 times for Primary
-    
+
     // Initialize ultrasonic sensor only if Primary
     if (!distanceSensor) {
       distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
@@ -167,33 +200,16 @@ void setup() {
     lightController.blinkEyes(2);  // Blink eyes twice for Secondary
   }
 
-  initializeBluetooth();
+  initializeBluetooth(bluetoothSpeakerName);
 
   // Initialize servo
   servoController.initialize(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-
-  // Initialize SD Card Manager
-  sdCardManager = new SDCardManager(audioPlayer);
-  bool sdCardInitialized = sdCardManager->begin();
-
-  while (!sdCardInitialized) {
-    Serial.println("SD Card: Mount Failed! Retrying...");
-    audioPlayer->setJawPosition(30);
-    delay(500);
-    sdCardInitialized = sdCardManager->begin();
-    audioPlayer->setJawPosition(0);
-    delay(500);
-  }
-
-  if (!sdCardInitialized) {
-    Serial.println("SD Card initialization failed. Halting setup.");
-    return;
-  }
 
   // Load SD card content
   sdCardContent = sdCardManager->loadContent();
   if (sdCardContent.skits.empty()) {
     Serial.println("No skits found on SD card. Halting setup.");
+    blinkEyesForFailure(10);  // 10 blinks for no skits
     return;
   }
 
@@ -215,6 +231,16 @@ void setup() {
   skullAnimator = new SkullAudioAnimator(audioPlayer, servoController, isPrimary);
 }
 
+void blinkEyesForFailure(int numBlinks) {
+  for (int i = 0; i < numBlinks; i++) {
+    lightController.setEyeBrightness(255);
+    delay(100);
+    lightController.setEyeBrightness(0);
+    delay(100);
+  }
+  delay(500);  // Pause between sets of blinks
+}
+
 void loop() {
   unsigned long currentMillis = millis();
   static unsigned long lastMillis = 0;
@@ -225,9 +251,9 @@ void loop() {
 
   // Every 1000ms output "loop() running" and check memory
   if (currentMillis - lastMillis >= 1000) {
-    Serial.printf("%d loop() running\n", currentMillis);
+    size_t freeHeap = ESP.getFreeHeap();
+    Serial.printf("%d loop() running. Free memory: %d bytes\n", currentMillis, freeHeap);
     lastMillis = currentMillis;
-    printFreeMemory();  // Monitor free memory
   }
 
   // Check memory every 100ms
@@ -264,10 +290,4 @@ void loop() {
     lastAudioProgress = audioPlayer->getTotalBytesRead();
     lastAudioCheck = currentTime;
   }
-}
-
-// Add this function declaration before loop()
-void printFreeMemory() {
-  size_t freeHeap = ESP.getFreeHeap();
-  Serial.printf("Free memory: %d bytes\n", freeHeap);
 }
