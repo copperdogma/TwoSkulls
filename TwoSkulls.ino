@@ -30,23 +30,20 @@ const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's sup
 
 const int LEFT_EYE_PIN = 32;   // GPIO pin for left eye LED
 const int RIGHT_EYE_PIN = 33;  // GPIO pin for right eye LED
+LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
 
 // Ultrasonic sensor
-const int TRIGGER_PIN = 2;  // Pin number ultrasonic pulse trigger
-const int ECHO_PIN = 22;    // Pin number ultrasonic echo detection
+UltraSonicDistanceSensor* distanceSensor = nullptr;  // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
+const int TRIGGER_PIN = 2;                           // Pin number ultrasonic pulse trigger
+const int ECHO_PIN = 22;                             // Pin number ultrasonic echo detection
+unsigned long lastUltrasonicRead = 0;                // Last time the ultrasonic sensor was read
 
-// NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
-UltraSonicDistanceSensor* distanceSensor = nullptr;
-
+SDCardManager* sdCardManager = nullptr;
 SDCardContent sdCardContent;
 
-// Servo
-const int SERVO_PIN = 15;  // Servo control pin
-const int SERVO_MIN_DEGREES = 0;
-const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
-ServoController servoController;
-
-unsigned long lastUltrasonicRead = 0;                // Last time the ultrasonic sensor was read
+bool isPrimary = false;
+AudioPlayer* audioPlayer = nullptr;  // We'll initialize this later
+bluetooth_audio bluetoothAudio;      // Declare the bluetoothAudio object
 
 // Exponential smoothing
 struct AudioState {
@@ -66,40 +63,11 @@ const double RMS_MAX = 32768.0;        // Maximum possible RMS value for 16-bit 
 
 const int CHUNKS_NEEDED = 17;  // Number of chunks needed for 100ms (34)
 
-LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
-
-bool determinePrimaryRole() {
-  distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, 400);  // 400cm max range
-  delay(100);                                                                 // Give the sensor time to initialize
-
-  const int NUM_READINGS = 10;
-  int validReadings = 0;
-
-  for (int i = 0; i < NUM_READINGS; i++) {
-    float distance = distanceSensor->measureDistanceCm();
-    Serial.println("Ultrasonic distance: " + String(distance) + "cm");
-    if (distance >= 0) {  // Any non-negative reading is considered valid
-      validReadings++;
-    }
-    delay(100);  // Wait between readings
-  }
-
-  if (validReadings > 0) {
-    Serial.println("Ultrasonic sensor detected. This device is the Primary.");
-    return true;
-  } else {
-    Serial.println("Ultrasonic sensor not detected. This device is the Secondary.");
-    delete distanceSensor;
-    distanceSensor = nullptr;
-    return false;
-  }
-}
-
-SDCardManager* sdCardManager = nullptr;
-
-bool isPrimary = false;
-AudioPlayer* audioPlayer = nullptr;  // We'll initialize this later
-bluetooth_audio bluetoothAudio;      // Declare the bluetoothAudio object
+// Servo
+const int SERVO_PIN = 15;  // Servo control pin
+const int SERVO_MIN_DEGREES = 0;
+const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
+ServoController servoController;
 
 bool initializeBluetooth(const String& speakerName, int volume) {
   if (!audioPlayer) {
@@ -186,20 +154,32 @@ void setup() {
   int ultrasonicTriggerDistance = config.getUltrasonicTriggerDistance();
   int speakerVolume = config.getSpeakerVolume();
 
+  // Initialize ultrasonic sensor (for both primary and secondary)
+  distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
+
+  // Ping ultrasonic sensor 10 times for initialization and logging
+  for (int i = 0; i < 10; i++) {
+    float distance = distanceSensor->measureDistanceCm();
+    Serial.println("Ultrasonic distance: " + String(distance) + "cm");
+    delay(100);  // Wait between readings
+  }
+
   audioPlayer = new AudioPlayer(servoController);
   audioPlayer->begin();
 
-  // Determine Primary/Secondary role
-  isPrimary = determinePrimaryRole();
-  if (isPrimary) {
+  // Determine role based on settings.txt
+  if (role.equals("primary")) {
+    isPrimary = true;
     lightController.blinkEyes(4);  // Blink eyes 4 times for Primary
-
-    // Initialize ultrasonic sensor only if Primary
-    if (!distanceSensor) {
-      distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
-    }
+    Serial.println("This skull is configured as PRIMARY");
+  } else if (role.equals("secondary")) {
+    isPrimary = false;
+    lightController.blinkEyes(2);  // Blink eyes twice for Secondary
+    Serial.println("This skull is configured as SECONDARY");
   } else {
     lightController.blinkEyes(2);  // Blink eyes twice for Secondary
+    Serial.println("Invalid role in settings.txt. Defaulting to SECONDARY");
+    isPrimary = false;
   }
 
   initializeBluetooth(bluetoothSpeakerName, speakerVolume);

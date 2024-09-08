@@ -111,7 +111,6 @@ ISSUES
   ** try ArduinoFFT as simple audio analysis we can use to sync skull jaw motion to audio
   ** why is the audio clicking before and after playing
   ** use the Audio Player Class for other functionality like FFT and SD support: https://github.com/pschatzmann/arduino-audio-tools/wiki/The-Audio-Player-Class
-  ** reconnecting to bluetooth is flaky now that I'm relying on the library's auto-reconnect.. can I poke it?
   ** do a pre-pass on the audio to get max volume so we can peg that at max jaw movement. PER SKULL. Should be doable cuz we can do it on startup and save with the skit/skitline info. So it can be slowish.
   ** MVP: work on the skull only speaking/animating its OWN lines
   ** fix primary skull's servo seat; carve out jawbone a bit more so it catches better
@@ -120,8 +119,6 @@ ISSUES
     - wall wart + usb cable: I really don't want to have to plug in the skulls
     - battery pack: ISSUE: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
     - power board, providing power to both the ESP32 board and the servo: I think I only have one
-  ** move ultrasonic handling back out to INO (why is it in audio_player??) and have code that randomly chooses a skit in INO or a new module
-  ** have it choose primary/secondary based on SD config.txt, but still have it ping ultrasonic sensor 10 times for the log
   ** rebuild secondary perfboard with dupont connectors
 
   
