@@ -76,13 +76,13 @@ const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo hor
 bool initializeBluetooth(const String& speakerName, int volume) {
   skullAudioAnimator->setBluetoothConnected(false);
   skullAudioAnimator->setAudioReadyToPlay(false);
-  // Change this line to use a lambda function
   bluetoothAudio.begin(speakerName.c_str(), [](Frame* frame, int32_t frame_count) {
     return skullAudioAnimator->provideAudioFrames(frame, frame_count);
   });
   bluetoothAudio.set_volume(volume);
   bool connected = bluetoothAudio.is_connected();
   Serial.printf("Bluetooth connected to %s: %d, Volume: %d\n", speakerName.c_str(), connected, volume);
+  skullAudioAnimator->setBluetoothConnected(connected);
   return connected;
 }
 
@@ -126,11 +126,11 @@ void setup() {
   // Initialize servo
   servoController.initialize(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-  // Initialize AudioPlayer
-  AudioPlayer* audioPlayer = new AudioPlayer(servoController);
+  // Remove this line:
+  // AudioPlayer* audioPlayer = new AudioPlayer();
 
   // Initialize SkullAudioAnimator
-  skullAudioAnimator = new SkullAudioAnimator(*audioPlayer, servoController);
+  skullAudioAnimator = new SkullAudioAnimator(servoController);
   skullAudioAnimator->begin();
 
   // Initialize SD Card Manager
@@ -190,19 +190,12 @@ void setup() {
     isPrimary = false;
   }
 
+  // Initialize Bluetooth after SkullAudioAnimator
   initializeBluetooth(bluetoothSpeakerName, speakerVolume);
-
-  // Load SD card content
-  sdCardContent = sdCardManager->loadContent();
-  if (sdCardContent.skits.empty()) {
-    Serial.println("No skits found on SD card. Halting setup.");
-    blinkEyesForFailure(10);  // 10 blinks for no skits
-    return;
-  }
 
   // Announce "System initialized" and role
   Serial.printf("Playing initialization audio\n");
-  skullAudioAnimator->playNext(isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav");
+  skullAudioAnimator->playNow(isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav");
 
   // Find the "Skit - names" skit
   ParsedSkit namesSkit = skullAudioAnimator->findSkitByName(sdCardContent.skits, "Skit - names");
@@ -212,6 +205,14 @@ void setup() {
     skullAudioAnimator->playSkitNext(namesSkit);
   } else {
     Serial.println("'Skit - names' not found.");
+  }
+
+  // Load SD card content
+  sdCardContent = sdCardManager->loadContent();
+  if (sdCardContent.skits.empty()) {
+    Serial.println("No skits found on SD card. Halting setup.");
+    blinkEyesForFailure(10);  // 10 blinks for no skits
+    return;
   }
 }
 
@@ -267,4 +268,7 @@ void loop() {
     lastAudioProgress = skullAudioAnimator->getTotalBytesRead();
     lastAudioCheck = currentTime;
   }
+
+  // Remove the following line:
+  // bluetoothAudio.process();
 }

@@ -7,101 +7,43 @@
 #include "SD.h"
 #include <vector>
 #include <string>
-#include <arduinoFFT.h>
-#include "esp32-hal-ledc.h"  // Include ESP32 specific PWM library
-#include "servo_controller.h"
 #include "parsed_skit.h"
 
-struct AudioSegment {
-  unsigned long start;
-  unsigned long duration;
-  bool shouldPlay;
-};
+#define AUDIO_BUFFER_SIZE 32768  // Increased buffer size
 
 class AudioPlayer {
 public:
-  static const int SAMPLES = 256;
-  static const int SAMPLE_RATE = 44100;
-
-  AudioPlayer(ServoController& servoController);  // Modified constructor
-  void begin();
-  void update();
-  void updateSkit();  // Add this line
-  uint8_t* getCurrentAudioBuffer();
-  size_t getCurrentAudioBufferSize();
-  void playNow(const char* filePath);
-  void playNext(const char* filePath);
-  void playSkitNext(const ParsedSkit& skit);
-  bool isCurrentlyPlaying();
-  bool isPlayingSkit() const;
-  const ParsedSkit& getCurrentSkit() const;
-  size_t getCurrentSkitLine() const;
-  bool hasStartedPlaying() const;
-  bool isBluetoothConnected() const;
-  void setBluetoothConnected(bool connected);
-  void setAudioReadyToPlay(bool ready);
-  int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
-  double calculateRMS(const int16_t* samples, int numSamples);
-  void performFFT();
-  double getFFTResult(int index);
-  ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile);
-  ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name);
-  void prepareSkitPlayback(const ParsedSkit& skit);
-  bool fileExists(fs::FS& fs, const char* path);
-  void handleBluetoothStateChange(esp_a2d_connection_state_t state);
-
-  void setJawPosition(int position);
-
-  void logState();  // Add this line to declare the logState method
-
-  size_t getTotalBytesRead() const { return m_totalBytesRead; }
-
-  bool hasFinishedPlaying();  // Keep this public declaration
+    AudioPlayer();
+    void begin();
+    void update();
+    void playNow(const char* filePath);
+    void playNext(const char* filePath);
+    bool isCurrentlyPlaying();
+    bool hasFinishedPlaying();
+    void setBluetoothConnected(bool connected);
+    void setAudioReadyToPlay(bool ready);
+    size_t getTotalBytesRead() const;
+    void logState();
+    bool fileExists(fs::FS& fs, const char* path);
+    int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
+    void setBluetoothCallback(std::function<int32_t(Frame*, int32_t)> callback);
+    size_t readAudioData(uint8_t* buffer, size_t bytesToRead);
+    void incrementTotalBytesRead(size_t bytesRead);
 
 private:
-  uint8_t* buffer;
-  size_t currentBufferSize;
-  std::queue<String> audioQueue;
-  File currentAudioFile;
-  bool shouldPlayNow;
-  volatile bool isPlaying;
-  bool m_isPlayingSkit;
-  ParsedSkit m_currentSkit;
-  size_t m_currentSkitLine;
-  unsigned long m_skitStartTime;
-  bool m_hasStartedPlaying;
-  bool m_isBluetoothConnected;
-  bool m_isAudioReadyToPlay;
+    File audioFile;
+    uint8_t m_audioBuffer[AUDIO_BUFFER_SIZE];
+    size_t m_bufferPosition;
+    size_t m_bufferSize;
+    size_t m_totalBytesRead;
+    bool m_isBluetoothConnected;
+    bool m_isAudioReadyToPlay;
+    std::function<int32_t(Frame*, int32_t)> m_bluetoothCallback;
+    size_t m_writePos;
+    size_t m_readPos;
+    size_t m_bufferFilled;
 
-  // Add these FFT-related members
-  double vReal[SAMPLES];
-  double vImag[SAMPLES];
-  arduinoFFT FFT;
-
-  // New private members for skit management
-  std::vector<AudioSegment> audioSegments;
-  size_t currentSegment;
-
-  // New private method
-  void lock();
-  void unlock();
-  void startPlaying(const char* filePath);
-  int32_t _provideAudioFrames(Frame* frame, int32_t frame_count);
-  void loadAudioFile(const char* filename);
-  void processSkitLine();
-
-  // New private members for jaw movement
-  ServoController& m_servoController;  // Reference to ServoController
-
-  // New member to track end of file
-  bool m_reachedEndOfFile;
-
-  size_t m_totalFileSize;
-  size_t m_totalBytesRead;
-  bool m_isEndOfFile;
+    void writeAudio();
 };
-
-// Remove this line
-// extern AudioPlayer* audioPlayer;
 
 #endif // AUDIO_PLAYER_H

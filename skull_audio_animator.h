@@ -3,14 +3,38 @@
 
 #include "audio_player.h"
 #include "servo_controller.h"
-#include <vector>
-#include "FS.h"
 #include "arduinoFFT.h"
+#include "file_manager.h"
+#include <vector>
+
+#define SAMPLES 256
+#define SAMPLE_RATE 44100
 
 class SkullAudioAnimator {
 public:
-    SkullAudioAnimator(AudioPlayer& audioPlayer, ServoController& servoController);
+    SkullAudioAnimator(ServoController& servoController);
+    // ... (rest of the public methods)
 
+private:
+    AudioPlayer m_audioPlayer;
+    ServoController& m_servoController;
+    bool m_isPlayingSkit;
+    size_t m_currentSkitLine;
+    unsigned long m_skitStartTime;
+    ParsedSkit m_currentSkit;
+    double vReal[SAMPLES];
+    double vImag[SAMPLES];
+    arduinoFFT FFT;
+
+    void updateJawPosition();
+    void updateSkit();
+    void processSkitLine();
+    double calculateRMS(const int16_t* samples, int numSamples);
+    void performFFT();
+    double getFFTResult(int index);
+
+public:
+    SkullAudioAnimator(AudioPlayer& audioPlayer, ServoController& servoController);
     void begin();
     void update();
     void playNow(const char* filePath);
@@ -25,26 +49,9 @@ public:
     size_t getTotalBytesRead() const;
     void logState();
     bool fileExists(fs::FS &fs, const char* path);
-    ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile);
-
-    // Add these method declarations
-    double calculateRMS(const int16_t* samples, int numSamples);
-    void performFFT();
-    double getFFTResult(int index);
-
-    // Change this to a non-static member function
     int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
-
-private:
-    AudioPlayer& m_audioPlayer;
-    ServoController& m_servoController;
-
-    // Add FFT-related member variables
-    static const uint16_t SAMPLES = 128;  // Must be a power of 2
-    static const uint16_t SAMPLE_RATE = 44100;
-    double vReal[SAMPLES];
-    double vImag[SAMPLES];
-    arduinoFFT FFT;  // Changed from arduinoFFT<double> to arduinoFFT
+    ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile);
+    const ParsedSkit& getCurrentSkit() const;
 };
 
 #endif // SKULL_AUDIO_ANIMATOR_H

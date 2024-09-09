@@ -3,278 +3,169 @@
 #include <cmath>
 #include <algorithm>
 #include <Arduino.h>
-#include <esp_task_wdt.h>  // Include ESP32 watchdog timer library
+#include <esp_task_wdt.h>
 
-// Define __guard type
-typedef int __guard __attribute__((mode(__DI__)));
-
-// Function to capture stack trace (placeholder)
-void captureStackTrace() {
-  Serial.println("Capturing stack trace...");
-  // Implement platform-specific stack trace capture here
-  // For example, you can print the values of important registers
+AudioPlayer::AudioPlayer() 
+    : m_totalBytesRead(0), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false),
+      m_writePos(0), m_readPos(0), m_bufferFilled(0) {
 }
-
-// Custom error handler
-void customErrorHandler(const char* errorMessage) {
-  Serial.println(errorMessage);
-  captureStackTrace();
-  while (1);  // Halt the system
-}
-
-// Override the default abort function to capture the stack trace
-extern "C" void __cxa_pure_virtual() {
-  customErrorHandler("Pure virtual function called!");
-}
-
-AudioPlayer::AudioPlayer(ServoController& servoController) 
-    : buffer(nullptr), currentBufferSize(0), shouldPlayNow(false), isPlaying(false),
-      m_isPlayingSkit(false), m_currentSkitLine(0), m_skitStartTime(0),
-      m_hasStartedPlaying(false), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false),
-      m_reachedEndOfFile(false),
-      m_servoController(servoController),
-      m_totalFileSize(0), m_totalBytesRead(0), m_isEndOfFile(false) {}  // Initialize new members
 
 void AudioPlayer::begin() {
     // Initialize audio player
 }
 
 void AudioPlayer::update() {
-  if (shouldPlayNow) {
-    Serial.printf("AudioPlayer: Now playing file: %s\n", currentAudioFile.name());
-    startPlaying(currentAudioFile.name());
-    shouldPlayNow = false;
-  }
-
-  // Remove the queue checking here, as it's now handled in _provideAudioFrames
-
-  updateSkit();
-
-  static unsigned long lastPlaybackProgress = 0;
-  static unsigned long lastPlaybackCheck = 0;
-  unsigned long currentTime = millis();
-
-  if (isPlaying && currentTime - lastPlaybackCheck > 30000) {  // Check every 30 seconds instead of 5
-    if (m_totalBytesRead == lastPlaybackProgress) {
-      Serial.println("WARNING: Audio playback seems to be stalled!");
-      logState();  // Only log state when stalled
+    if (audioFile && m_bufferFilled < AUDIO_BUFFER_SIZE / 2) {
+        writeAudio();
     }
-    lastPlaybackProgress = m_totalBytesRead;
-    lastPlaybackCheck = currentTime;
-  }
-}
-
-void AudioPlayer::updateSkit() {
-  if (m_isPlayingSkit && m_hasStartedPlaying) {
-    if (m_skitStartTime == 0) {
-      m_skitStartTime = millis();
-    }
-
-    unsigned long currentTime = millis() - m_skitStartTime;
-
-    while (m_currentSkitLine < m_currentSkit.lines.size() && 
-           currentTime >= m_currentSkit.lines[m_currentSkitLine].timestamp) {
-      processSkitLine();
-      m_currentSkitLine++;
-    }
-
-    if (m_currentSkitLine >= m_currentSkit.lines.size()) {
-      m_isPlayingSkit = false;
-    }
-  }
-}
-
-uint8_t* AudioPlayer::getCurrentAudioBuffer() {
-  return buffer;
-}
-
-size_t AudioPlayer::getCurrentAudioBufferSize() {
-  return currentBufferSize;
 }
 
 void AudioPlayer::playNow(const char* filePath) {
-  shouldPlayNow = true;
-  startPlaying(filePath);
+    if (audioFile) {
+        audioFile.close();
+    }
+    
+    audioFile = SD.open(filePath);
+    if (!audioFile) {
+        Serial.printf("Failed to open audio file: %s\n", filePath);
+    } else {
+        m_totalBytesRead = 0;
+        m_writePos = 0;
+        m_readPos = 0;
+        m_bufferFilled = 0;
+        writeAudio();  // Start filling the buffer immediately
+    }
 }
 
 void AudioPlayer::playNext(const char* filePath) {
-  audioQueue.push(String(filePath));
-}
-
-void AudioPlayer::playSkitNext(const ParsedSkit& skit) {
-    m_currentSkit = skit;
-    m_isPlayingSkit = true;
-    m_currentSkitLine = 0;
-    m_skitStartTime = 0;  // Will be set when audio actually starts
-    playNext(skit.audioFile.c_str());
+    if (audioFile) {
+        audioFile.close();
+    }
+    audioFile = SD.open(filePath);
+    if (!audioFile) {
+        Serial.println("Failed to open next audio file");
+    } else {
+        Serial.println("Next audio file opened successfully");
+        m_totalBytesRead = 0;
+    }
 }
 
 bool AudioPlayer::isCurrentlyPlaying() {
-  return isPlaying;
+    return audioFile && audioFile.available();
 }
 
-bool AudioPlayer::isPlayingSkit() const {
-    return m_isPlayingSkit;
-}
-
-const ParsedSkit& AudioPlayer::getCurrentSkit() const {
-    return m_currentSkit;
-}
-
-size_t AudioPlayer::getCurrentSkitLine() const {
-    return m_currentSkitLine;
-}
-
-bool AudioPlayer::hasStartedPlaying() const {
-    return m_hasStartedPlaying;
-}
-
-bool AudioPlayer::isBluetoothConnected() const {
-    return m_isBluetoothConnected;
+bool AudioPlayer::hasFinishedPlaying() {
+    return !audioFile || !audioFile.available();
 }
 
 void AudioPlayer::setBluetoothConnected(bool connected) {
     m_isBluetoothConnected = connected;
+    if (connected) {
+        m_bufferPosition = 0;  // Reset buffer position to start from the beginning
+    }
 }
 
 void AudioPlayer::setAudioReadyToPlay(bool ready) {
     m_isAudioReadyToPlay = ready;
 }
 
-int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
-    // Replace 'audioPlayer->' with 'this->'
-    return this->_provideAudioFrames(frame, frame_count);
-}
-
-// Add detailed debug prints in critical sections
-void AudioPlayer::startPlaying(const char* filePath) {
-  Serial.printf("startPlaying: Attempting to play file: %s\n", filePath);
-  if (currentAudioFile && strcmp(currentAudioFile.name(), filePath) == 0) {
-    Serial.println("startPlaying: File is already playing.");
-    return;
-  }
-  if (currentAudioFile) {
-    currentAudioFile.close();
-  }
-  currentAudioFile = FileManager::openFile(filePath);
-  isPlaying = currentAudioFile;
-  m_isEndOfFile = false;
-  m_reachedEndOfFile = false;  // Reset this flag when starting a new file
-  m_totalFileSize = currentAudioFile.size();
-  m_totalBytesRead = 0;
-  m_hasStartedPlaying = true;  // Set this flag when starting playback
-  if (!isPlaying) {
-    Serial.printf("startPlaying: Failed to open file: %s\n", filePath);
-  } else {
-    Serial.printf("startPlaying: Successfully opened file: %s (size: %d bytes)\n", filePath, m_totalFileSize);
-  }
-  logState();  // Log state after starting playback
-}
-
-int32_t AudioPlayer::_provideAudioFrames(Frame* frame, int32_t frame_count) {
-  if (!isPlaying || !currentAudioFile || m_isEndOfFile) {
-    // If playback has ended, check if there's another file in the queue
-    if (!audioQueue.empty()) {
-      const char* nextAudioFile = audioQueue.front().c_str();
-      startPlaying(nextAudioFile);
-      audioQueue.pop();
-      // If we've successfully started a new file, continue with playback
-      if (isPlaying) {
-        return this->_provideAudioFrames(frame, frame_count); // Recursive call to handle the new file
-      }
-    }
-    
-    // If there's no next file or we couldn't start playing, return silence
-    memset(frame, 0, frame_count * sizeof(Frame));
-    return frame_count; // Return the requested number of frames, but filled with silence
-  }
-
-  size_t requiredSize = frame_count * 4;
-  if (requiredSize != currentBufferSize) {
-    delete[] buffer;
-    buffer = new uint8_t[requiredSize];
-    if (!buffer) {
-      Serial.println("_provideAudioFrames: Failed to allocate buffer!");
-      return 0;
-    }
-    currentBufferSize = requiredSize;
-    Serial.printf("_provideAudioFrames: Buffer resized to %d bytes\n", currentBufferSize);
-  }
-
-  size_t bytesRead = FileManager::readFileBytes(currentAudioFile, buffer, currentBufferSize);
-  if (bytesRead == 0) {
-    Serial.println("_provideAudioFrames: Failed to read from file!");
-    return 0;
-  }
-  m_totalBytesRead += bytesRead;
-
-  // Log progress every 1MB of data read
-  if (m_totalBytesRead / 1000000 > (m_totalBytesRead - bytesRead) / 1000000) {
-    Serial.printf("_provideAudioFrames: Total read: %d / %d MB\n", m_totalBytesRead / 1000000, m_totalFileSize / 1000000);
-  }
-
-  if (bytesRead < currentBufferSize || m_totalBytesRead >= m_totalFileSize) {
-    m_isEndOfFile = true;
-    isPlaying = false;
-    currentAudioFile.close();
-    Serial.printf("_provideAudioFrames: Reached end of audio file. Total bytes read: %d / %d\n", m_totalBytesRead, m_totalFileSize);
-    return 0;
-  }
-
-  // Remove the frame counter and logging here
-
-  for (int i = 0, j = 0; i < bytesRead; i += 4, ++j) {
-    frame[j].channel1 = (buffer[i + 1] << 8) | buffer[i];
-    frame[j].channel2 = (buffer[i + 3] << 8) | buffer[i + 2];
-  }
-
-  return bytesRead / 4;
-}
-
-bool AudioPlayer::hasFinishedPlaying() {
-  return m_isEndOfFile || !currentAudioFile || currentAudioFile.available() == 0;
-}
-
-void AudioPlayer::loadAudioFile(const char* filename) {
-    // Implement audio file loading logic here
-}
-
-void AudioPlayer::processSkitLine() {
-    // Implement skit line processing logic here
-}
-
-double AudioPlayer::calculateRMS(const int16_t* samples, int numSamples) {
-    double sum = 0;
-    for (int i = 0; i < numSamples; i++) {
-        sum += samples[i] * samples[i];
-    }
-    return sqrt(sum / numSamples);
-}
-
-ParsedSkit AudioPlayer::parseSkitFile(const String& wavFile, const String& txtFile) {
-    return FileManager::parseSkitFile(wavFile, txtFile);
-}
-
-ParsedSkit AudioPlayer::findSkitByName(const std::vector<ParsedSkit>& skits, const String& name) {
-    return FileManager::findSkitByName(skits, name);
+void AudioPlayer::logState() {
+    Serial.println("AudioPlayer State:");
+    Serial.printf("  Is playing: %d\n", isCurrentlyPlaying());
+    Serial.printf("  Total bytes read: %d\n", m_totalBytesRead);
+    Serial.printf("  Bluetooth connected: %d\n", m_isBluetoothConnected);
+    Serial.printf("  Audio ready to play: %d\n", m_isAudioReadyToPlay);
 }
 
 bool AudioPlayer::fileExists(fs::FS& fs, const char* path) {
-    return FileManager::fileExists(path);
+    return fs.exists(path);
 }
 
-void AudioPlayer::setJawPosition(int position) {
-    m_servoController.setPosition(position);
+size_t AudioPlayer::getTotalBytesRead() const {
+    return m_totalBytesRead;
 }
 
-void AudioPlayer::logState() {
-  Serial.println("AudioPlayer State:");
-  Serial.printf("  isPlaying: %d\n", isPlaying);
-  Serial.printf("  m_isEndOfFile: %d\n", m_isEndOfFile);
-  Serial.printf("  m_totalBytesRead: %d\n", m_totalBytesRead);
-  Serial.printf("  m_totalFileSize: %d\n", m_totalFileSize);
-  Serial.printf("  currentBufferSize: %d\n", currentBufferSize);
-  Serial.printf("  audioQueue size: %d\n", audioQueue.size());
-  Serial.printf("  m_isPlayingSkit: %d\n", m_isPlayingSkit);
-  Serial.printf("  m_currentSkitLine: %d\n", m_currentSkitLine);
+void AudioPlayer::setBluetoothCallback(std::function<int32_t(Frame*, int32_t)> callback) {
+    m_bluetoothCallback = callback;
+}
+
+int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
+    if (!m_isBluetoothConnected) {
+        memset(frame, 0, frame_count * sizeof(Frame));
+        return frame_count;
+    }
+
+    size_t bytesToProvide = frame_count * sizeof(Frame);
+    size_t bytesProvided = 0;
+
+    while (bytesProvided < bytesToProvide) {
+        if (m_bufferFilled == 0) {
+            writeAudio();
+            if (m_bufferFilled == 0) {
+                // End of file reached
+                memset((uint8_t*)frame + bytesProvided, 0, bytesToProvide - bytesProvided);
+                return bytesProvided / sizeof(Frame);
+            }
+        }
+
+        size_t bytesToCopy = min(bytesToProvide - bytesProvided, m_bufferFilled);
+        if (m_readPos + bytesToCopy > AUDIO_BUFFER_SIZE) {
+            size_t firstPart = AUDIO_BUFFER_SIZE - m_readPos;
+            size_t secondPart = bytesToCopy - firstPart;
+            memcpy((uint8_t*)frame + bytesProvided, m_audioBuffer + m_readPos, firstPart);
+            memcpy((uint8_t*)frame + bytesProvided + firstPart, m_audioBuffer, secondPart);
+            m_readPos = secondPart;
+        } else {
+            memcpy((uint8_t*)frame + bytesProvided, m_audioBuffer + m_readPos, bytesToCopy);
+            m_readPos = (m_readPos + bytesToCopy) % AUDIO_BUFFER_SIZE;
+        }
+
+        bytesProvided += bytesToCopy;
+        m_bufferFilled -= bytesToCopy;
+        m_totalBytesRead += bytesToCopy;
+    }
+
+    return frame_count;
+}
+
+// Remove getCurrentAudioBuffer and getCurrentAudioBufferSize methods
+
+size_t AudioPlayer::readAudioData(uint8_t* buffer, size_t bytesToRead) {
+    if (!audioFile || !audioFile.available()) {
+        // Try to reopen the file
+        String currentFilePath = audioFile.name();
+        audioFile = SD.open(currentFilePath.c_str());
+        if (!audioFile) {
+            return 0;
+        }
+    }
+
+    if (audioFile && audioFile.available()) {
+        size_t bytesRead = audioFile.read(buffer, bytesToRead);
+        return bytesRead;
+    }
+    
+    return 0;
+}
+
+void AudioPlayer::incrementTotalBytesRead(size_t bytesRead) {
+    m_totalBytesRead += bytesRead;
+}
+
+void AudioPlayer::writeAudio() {
+    size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
+    size_t writeAmount = std::min(spaceAvailable, static_cast<size_t>(audioFile.available()));
+    
+    if (m_writePos + writeAmount > AUDIO_BUFFER_SIZE) {
+        size_t firstPart = AUDIO_BUFFER_SIZE - m_writePos;
+        size_t secondPart = writeAmount - firstPart;
+        audioFile.read(m_audioBuffer + m_writePos, firstPart);
+        audioFile.read(m_audioBuffer, secondPart);
+        m_writePos = secondPart;
+    } else {
+        audioFile.read(m_audioBuffer + m_writePos, writeAmount);
+        m_writePos = (m_writePos + writeAmount) % AUDIO_BUFFER_SIZE;
+    }
+    
+    m_bufferFilled += writeAmount;
 }

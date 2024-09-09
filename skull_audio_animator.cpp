@@ -1,14 +1,20 @@
 #include "skull_audio_animator.h"
 #include <cmath>
 
-SkullAudioAnimator::SkullAudioAnimator(AudioPlayer& audioPlayer, ServoController& servoController)
-    : m_audioPlayer(audioPlayer), m_servoController(servoController),
+SkullAudioAnimator::SkullAudioAnimator(ServoController& servoController)
+    : m_audioPlayer(), m_servoController(servoController),
+      m_isPlayingSkit(false), m_currentSkitLine(0), m_skitStartTime(0),
       FFT(vReal, vImag, SAMPLES, SAMPLE_RATE) {
     // Initialize FFT-related variables
     for (uint16_t i = 0; i < SAMPLES; i++) {
         vReal[i] = 0;
         vImag[i] = 0;
     }
+
+    m_audioPlayer.setBluetoothCallback([this](Frame* frame, int32_t frame_count) {
+        return this->provideAudioFrames(frame, frame_count);
+    });
+    m_audioPlayer.begin();  // Make sure to call begin() here
 }
 
 void SkullAudioAnimator::begin() {
@@ -16,25 +22,50 @@ void SkullAudioAnimator::begin() {
 }
 
 void SkullAudioAnimator::update() {
-    m_audioPlayer.update();
+    m_audioPlayer.update();  // Make sure this method is called
+    updateJawPosition();
+    updateSkit();
+}
 
+void SkullAudioAnimator::updateJawPosition() {
     if (m_audioPlayer.isCurrentlyPlaying()) {
-        // Perform FFT analysis
         performFFT();
-        
-        // Use FFT results for animation (e.g., jaw movement)
         double bassEnergy = 0;
-        for (int i = 1; i < 10; i++) {  // Analyze first 10 frequency bins (adjust as needed)
+        for (int i = 1; i < 10; i++) {
             bassEnergy += getFFTResult(i);
         }
-        
-        // Map bass energy to jaw position (adjust thresholds as needed)
         int jawPosition = map(bassEnergy, 0, 1000, 0, 90);
         m_servoController.setPosition(jawPosition);
     }
 }
 
+void SkullAudioAnimator::updateSkit() {
+    if (m_isPlayingSkit && m_audioPlayer.isCurrentlyPlaying()) {
+        if (m_skitStartTime == 0) {
+            m_skitStartTime = millis();
+        }
+
+        unsigned long currentTime = millis() - m_skitStartTime;
+
+        while (m_currentSkitLine < m_currentSkit.lines.size() && 
+               currentTime >= m_currentSkit.lines[m_currentSkitLine].timestamp) {
+            processSkitLine();
+            m_currentSkitLine++;
+        }
+
+        if (m_currentSkitLine >= m_currentSkit.lines.size()) {
+            m_isPlayingSkit = false;
+        }
+    }
+}
+
+void SkullAudioAnimator::processSkitLine() {
+    // Implement skit line processing logic here
+    // This could involve setting LED states, triggering animations, etc.
+}
+
 void SkullAudioAnimator::playNow(const char* filePath) {
+    m_audioPlayer.setBluetoothConnected(false);  // Reset connection state
     m_audioPlayer.playNow(filePath);
 }
 
@@ -43,7 +74,11 @@ void SkullAudioAnimator::playNext(const char* filePath) {
 }
 
 void SkullAudioAnimator::playSkitNext(const ParsedSkit& skit) {
-    m_audioPlayer.playSkitNext(skit);
+    m_currentSkit = skit;
+    m_isPlayingSkit = true;
+    m_currentSkitLine = 0;
+    m_skitStartTime = 0;
+    m_audioPlayer.playNext(skit.audioFile.c_str());
 }
 
 bool SkullAudioAnimator::isCurrentlyPlaying() {
@@ -51,7 +86,7 @@ bool SkullAudioAnimator::isCurrentlyPlaying() {
 }
 
 bool SkullAudioAnimator::isPlayingSkit() const {
-    return m_audioPlayer.isPlayingSkit();
+    return m_isPlayingSkit;
 }
 
 bool SkullAudioAnimator::hasFinishedPlaying() {
@@ -67,7 +102,12 @@ void SkullAudioAnimator::setAudioReadyToPlay(bool ready) {
 }
 
 ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit>& skits, const String& name) {
-    return m_audioPlayer.findSkitByName(skits, name);
+    for (const auto& skit : skits) {
+        if (skit.audioFile == name) {  // Changed from skit.name to skit.audioFile
+            return skit;
+        }
+    }
+    return ParsedSkit(); // Return an empty ParsedSkit if not found
 }
 
 size_t SkullAudioAnimator::getTotalBytesRead() const {
@@ -76,37 +116,54 @@ size_t SkullAudioAnimator::getTotalBytesRead() const {
 
 void SkullAudioAnimator::logState() {
     m_audioPlayer.logState();
+    // Add any additional SAA-specific logging here
 }
 
-// Remove this entire block
-// void SkullAudioAnimator::loadAudioFile(const char* filename) {
-//     m_audioPlayer.loadAudioFile(filename);
-// }
-
-// Update this method to use the AudioPlayer's fileExists method
 bool SkullAudioAnimator::fileExists(fs::FS &fs, const char* path) {
     return m_audioPlayer.fileExists(fs, path);
 }
 
-// Review and adjust these methods if necessary
-double SkullAudioAnimator::calculateRMS(const int16_t* samples, int numSamples) {
-    double sum = 0;
-    for (int i = 0; i < numSamples; i++) {
-        sum += samples[i] * samples[i];
+int32_t SkullAudioAnimator::provideAudioFrames(Frame* frame, int32_t frame_count) {
+    if (!m_audioPlayer.isCurrentlyPlaying()) {
+        memset(frame, 0, frame_count * sizeof(Frame));
+        return frame_count;
     }
-    return sqrt(sum / numSamples);
+
+    size_t bytesToRead = frame_count * sizeof(Frame);
+    size_t bytesRead = m_audioPlayer.readAudioData((uint8_t*)frame, bytesToRead);
+    
+    if (bytesRead < bytesToRead) {
+        // Fill the rest with silence if we've reached the end of the file
+        memset((uint8_t*)frame + bytesRead, 0, bytesToRead - bytesRead);
+    }
+    
+    m_audioPlayer.incrementTotalBytesRead(bytesRead);
+    return frame_count;
+}
+
+ParsedSkit SkullAudioAnimator::parseSkitFile(const String& wavFile, const String& txtFile) {
+    // Implement skit file parsing logic
+    // This is a placeholder implementation. You should replace it with actual parsing logic.
+    ParsedSkit skit;
+    skit.audioFile = wavFile;
+    skit.txtFile = txtFile;
+    // Parse the txt file and populate skit.lines
+    return skit;
+}
+
+const ParsedSkit& SkullAudioAnimator::getCurrentSkit() const {
+    return m_currentSkit;
 }
 
 void SkullAudioAnimator::performFFT() {
     // Get the current audio buffer
-    uint8_t* buffer = m_audioPlayer.getCurrentAudioBuffer();
-    size_t bufferSize = m_audioPlayer.getCurrentAudioBufferSize();
+    Frame buffer[SAMPLES];
+    int32_t bufferSize = m_audioPlayer.provideAudioFrames(buffer, SAMPLES);
 
     // Fill vReal with audio samples
     for (uint16_t i = 0; i < SAMPLES; i++) {
-        if (i * 2 + 1 < bufferSize) {
-            int16_t sample = (buffer[i * 2 + 1] << 8) | buffer[i * 2];
-            vReal[i] = (double)sample;
+        if (i < bufferSize) {
+            vReal[i] = (double)buffer[i].channel1;  // Use channel1 or average of both channels
         } else {
             vReal[i] = 0;
         }
@@ -126,10 +183,10 @@ double SkullAudioAnimator::getFFTResult(int index) {
     return 0;
 }
 
-int32_t SkullAudioAnimator::provideAudioFrames(Frame* frame, int32_t frame_count) {
-    return m_audioPlayer.provideAudioFrames(frame, frame_count);
-}
-
-ParsedSkit SkullAudioAnimator::parseSkitFile(const String& wavFile, const String& txtFile) {
-    return m_audioPlayer.parseSkitFile(wavFile, txtFile);
+double SkullAudioAnimator::calculateRMS(const int16_t* samples, int numSamples) {
+    double sum = 0;
+    for (int i = 0; i < numSamples; i++) {
+        sum += samples[i] * samples[i];
+    }
+    return sqrt(sum / numSamples);
 }
