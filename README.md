@@ -109,7 +109,6 @@ ISSUES
   ** start overall log to document these issues/components
   ** connect to second skull; maybe use existing bluetooth library which has examples: https://github.com/pschatzmann/ESP32-A2DP
   ** try ArduinoFFT as simple audio analysis we can use to sync skull jaw motion to audi.o
-  ** why is the audio clicking before and after playing
   ** use the Audio Player Class for other functionality like FFT and SD support: https://github.com/pschatzmann/arduino-audio-tools/wiki/The-Audio-Player-Class
   ** do a pre-pass on the audio to get max volume so we can peg that at max jaw movement. PER SKULL. Should be doable cuz we can do it on startup and save with the skit/skitline info. So it can be slowish.
   ** MVP: work on the skull only speaking/animating its OWN lines

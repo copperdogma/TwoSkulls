@@ -231,8 +231,8 @@ void loop() {
   // Reset the watchdog timer
   esp_task_wdt_reset();
 
-  // Every 1000ms output "loop() running" and check memory
-  if (currentMillis - lastMillis >= 1000) {
+  // Every 5000ms output "loop() running" and check memory
+  if (currentMillis - lastMillis >= 5000) {
     size_t freeHeap = ESP.getFreeHeap();
     Serial.printf("%d loop() running. Free memory: %d bytes\n", currentMillis, freeHeap);
     lastMillis = currentMillis;
@@ -252,20 +252,4 @@ void loop() {
 
   // Allow other tasks to run
   delay(1);
-
-  static unsigned long lastAudioProgress = 0;
-  static unsigned long lastAudioCheck = 0;
-  unsigned long currentTime = millis();
-
-  if (skullAudioAnimator->isCurrentlyPlaying() && currentTime - lastAudioCheck > 5000) {
-    if (skullAudioAnimator->getTotalBytesRead() == lastAudioProgress) {
-      Serial.println("WARNING: Audio playback seems to be stalled!");
-      skullAudioAnimator->logState();
-    }
-    lastAudioProgress = skullAudioAnimator->getTotalBytesRead();
-    lastAudioCheck = currentTime;
-  }
-
-  // Remove the following line:
-  // bluetoothAudio.process();
 }
