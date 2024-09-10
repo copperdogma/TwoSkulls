@@ -11,9 +11,6 @@ SkullAudioAnimator::SkullAudioAnimator(ServoController& servoController)
         vImag[i] = 0;
     }
 
-    m_audioPlayer.setBluetoothCallback([this](Frame* frame, int32_t frame_count) {
-        return this->provideAudioFrames(frame, frame_count);
-    });
     m_audioPlayer.begin();  // Make sure to call begin() here
 }
 
@@ -117,8 +114,11 @@ size_t SkullAudioAnimator::getTotalBytesRead() const {
 }
 
 void SkullAudioAnimator::logState() {
-    m_audioPlayer.logState();
     // Add any additional SAA-specific logging here
+    Serial.println("SkullAudioAnimator State:");
+    Serial.printf("  Is playing skit: %d\n", m_isPlayingSkit);
+    Serial.printf("  Current skit line: %d\n", m_currentSkitLine);
+    Serial.printf("  Skit start time: %lu\n", m_skitStartTime);
 }
 
 bool SkullAudioAnimator::fileExists(fs::FS &fs, const char* path) {

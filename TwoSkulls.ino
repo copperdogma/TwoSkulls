@@ -4,9 +4,6 @@
   Main file.
 
 */
-#include <algorithm>  // For std::sort
-#include <vector>
-#include <tuple>
 #include "bluetooth_audio.h"
 #include "FS.h"      // Ensure ESP32 board package is installed
 #include "SD.h"      // Ensure ESP32 board package is installed
@@ -28,8 +25,6 @@
 // Remove this line
 // AudioPlayer* audioPlayer = nullptr;
 
-const bool SKIT_DEBUG = true;  // Will set eyes to 100% brightness when it's supposed to be talking and 10% when it's not.
-
 const int LEFT_EYE_PIN = 32;   // GPIO pin for left eye LED
 const int RIGHT_EYE_PIN = 33;  // GPIO pin for right eye LED
 LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
@@ -38,7 +33,6 @@ LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
 UltraSonicDistanceSensor* distanceSensor = nullptr;  // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
 const int TRIGGER_PIN = 2;                           // Pin number ultrasonic pulse trigger
 const int ECHO_PIN = 22;                             // Pin number ultrasonic echo detection
-unsigned long lastUltrasonicRead = 0;                // Last time the ultrasonic sensor was read
 
 SDCardManager* sdCardManager = nullptr;
 SDCardContent sdCardContent;
@@ -70,12 +64,8 @@ const int CHUNKS_NEEDED = 17;  // Number of chunks needed for 100ms (34)
 const int SERVO_PIN = 15;  // Servo control pin
 const int SERVO_MIN_DEGREES = 0;
 const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
-// Remove this line as it's a duplicate
-// ServoController servoController;
 
 bool initializeBluetooth(const String& speakerName, int volume) {
-  skullAudioAnimator->setBluetoothConnected(false);
-  skullAudioAnimator->setAudioReadyToPlay(false);
   bluetoothAudio.begin(speakerName.c_str(), [](Frame* frame, int32_t frame_count) {
     return skullAudioAnimator->provideAudioFrames(frame, frame_count);
   });
@@ -206,7 +196,7 @@ void setup() {
   for (int i = 0; i < 10; i++) {
     float distance = distanceSensor->measureDistanceCm();
     Serial.println("Ultrasonic distance: " + String(distance) + "cm");
-    delay(100);  // Wait between readings
+    delay(50);  // Wait between readings
   }
 
   // Initialize Bluetooth after SkullAudioAnimator
@@ -226,7 +216,6 @@ void blinkEyesForFailure(int numBlinks) {
 void loop() {
   unsigned long currentMillis = millis();
   static unsigned long lastMillis = 0;
-  static unsigned long lastMemoryCheck = 0;
 
   // Reset the watchdog timer
   esp_task_wdt_reset();
@@ -236,15 +225,6 @@ void loop() {
     size_t freeHeap = ESP.getFreeHeap();
     Serial.printf("%d loop() running. Free memory: %d bytes\n", currentMillis, freeHeap);
     lastMillis = currentMillis;
-  }
-
-  // Check memory every 100ms
-  if (currentMillis - lastMemoryCheck >= 100) {
-    size_t freeHeap = ESP.getFreeHeap();
-    if (freeHeap < 10000) {  // Adjust this threshold as needed
-      Serial.printf("WARNING: Low memory: %d bytes\n", freeHeap);
-    }
-    lastMemoryCheck = currentMillis;
   }
 
   // Update SkullAudioAnimator

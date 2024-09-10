@@ -26,10 +26,8 @@ public:
     void setBluetoothConnected(bool connected);
     void setAudioReadyToPlay(bool ready);
     size_t getTotalBytesRead() const;
-    void logState();
     bool fileExists(fs::FS& fs, const char* path);
     int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
-    void setBluetoothCallback(std::function<int32_t(Frame*, int32_t)> callback);
     size_t readAudioData(uint8_t* buffer, size_t bytesToRead);
     void incrementTotalBytesRead(size_t bytesRead);
 
@@ -44,7 +42,6 @@ private:
     size_t m_totalBytesRead;
     bool m_isBluetoothConnected;
     bool m_isAudioReadyToPlay;
-    std::function<int32_t(Frame*, int32_t)> m_bluetoothCallback;
     size_t m_writePos;
     size_t m_readPos;
     size_t m_bufferFilled;

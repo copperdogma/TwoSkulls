@@ -88,24 +88,12 @@ void AudioPlayer::setAudioReadyToPlay(bool ready) {
     m_isAudioReadyToPlay = ready;
 }
 
-void AudioPlayer::logState() {
-    Serial.println("AudioPlayer State:");
-    Serial.printf("  Is playing: %d\n", isCurrentlyPlaying());
-    Serial.printf("  Total bytes read: %d\n", m_totalBytesRead);
-    Serial.printf("  Bluetooth connected: %d\n", m_isBluetoothConnected);
-    Serial.printf("  Audio ready to play: %d\n", m_isAudioReadyToPlay);
-}
-
 bool AudioPlayer::fileExists(fs::FS& fs, const char* path) {
     return fs.exists(path);
 }
 
 size_t AudioPlayer::getTotalBytesRead() const {
     return m_totalBytesRead;
-}
-
-void AudioPlayer::setBluetoothCallback(std::function<int32_t(Frame*, int32_t)> callback) {
-    m_bluetoothCallback = callback;
 }
 
 int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
