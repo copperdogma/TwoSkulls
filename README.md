@@ -108,7 +108,7 @@ ISSUES
   TODO
   ** start overall log to document these issues/components
   ** connect to second skull; maybe use existing bluetooth library which has examples: https://github.com/pschatzmann/ESP32-A2DP
-  ** try ArduinoFFT as simple audio analysis we can use to sync skull jaw motion to audio
+  ** try ArduinoFFT as simple audio analysis we can use to sync skull jaw motion to audi.o
   ** why is the audio clicking before and after playing
   ** use the Audio Player Class for other functionality like FFT and SD support: https://github.com/pschatzmann/arduino-audio-tools/wiki/The-Audio-Player-Class
   ** do a pre-pass on the audio to get max volume so we can peg that at max jaw movement. PER SKULL. Should be doable cuz we can do it on startup and save with the skit/skitline info. So it can be slowish.
@@ -120,9 +120,6 @@ ISSUES
     - battery pack: ISSUE: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
     - power board, providing power to both the ESP32 board and the servo: I think I only have one
   ** rebuild secondary perfboard with dupont connectors
-  ** DAMMIT.. it WAS working 100% except playing the second audio killed the first audio so it never played.
-     Which was pretty good. But instead of saving it there I got it to keep tweaking it and now nothing plays
-     again and I think it made a TON of changes:(
 
   
   SD CARD

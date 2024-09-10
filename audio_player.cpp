@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <Arduino.h>
 #include <esp_task_wdt.h>
+#include <mutex>
+#include <thread>
 
 AudioPlayer::AudioPlayer() 
     : m_totalBytesRead(0), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false),
@@ -12,6 +14,7 @@ AudioPlayer::AudioPlayer()
 
 void AudioPlayer::begin() {
     // Initialize audio player
+    std::thread(&AudioPlayer::audioPlayerTask, this).detach();
 }
 
 void AudioPlayer::update() {
@@ -38,16 +41,17 @@ void AudioPlayer::playNow(const char* filePath) {
 }
 
 void AudioPlayer::playNext(const char* filePath) {
-    if (audioFile) {
-        audioFile.close();
+    std::lock_guard<std::mutex> lock(queueMutex);
+    if (filePath) {
+        audioQueue.push(std::string(filePath));
+        Serial.printf("AudioPlayer: Added file to queue: %s (New queue size: %d)\n", filePath, audioQueue.size());
     }
-    audioFile = SD.open(filePath);
-    if (!audioFile) {
-        Serial.println("Failed to open next audio file");
-    } else {
-        Serial.println("Next audio file opened successfully");
-        m_totalBytesRead = 0;
+    if (!isPlaying && !audioQueue.empty()) {
+        std::string nextFile = audioQueue.front();
+        audioQueue.pop();
+        playFile(nextFile.c_str());
     }
+    queueCV.notify_one();
 }
 
 bool AudioPlayer::isCurrentlyPlaying() {
@@ -59,9 +63,16 @@ bool AudioPlayer::hasFinishedPlaying() {
 }
 
 void AudioPlayer::setBluetoothConnected(bool connected) {
+    Serial.printf("Bluetooth connection status changed to: %s\n", connected ? "connected" : "disconnected");
     m_isBluetoothConnected = connected;
     if (connected) {
         m_bufferPosition = 0;  // Reset buffer position to start from the beginning
+        if (!isCurrentlyPlaying() && !audioQueue.empty()) {
+            // Start playing the first file in the queue if not already playing
+            std::string filePath = audioQueue.front();
+            audioQueue.pop();
+            playFile(filePath.c_str());
+        }
     }
 }
 
@@ -168,4 +179,35 @@ void AudioPlayer::writeAudio() {
     }
     
     m_bufferFilled += writeAmount;
+}
+
+void AudioPlayer::audioPlayerTask() {
+    while (true) {
+        std::string filePath;
+        {
+            std::unique_lock<std::mutex> lock(queueMutex);
+            queueCV.wait(lock, [this] { return !audioQueue.empty() || shouldStop; });
+            if (shouldStop) {
+                Serial.println("AudioPlayer: audioPlayerTask stopping");
+                break;
+            }
+            filePath = audioQueue.front();
+            audioQueue.pop();
+        }
+        
+        Serial.printf("AudioPlayer: Starting playback of file: %s (Remaining queue size: %d)\n", filePath.c_str(), audioQueue.size());
+        playFile(filePath.c_str());
+    }
+}
+
+void AudioPlayer::playFile(const char* filePath) {
+    Serial.printf("AudioPlayer: Starting playback of file: %s\n", filePath);
+    playNow(filePath);  // Use the existing playNow method to start playback
+    isPlaying = true;
+    while (isPlaying && !shouldStop && isCurrentlyPlaying()) {
+        update();  // Call update to keep filling the buffer
+        delay(10);  // Small delay to prevent tight looping
+    }
+    isPlaying = false;
+    Serial.printf("AudioPlayer: Finished playback of file: %s\n", filePath);
 }

@@ -70,6 +70,7 @@ void SkullAudioAnimator::playNow(const char* filePath) {
 }
 
 void SkullAudioAnimator::playNext(const char* filePath) {
+    Serial.printf("SkullAudioAnimator: Queuing next audio file: %s\n", filePath);
     m_audioPlayer.playNext(filePath);
 }
 
@@ -124,6 +125,13 @@ bool SkullAudioAnimator::fileExists(fs::FS &fs, const char* path) {
 }
 
 int32_t SkullAudioAnimator::provideAudioFrames(Frame* frame, int32_t frame_count) {
+    static int frameCounter = 0;
+    frameCounter++;
+    
+    if (frameCounter % 100 == 0) {  // Log every 100th frame
+        Serial.printf("Providing audio frames (count: %d)\n", frame_count);
+    }
+
     if (!m_audioPlayer.isCurrentlyPlaying()) {
         memset(frame, 0, frame_count * sizeof(Frame));
         return frame_count;
@@ -135,6 +143,11 @@ int32_t SkullAudioAnimator::provideAudioFrames(Frame* frame, int32_t frame_count
     if (bytesRead < bytesToRead) {
         // Fill the rest with silence if we've reached the end of the file
         memset((uint8_t*)frame + bytesRead, 0, bytesToRead - bytesRead);
+        
+        if (bytesRead == 0) {
+            // If we've reached the end of the file, try to play the next file in the queue
+            m_audioPlayer.playNext(nullptr);  // Pass nullptr to indicate we want to play the next queued file
+        }
     }
     
     m_audioPlayer.incrementTotalBytesRead(bytesRead);

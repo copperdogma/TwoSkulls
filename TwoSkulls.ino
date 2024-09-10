@@ -197,6 +197,7 @@ void setup() {
   String initAudioFilePath = isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav";
   Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
   skullAudioAnimator->playNext(initAudioFilePath.c_str());
+  Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
   // Load SD card content
   sdCardContent = sdCardManager->loadContent();
@@ -206,6 +207,7 @@ void setup() {
     // Queue the "Skit - names" skit to play next
     Serial.println("'Skit - names' found; playing next.");
     skullAudioAnimator->playSkitNext(namesSkit);
+    Serial.printf("Queued 'Skit - names' audio: %s\n", namesSkit.audioFile.c_str());
   } else {
     Serial.println("No skits found on SD card.");
   }

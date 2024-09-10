@@ -2,6 +2,9 @@
 #define AUDIO_PLAYER_H
 
 #include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
 #include "BluetoothA2DPSource.h"
 #include "FS.h"
 #include "SD.h"
@@ -31,6 +34,9 @@ public:
     void incrementTotalBytesRead(size_t bytesRead);
 
 private:
+    void audioPlayerTask();
+    void playFile(const char* filePath);
+
     File audioFile;
     uint8_t m_audioBuffer[AUDIO_BUFFER_SIZE];
     size_t m_bufferPosition;
@@ -42,6 +48,11 @@ private:
     size_t m_writePos;
     size_t m_readPos;
     size_t m_bufferFilled;
+    std::queue<std::string> audioQueue;
+    std::mutex queueMutex;
+    std::condition_variable queueCV;
+    bool shouldStop = false;
+    bool isPlaying = false;
 
     void writeAudio();
 };
