@@ -14,7 +14,17 @@ AudioPlayer::AudioPlayer()
 
 void AudioPlayer::begin() {
     // Initialize audio player
-    std::thread(&AudioPlayer::audioPlayerTask, this).detach();
+    xTaskCreatePinnedToCore(
+        [](void* parameter) {
+            static_cast<AudioPlayer*>(parameter)->audioPlayerTask();
+        },
+        "AudioPlayerTask",
+        8192,  // Increase stack size to 8KB
+        this,
+        1,
+        NULL,
+        1
+    );
 }
 
 void AudioPlayer::update() {
@@ -164,50 +174,133 @@ void AudioPlayer::incrementTotalBytesRead(size_t bytesRead) {
 }
 
 void AudioPlayer::writeAudio() {
+    if (!audioFile) {
+        Serial.println("AudioPlayer: writeAudio called with null audioFile");
+        return;
+    }
+
     size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
     size_t writeAmount = std::min(spaceAvailable, static_cast<size_t>(audioFile.available()));
     
+    Serial.printf("AudioPlayer: Writing audio. Space available: %d, Write amount: %d\n", spaceAvailable, writeAmount);
+    
+    if (writeAmount == 0) {
+        Serial.println("AudioPlayer: No data to write");
+        return;
+    }
+
     if (m_writePos + writeAmount > AUDIO_BUFFER_SIZE) {
         size_t firstPart = AUDIO_BUFFER_SIZE - m_writePos;
         size_t secondPart = writeAmount - firstPart;
-        audioFile.read(m_audioBuffer + m_writePos, firstPart);
-        audioFile.read(m_audioBuffer, secondPart);
+        size_t bytesRead1 = audioFile.read(m_audioBuffer + m_writePos, firstPart);
+        size_t bytesRead2 = audioFile.read(m_audioBuffer, secondPart);
         m_writePos = secondPart;
+        Serial.printf("AudioPlayer: Split write. First part: %d, Second part: %d\n", bytesRead1, bytesRead2);
+        if (bytesRead1 != firstPart || bytesRead2 != secondPart) {
+            Serial.println("AudioPlayer: Error reading file in split write");
+        }
     } else {
-        audioFile.read(m_audioBuffer + m_writePos, writeAmount);
+        size_t bytesRead = audioFile.read(m_audioBuffer + m_writePos, writeAmount);
         m_writePos = (m_writePos + writeAmount) % AUDIO_BUFFER_SIZE;
+        Serial.printf("AudioPlayer: Single write. Bytes read: %d\n", bytesRead);
+        if (bytesRead != writeAmount) {
+            Serial.println("AudioPlayer: Error reading file in single write");
+        }
     }
     
     m_bufferFilled += writeAmount;
+    Serial.printf("AudioPlayer: Audio written. New buffer filled: %d bytes\n", m_bufferFilled);
 }
 
 void AudioPlayer::audioPlayerTask() {
-    while (true) {
-        std::string filePath;
-        {
-            std::unique_lock<std::mutex> lock(queueMutex);
-            queueCV.wait(lock, [this] { return !audioQueue.empty() || shouldStop; });
-            if (shouldStop) {
-                Serial.println("AudioPlayer: audioPlayerTask stopping");
-                break;
+    while (!shouldStop) {
+        try {
+            if (isPlaying) {
+                if (!isCurrentlyPlaying()) {
+                    isPlaying = false;
+                    Serial.printf("AudioPlayer: Finished playback of file\n");
+                    
+                    std::unique_lock<std::mutex> lock(queueMutex);
+                    if (!audioQueue.empty()) {
+                        std::string nextFile = audioQueue.front();
+                        audioQueue.pop();
+                        Serial.printf("AudioPlayer: Starting next file in queue: %s\n", nextFile.c_str());
+                        lock.unlock();
+                        playFile(nextFile.c_str());
+                    } else {
+                        Serial.println("AudioPlayer: No more files in queue");
+                    }
+                }
+            } else {
+                std::unique_lock<std::mutex> lock(queueMutex);
+                if (!audioQueue.empty()) {
+                    std::string nextFile = audioQueue.front();
+                    audioQueue.pop();
+                    Serial.printf("AudioPlayer: Starting file from idle state: %s\n", nextFile.c_str());
+                    lock.unlock();
+                    playFile(nextFile.c_str());
+                } else {
+                    queueCV.wait(lock, [this] { return !audioQueue.empty() || shouldStop; });
+                }
             }
-            filePath = audioQueue.front();
-            audioQueue.pop();
+        } catch (const std::exception& e) {
+            Serial.printf("AudioPlayer: Exception caught in audioPlayerTask: %s\n", e.what());
+            isPlaying = false;
+        } catch (...) {
+            Serial.println("AudioPlayer: Unknown exception caught in audioPlayerTask");
+            isPlaying = false;
         }
-        
-        Serial.printf("AudioPlayer: Starting playback of file: %s (Remaining queue size: %d)\n", filePath.c_str(), audioQueue.size());
-        playFile(filePath.c_str());
+        delay(10);  // Small delay to prevent tight looping
     }
+    Serial.println("AudioPlayer: audioPlayerTask stopping");
 }
 
 void AudioPlayer::playFile(const char* filePath) {
     Serial.printf("AudioPlayer: Starting playback of file: %s\n", filePath);
-    playNow(filePath);  // Use the existing playNow method to start playback
-    isPlaying = true;
-    while (isPlaying && !shouldStop && isCurrentlyPlaying()) {
-        update();  // Call update to keep filling the buffer
-        delay(10);  // Small delay to prevent tight looping
+    
+    // Ensure the previous file is closed
+    if (audioFile) {
+        audioFile.close();
+        Serial.println("AudioPlayer: Previous file closed");
     }
-    isPlaying = false;
-    Serial.printf("AudioPlayer: Finished playback of file: %s\n", filePath);
+    
+    // Reset buffer and state
+    memset(m_audioBuffer, 0, AUDIO_BUFFER_SIZE);
+    m_writePos = 0;
+    m_readPos = 0;
+    m_bufferFilled = 0;
+    m_totalBytesRead = 0;
+    
+    Serial.printf("AudioPlayer: Buffer reset. Free heap: %d\n", ESP.getFreeHeap());
+    
+    // Check if file exists before opening
+    if (!SD.exists(filePath)) {
+        Serial.printf("AudioPlayer: File does not exist: %s\n", filePath);
+        isPlaying = false;
+        return;
+    }
+    
+    // Open the new file
+    audioFile = SD.open(filePath, FILE_READ);
+    if (!audioFile) {
+        Serial.printf("AudioPlayer: Failed to open audio file: %s\n", filePath);
+        isPlaying = false;
+        return;
+    }
+    
+    Serial.printf("AudioPlayer: File opened successfully. File size: %d bytes\n", audioFile.size());
+    
+    isPlaying = true;
+    
+    // Start filling the buffer
+    try {
+        writeAudio();
+        Serial.printf("AudioPlayer: Initial buffer filled: %d bytes\n", m_bufferFilled);
+    } catch (const std::exception& e) {
+        Serial.printf("AudioPlayer: Exception in writeAudio: %s\n", e.what());
+        isPlaying = false;
+    } catch (...) {
+        Serial.println("AudioPlayer: Unknown exception in writeAudio");
+        isPlaying = false;
+    }
 }

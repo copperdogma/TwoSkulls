@@ -44,9 +44,9 @@ SDCardManager* sdCardManager = nullptr;
 SDCardContent sdCardContent;
 
 bool isPrimary = false;
-ServoController servoController;  // Keep this line
+ServoController servoController;                   // Keep this line
 SkullAudioAnimator* skullAudioAnimator = nullptr;  // Change this line
-bluetooth_audio bluetoothAudio;      // Declare the bluetoothAudio object
+bluetooth_audio bluetoothAudio;                    // Declare the bluetoothAudio object
 
 // Exponential smoothing
 struct AudioState {
@@ -146,6 +146,12 @@ void setup() {
     }
   }
 
+  // Load SD card content
+  sdCardContent = sdCardManager->loadContent();
+  if (sdCardContent.skits.empty()) {
+    Serial.println("No skits found on SD card.");
+  }
+
   // Now that SD card is initialized, load configuration
   ConfigManager& config = ConfigManager::getInstance();
   bool configLoaded = false;
@@ -165,16 +171,6 @@ void setup() {
   int ultrasonicTriggerDistance = config.getUltrasonicTriggerDistance();
   int speakerVolume = config.getSpeakerVolume();
 
-  // Initialize ultrasonic sensor (for both primary and secondary)
-  distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
-
-  // Ping ultrasonic sensor 10 times for initialization and logging
-  for (int i = 0; i < 10; i++) {
-    float distance = distanceSensor->measureDistanceCm();
-    Serial.println("Ultrasonic distance: " + String(distance) + "cm");
-    delay(100);  // Wait between readings
-  }
-
   // Determine role based on settings.txt
   if (role.equals("primary")) {
     isPrimary = true;
@@ -190,27 +186,31 @@ void setup() {
     isPrimary = false;
   }
 
-  // Initialize Bluetooth after SkullAudioAnimator
-  initializeBluetooth(bluetoothSpeakerName, speakerVolume);
-
   // Announce "System initialized" and role
   String initAudioFilePath = isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav";
   Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
   skullAudioAnimator->playNext(initAudioFilePath.c_str());
   Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
-  // Load SD card content
-  sdCardContent = sdCardManager->loadContent();
-  if (!sdCardContent.skits.empty()) {
-    ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
+  ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
 
-    // Queue the "Skit - names" skit to play next
-    Serial.println("'Skit - names' found; playing next.");
-    skullAudioAnimator->playSkitNext(namesSkit);
-    Serial.printf("Queued 'Skit - names' audio: %s\n", namesSkit.audioFile.c_str());
-  } else {
-    Serial.println("No skits found on SD card.");
+  // Queue the "Skit - names" skit to play next
+  Serial.println("'Skit - names' found; playing next.");
+  skullAudioAnimator->playSkitNext(namesSkit);
+  Serial.printf("Queued 'Skit - names' audio: %s\n", namesSkit.audioFile.c_str());
+
+  // Initialize ultrasonic sensor (for both primary and secondary)
+  distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
+
+  // Ping ultrasonic sensor 10 times for initialization and logging
+  for (int i = 0; i < 10; i++) {
+    float distance = distanceSensor->measureDistanceCm();
+    Serial.println("Ultrasonic distance: " + String(distance) + "cm");
+    delay(100);  // Wait between readings
   }
+
+  // Initialize Bluetooth after SkullAudioAnimator
+  initializeBluetooth(bluetoothSpeakerName, speakerVolume);
 }
 
 void blinkEyesForFailure(int numBlinks) {

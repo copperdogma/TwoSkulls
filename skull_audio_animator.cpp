@@ -22,6 +22,12 @@ void SkullAudioAnimator::begin() {
 }
 
 void SkullAudioAnimator::update() {
+    static unsigned long lastUpdateTime = 0;
+    unsigned long currentTime = millis();
+    if (currentTime - lastUpdateTime >= 5000) {  // Log every 5 seconds
+        Serial.println("SkullAudioAnimator::update() called");
+        lastUpdateTime = currentTime;
+    }
     m_audioPlayer.update();  // Make sure this method is called
     updateJawPosition();
     updateSkit();
@@ -145,7 +151,7 @@ int32_t SkullAudioAnimator::provideAudioFrames(Frame* frame, int32_t frame_count
         memset((uint8_t*)frame + bytesRead, 0, bytesToRead - bytesRead);
         
         if (bytesRead == 0) {
-            // If we've reached the end of the file, try to play the next file in the queue
+            Serial.println("SkullAudioAnimator: End of file reached, attempting to play next file");
             m_audioPlayer.playNext(nullptr);  // Pass nullptr to indicate we want to play the next queued file
         }
     }
