@@ -18,6 +18,7 @@ public:
     SDCardManager(SkullAudioAnimator* skullAudioAnimator);
     bool begin();
     SDCardContent loadContent();
+    ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name);
 
 private:
     SkullAudioAnimator* m_skullAudioAnimator;

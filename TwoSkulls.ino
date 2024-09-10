@@ -198,22 +198,16 @@ void setup() {
   Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
   skullAudioAnimator->playNext(initAudioFilePath.c_str());
 
-  // Find the "Skit - names" skit
-  ParsedSkit namesSkit = skullAudioAnimator->findSkitByName(sdCardContent.skits, "Skit - names");
-  if (namesSkit.audioFile != "" && namesSkit.txtFile != "") {
+  // Load SD card content
+  sdCardContent = sdCardManager->loadContent();
+  if (!sdCardContent.skits.empty()) {
+    ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
+
     // Queue the "Skit - names" skit to play next
     Serial.println("'Skit - names' found; playing next.");
     skullAudioAnimator->playSkitNext(namesSkit);
   } else {
-    Serial.println("'Skit - names' not found.");
-  }
-
-  // Load SD card content
-  sdCardContent = sdCardManager->loadContent();
-  if (sdCardContent.skits.empty()) {
-    Serial.println("No skits found on SD card. Halting setup.");
-    blinkEyesForFailure(10);  // 10 blinks for no skits
-    return;
+    Serial.println("No skits found on SD card.");
   }
 }
 

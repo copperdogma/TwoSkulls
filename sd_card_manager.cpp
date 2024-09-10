@@ -116,3 +116,12 @@ ParsedSkit SDCardManager::parseSkitFile(const String& wavFile, const String& txt
     file.close();
     return parsedSkit;
 }
+
+ParsedSkit SDCardManager::findSkitByName(const std::vector<ParsedSkit>& skits, const String& name) {
+    for (const auto& skit : skits) {
+        if (skit.audioFile.endsWith(name + ".wav")) {
+            return skit;
+        }
+    }
+    return ParsedSkit(); // Return an empty ParsedSkit if not found
+}
