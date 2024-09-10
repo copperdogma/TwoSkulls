@@ -194,8 +194,9 @@ void setup() {
   initializeBluetooth(bluetoothSpeakerName, speakerVolume);
 
   // Announce "System initialized" and role
-  Serial.printf("Playing initialization audio\n");
-  skullAudioAnimator->playNow(isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav");
+  String initAudioFilePath = isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav";
+  Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
+  skullAudioAnimator->playNext(initAudioFilePath.c_str());
 
   // Find the "Skit - names" skit
   ParsedSkit namesSkit = skullAudioAnimator->findSkitByName(sdCardContent.skits, "Skit - names");
