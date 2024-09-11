@@ -90,6 +90,7 @@ ParsedSkit SDCardManager::parseSkitFile(const String& wavFile, const String& txt
         return parsedSkit;
     }
 
+    size_t lineNumber = 0;
     while (file.available()) {
         String line = file.readStringUntil('\n');
         line.trim();
@@ -100,6 +101,7 @@ ParsedSkit SDCardManager::parseSkitFile(const String& wavFile, const String& txt
         int commaIndex2 = line.indexOf(',', commaIndex1 + 1);
         int commaIndex3 = line.indexOf(',', commaIndex2 + 1);
 
+        skitLine.lineNumber = lineNumber++;
         skitLine.speaker = line.charAt(0);
         skitLine.timestamp = line.substring(commaIndex1 + 1, commaIndex2).toInt();
         skitLine.duration = line.substring(commaIndex2 + 1, commaIndex3).toInt();

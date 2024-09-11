@@ -119,10 +119,6 @@ void setup() {
   // Remove this line:
   // AudioPlayer* audioPlayer = new AudioPlayer();
 
-  // Initialize SkullAudioAnimator
-  skullAudioAnimator = new SkullAudioAnimator(servoController, lightController);
-  skullAudioAnimator->begin();
-
   // Initialize SD Card Manager
   sdCardManager = new SDCardManager(skullAudioAnimator);
   bool sdCardInitialized = false;
@@ -176,15 +172,18 @@ void setup() {
     isPrimary = false;
   }
 
+  // Initialize SkullAudioAnimator
+  skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits);
+  skullAudioAnimator->begin();
+
   // Announce "System initialized" and role
   String initAudioFilePath = isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav";
   Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
   skullAudioAnimator->playNext(initAudioFilePath.c_str());
   Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
-  ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
-
   // Queue the "Skit - names" skit to play next
+  ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
   Serial.println("'Skit - names' found; playing next.");
   skullAudioAnimator->playSkitNext(namesSkit);
   Serial.printf("Queued 'Skit - names' audio: %s\n", namesSkit.audioFile.c_str());

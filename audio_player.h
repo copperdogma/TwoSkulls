@@ -26,11 +26,11 @@ public:
     void setBluetoothConnected(bool connected);
     void setAudioReadyToPlay(bool ready);
     size_t getTotalBytesRead() const;
-    bool fileExists(fs::FS& fs, const char* path);
     int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
     size_t readAudioData(uint8_t* buffer, size_t bytesToRead);
     void incrementTotalBytesRead(size_t bytesRead);
     unsigned long getPlaybackTime() const;
+    String getCurrentlyPlayingFilePath() const;
 
 private:
     void audioPlayerTask();
@@ -53,6 +53,7 @@ private:
     bool isPlaying = false;
     unsigned long m_playbackStartTime;
     unsigned long m_currentFileStartTime;
+    String m_currentFilePath;
 
     void writeAudio();
 };

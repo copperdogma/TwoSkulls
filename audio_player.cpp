@@ -9,7 +9,7 @@
 
 AudioPlayer::AudioPlayer() 
     : m_totalBytesRead(0), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false),
-      m_writePos(0), m_readPos(0), m_bufferFilled(0) {
+      m_writePos(0), m_readPos(0), m_bufferFilled(0), m_currentFilePath("") {
 }
 
 void AudioPlayer::begin() {
@@ -59,11 +59,14 @@ void AudioPlayer::playNext(const char* filePath) {
     if (!isPlaying && !audioQueue.empty()) {
         std::string nextFile = audioQueue.front();
         audioQueue.pop();
+        Serial.printf("AudioPlayer: Starting next file in queue: %s (New queue size: %d)\n", nextFile.c_str(), audioQueue.size());
         playFile(nextFile.c_str());
     }
     queueCV.notify_one();
 }
 
+// Aren't these two just the same but inversed?
+// TODO: just use isCurrentlyPlaying() and kill the other one.
 bool AudioPlayer::isCurrentlyPlaying() {
     return audioFile && audioFile.available();
 }
@@ -87,10 +90,6 @@ void AudioPlayer::setBluetoothConnected(bool connected) {
 
 void AudioPlayer::setAudioReadyToPlay(bool ready) {
     m_isAudioReadyToPlay = ready;
-}
-
-bool AudioPlayer::fileExists(fs::FS& fs, const char* path) {
-    return fs.exists(path);
 }
 
 size_t AudioPlayer::getTotalBytesRead() const {
@@ -196,6 +195,8 @@ void AudioPlayer::audioPlayerTask() {
                 if (!isCurrentlyPlaying()) {
                     isPlaying = false;
                     Serial.printf("AudioPlayer: Finished playback of file\n");
+
+                    m_currentFilePath = "";
                     
                     std::unique_lock<std::mutex> lock(queueMutex);
                     if (!audioQueue.empty()) {
@@ -215,6 +216,7 @@ void AudioPlayer::audioPlayerTask() {
                     lock.unlock();
                     playFile(nextFile.c_str());
                 } else {
+                    m_currentFilePath = "";
                     queueCV.wait(lock, [this] { return !audioQueue.empty() || shouldStop; });
                 }
             }
@@ -254,10 +256,17 @@ void AudioPlayer::playFile(const char* filePath) {
         isPlaying = false;
         return;
     }
-    
+
+    // CAMKILL: If you remove this it instantly thinks it's finished playing.
+    // I'm not sure why. I'm not sure I like the flow of this code.
+    // It's not that easy to follow and some of the "playing" stuff is a bit counterintuitive.
+    // We can't actually say we're PLAYING right now because we can't play until we're connected to bluetooth.
+    // So this feels more like we should have multiple states: EMPTY, DATA_READY, PLAYING, PAUSED, etc.
     isPlaying = true;
+
+    m_currentFilePath = filePath;  // Update the current file path
     m_currentFileStartTime = millis();  // Reset the start time for the new file
-    
+
     try {
         writeAudio();
     } catch (const std::exception& e) {
@@ -274,4 +283,8 @@ unsigned long AudioPlayer::getPlaybackTime() const {
         return 0;
     }
     return millis() - m_currentFileStartTime;
+}
+
+String AudioPlayer::getCurrentlyPlayingFilePath() const {
+    return m_currentFilePath;
 }

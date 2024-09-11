@@ -13,7 +13,8 @@
 
 class SkullAudioAnimator {
 public:
-    SkullAudioAnimator(ServoController& servoController, LightController& lightController);
+    SkullAudioAnimator(bool isPrimary, ServoController& servoController, LightController& lightController, 
+        std::vector<ParsedSkit>& skits);
     void begin();
     void update();
     void playNow(const char* filePath);
@@ -22,12 +23,12 @@ public:
     bool isCurrentlyPlaying();
     bool isPlayingSkit() const;
     bool hasFinishedPlaying();
+    bool isCurrentlySpeaking() const;
     void setBluetoothConnected(bool connected);
     void setAudioReadyToPlay(bool ready);
     ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name);
     size_t getTotalBytesRead() const;
     void logState();
-    bool fileExists(fs::FS &fs, const char* path);
     int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
     ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile);
     const ParsedSkit& getCurrentSkit() const;
@@ -36,19 +37,24 @@ private:
     AudioPlayer m_audioPlayer;
     ServoController& m_servoController;
     LightController& m_lightController;
+    bool m_isPrimary;
+    std::vector<ParsedSkit>& m_skits;
     bool m_isPlayingSkit;
-    size_t m_currentSkitLine;
+    String m_currentSkitPath;
+    bool m_isCurrentlySpeaking;
+    size_t m_currentSkitLineNumber;
     ParsedSkit m_currentSkit;
     double vReal[SAMPLES];
     double vImag[SAMPLES];
     arduinoFFT FFT;
 
     void updateJawPosition();
-    void updateEyes();  // Add this line
+    void updateEyes();
     void updateSkit();
     double calculateRMS(const int16_t* samples, int numSamples);
     void performFFT();
     double getFFTResult(int index);
+    void updateIsCurrentlySpeaking();
 };
 
 #endif // SKULL_AUDIO_ANIMATOR_H

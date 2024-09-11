@@ -4,6 +4,7 @@
 #include <vector>
 
 struct ParsedSkitLine {
+    size_t lineNumber;
     char speaker;
     unsigned long timestamp;
     unsigned long duration;
