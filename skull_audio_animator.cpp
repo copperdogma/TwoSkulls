@@ -1,17 +1,11 @@
 #include "skull_audio_animator.h"
 #include <cmath>
 
-SkullAudioAnimator::SkullAudioAnimator(ServoController& servoController)
-    : m_audioPlayer(), m_servoController(servoController),
-      m_isPlayingSkit(false), m_currentSkitLine(0), m_skitStartTime(0),
+SkullAudioAnimator::SkullAudioAnimator(ServoController& servoController, LightController& lightController)
+    : m_audioPlayer(), m_servoController(servoController), m_lightController(lightController), 
+      m_isPlayingSkit(false), m_currentSkitLine(0),
       FFT(vReal, vImag, SAMPLES, SAMPLE_RATE) {
-    // Initialize FFT-related variables
-    for (uint16_t i = 0; i < SAMPLES; i++) {
-        vReal[i] = 0;
-        vImag[i] = 0;
-    }
-
-    m_audioPlayer.begin();  // Make sure to call begin() here
+    // ... (keep the rest of the constructor)
 }
 
 void SkullAudioAnimator::begin() {
@@ -20,6 +14,7 @@ void SkullAudioAnimator::begin() {
 
 void SkullAudioAnimator::update() {
     m_audioPlayer.update();
+    updateEyes();
     updateJawPosition();
     updateSkit();
 }
@@ -36,13 +31,34 @@ void SkullAudioAnimator::updateJawPosition() {
     }
 }
 
-void SkullAudioAnimator::updateSkit() {
-    if (m_isPlayingSkit && m_audioPlayer.isCurrentlyPlaying()) {
-        if (m_skitStartTime == 0) {
-            m_skitStartTime = millis();
+void SkullAudioAnimator::updateEyes() {
+    if (m_audioPlayer.isCurrentlyPlaying() && !m_currentSkit.lines.empty()) {
+        unsigned long playbackTime = m_audioPlayer.getPlaybackTime();
+
+        // Find the current skit line based on playback time
+        while (m_currentSkitLine < m_currentSkit.lines.size() &&
+               m_currentSkit.lines[m_currentSkitLine].timestamp <= playbackTime) {
+            m_currentSkitLine++;
+        }
+        
+        if (m_currentSkitLine > 0) {
+            m_currentSkitLine--;  // Adjust to get the current (not next) line
         }
 
-        unsigned long currentTime = millis() - m_skitStartTime;
+        ParsedSkitLine currentLine = m_currentSkit.lines[m_currentSkitLine];
+
+        // Update eye brightness based on speaker
+        if (currentLine.speaker == 'A') {
+            m_lightController.setEyeBrightness(255);
+        } else {
+            m_lightController.setEyeBrightness(100);
+        }
+    }
+}
+
+void SkullAudioAnimator::updateSkit() {
+    if (m_isPlayingSkit && m_audioPlayer.isCurrentlyPlaying()) {
+        unsigned long currentTime = m_audioPlayer.getPlaybackTime();
 
         while (m_currentSkitLine < m_currentSkit.lines.size() && 
                currentTime >= m_currentSkit.lines[m_currentSkitLine].timestamp) {
@@ -76,7 +92,6 @@ void SkullAudioAnimator::playSkitNext(const ParsedSkit& skit) {
     m_currentSkit = skit;
     m_isPlayingSkit = true;
     m_currentSkitLine = 0;
-    m_skitStartTime = 0;
     m_audioPlayer.playNext(skit.audioFile.c_str());
 }
 
@@ -114,11 +129,10 @@ size_t SkullAudioAnimator::getTotalBytesRead() const {
 }
 
 void SkullAudioAnimator::logState() {
-    // Add any additional SAA-specific logging here
     Serial.println("SkullAudioAnimator State:");
     Serial.printf("  Is playing skit: %d\n", m_isPlayingSkit);
     Serial.printf("  Current skit line: %d\n", m_currentSkitLine);
-    Serial.printf("  Skit start time: %lu\n", m_skitStartTime);
+    // Remove the line that printed m_skitStartTime
 }
 
 bool SkullAudioAnimator::fileExists(fs::FS &fs, const char* path) {

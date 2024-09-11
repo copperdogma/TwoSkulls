@@ -1,9 +1,10 @@
 #include "light_controller.h"
 
 LightController::LightController(int leftEyePin, int rightEyePin)
-    : _leftEyePin(leftEyePin), _rightEyePin(rightEyePin) {}
+    : _leftEyePin(leftEyePin), _rightEyePin(rightEyePin), _currentBrightness(0) {}
 
-void LightController::begin() {
+void LightController::begin()
+{
     pinMode(_leftEyePin, OUTPUT);
     pinMode(_rightEyePin, OUTPUT);
 
@@ -12,27 +13,31 @@ void LightController::begin() {
     ledcAttachPin(_leftEyePin, PWM_CHANNEL_LEFT);
     ledcAttachPin(_rightEyePin, PWM_CHANNEL_RIGHT);
 
-    // Instead of turnOnEyes(), use setEyes() with full brightness
-    setEyes(PWM_MAX);
+    setEyeBrightness(PWM_MAX);
 }
 
-void LightController::setEyeBrightness(int brightness) {
-    setEyes(brightness);
-}
+void LightController::setEyeBrightness(int brightness)
+{
+    // Clamp the values to be between 0 and 255
+    brightness = max(0, min(brightness, 255));
 
-void LightController::setEyes(int brightness) {
-    ledcWrite(PWM_CHANNEL_LEFT, brightness);
-    ledcWrite(PWM_CHANNEL_RIGHT, brightness);
-}
-
-void LightController::blinkEyes(int numBlinks, int onBrightness, int offBrightness) {
-    for (int i = 0; i < numBlinks; i++) {
-        setEyes(onBrightness);
-        delay(200);  // On for 200ms
-        setEyes(offBrightness);
-        delay(200);  // Off for 200ms
+    // If the current brightness is different from the new brightness, update the LEDs
+    if (brightness != _currentBrightness) {
+        ledcWrite(PWM_CHANNEL_LEFT, brightness);
+        ledcWrite(PWM_CHANNEL_RIGHT, brightness);
+        _currentBrightness = brightness;
+        Serial.println("Updated eye brightness to: " + String(brightness));
     }
-    setEyes(onBrightness);  // End with eyes on
 }
 
-// Remove turnOnEyes() and turnOffEyes() methods
+void LightController::blinkEyes(int numBlinks, int onBrightness, int offBrightness)
+{
+    for (int i = 0; i < numBlinks; i++)
+    {
+        setEyeBrightness(onBrightness);
+        delay(200); // On for 200ms
+        setEyeBrightness(offBrightness);
+        delay(200); // Off for 200ms
+    }
+    setEyeBrightness(onBrightness); // End with eyes on
+}

@@ -30,6 +30,7 @@ public:
     int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
     size_t readAudioData(uint8_t* buffer, size_t bytesToRead);
     void incrementTotalBytesRead(size_t bytesRead);
+    unsigned long getPlaybackTime() const;
 
 private:
     void audioPlayerTask();
@@ -50,6 +51,8 @@ private:
     std::condition_variable queueCV;
     bool shouldStop = false;
     bool isPlaying = false;
+    unsigned long m_playbackStartTime;
+    unsigned long m_currentFileStartTime;
 
     void writeAudio();
 };

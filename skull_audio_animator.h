@@ -5,6 +5,7 @@
 #include "servo_controller.h"
 #include "arduinoFFT.h"
 #include "file_manager.h"
+#include "light_controller.h"  // Add this line
 #include <vector>
 
 #define SAMPLES 256
@@ -12,29 +13,7 @@
 
 class SkullAudioAnimator {
 public:
-    SkullAudioAnimator(ServoController& servoController);
-    // ... (rest of the public methods)
-
-private:
-    AudioPlayer m_audioPlayer;
-    ServoController& m_servoController;
-    bool m_isPlayingSkit;
-    size_t m_currentSkitLine;
-    unsigned long m_skitStartTime;
-    ParsedSkit m_currentSkit;
-    double vReal[SAMPLES];
-    double vImag[SAMPLES];
-    arduinoFFT FFT;
-
-    void updateJawPosition();
-    void updateSkit();
-    void processSkitLine();
-    double calculateRMS(const int16_t* samples, int numSamples);
-    void performFFT();
-    double getFFTResult(int index);
-
-public:
-    SkullAudioAnimator(AudioPlayer& audioPlayer, ServoController& servoController);
+    SkullAudioAnimator(ServoController& servoController, LightController& lightController);
     void begin();
     void update();
     void playNow(const char* filePath);
@@ -52,6 +31,25 @@ public:
     int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
     ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile);
     const ParsedSkit& getCurrentSkit() const;
+
+private:
+    AudioPlayer m_audioPlayer;
+    ServoController& m_servoController;
+    LightController& m_lightController;
+    bool m_isPlayingSkit;
+    size_t m_currentSkitLine;
+    ParsedSkit m_currentSkit;
+    double vReal[SAMPLES];
+    double vImag[SAMPLES];
+    arduinoFFT FFT;
+
+    void updateJawPosition();
+    void updateEyes();  // Add this line
+    void updateSkit();
+    void processSkitLine();
+    double calculateRMS(const int16_t* samples, int numSamples);
+    void performFFT();
+    double getFFTResult(int index);
 };
 
 #endif // SKULL_AUDIO_ANIMATOR_H

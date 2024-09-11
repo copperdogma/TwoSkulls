@@ -120,7 +120,7 @@ void setup() {
   // AudioPlayer* audioPlayer = new AudioPlayer();
 
   // Initialize SkullAudioAnimator
-  skullAudioAnimator = new SkullAudioAnimator(servoController);
+  skullAudioAnimator = new SkullAudioAnimator(servoController, lightController);
   skullAudioAnimator->begin();
 
   // Initialize SD Card Manager

@@ -119,6 +119,7 @@ ISSUES
     - battery pack: ISSUE: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
     - power board, providing power to both the ESP32 board and the servo: I think I only have one
   ** rebuild secondary perfboard with dupont connectors
+  ** staging: mount on sticks, make name signs, figure out where to put electronics + batteries, figure out where/how to hide speakers
 
   
   SD CARD

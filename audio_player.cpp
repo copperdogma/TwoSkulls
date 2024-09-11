@@ -45,6 +45,7 @@ void AudioPlayer::playNow(const char* filePath) {
         m_writePos = 0;
         m_readPos = 0;
         m_bufferFilled = 0;
+        m_playbackStartTime = millis();
         writeAudio();
     }
 }
@@ -255,6 +256,7 @@ void AudioPlayer::playFile(const char* filePath) {
     }
     
     isPlaying = true;
+    m_currentFileStartTime = millis();  // Reset the start time for the new file
     
     try {
         writeAudio();
@@ -265,4 +267,11 @@ void AudioPlayer::playFile(const char* filePath) {
         Serial.println("AudioPlayer: Unknown exception in writeAudio");
         isPlaying = false;
     }
+}
+
+unsigned long AudioPlayer::getPlaybackTime() const {
+    if (!isPlaying) {
+        return 0;
+    }
+    return millis() - m_currentFileStartTime;
 }
