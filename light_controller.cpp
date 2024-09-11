@@ -1,7 +1,7 @@
 #include "light_controller.h"
 
 LightController::LightController(int leftEyePin, int rightEyePin)
-    : _leftEyePin(leftEyePin), _rightEyePin(rightEyePin), _currentBrightness(0) {}
+    : _leftEyePin(leftEyePin), _rightEyePin(rightEyePin), _currentBrightness(BRIGHTNESS_OFF) {}
 
 void LightController::begin()
 {
@@ -13,13 +13,13 @@ void LightController::begin()
     ledcAttachPin(_leftEyePin, PWM_CHANNEL_LEFT);
     ledcAttachPin(_rightEyePin, PWM_CHANNEL_RIGHT);
 
-    setEyeBrightness(PWM_MAX);
+    setEyeBrightness(BRIGHTNESS_MAX);
 }
 
-void LightController::setEyeBrightness(int brightness)
+void LightController::setEyeBrightness(uint8_t brightness)  // Changed int to uint8_t
 {
-    // Clamp the values to be between 0 and 255
-    brightness = max(0, min(brightness, 255));
+    // Clamp the values to be between 0 and 255 (min and max)
+    brightness = max(BRIGHTNESS_OFF, min(brightness, BRIGHTNESS_MAX));
 
     // If the current brightness is different from the new brightness, update the LEDs
     if (brightness != _currentBrightness) {
@@ -35,9 +35,9 @@ void LightController::blinkEyes(int numBlinks, int onBrightness, int offBrightne
     for (int i = 0; i < numBlinks; i++)
     {
         setEyeBrightness(onBrightness);
-        delay(200); // On for 200ms
+        delay(100); // On for 100ms
         setEyeBrightness(offBrightness);
-        delay(200); // Off for 200ms
+        delay(100); // Off for 100ms
     }
     setEyeBrightness(onBrightness); // End with eyes on
 }

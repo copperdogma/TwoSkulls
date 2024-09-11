@@ -46,7 +46,6 @@ private:
     void updateJawPosition();
     void updateEyes();  // Add this line
     void updateSkit();
-    void processSkitLine();
     double calculateRMS(const int16_t* samples, int numSamples);
     void performFFT();
     double getFFTResult(int index);

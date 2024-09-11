@@ -131,7 +131,7 @@ void setup() {
     sdCardInitialized = sdCardManager->begin();
     if (!sdCardInitialized) {
       Serial.println("SD Card: Mount Failed! Retrying...");
-      blinkEyesForFailure(3);  // 3 blinks for SD card failure
+      lightController.blinkEyes(3);  // 3 blinks for SD card failure
       delay(500);
     }
   }
@@ -150,7 +150,7 @@ void setup() {
     configLoaded = config.loadConfig();
     if (!configLoaded) {
       Serial.println("Failed to load configuration. Retrying...");
-      blinkEyesForFailure(5);  // 5 blinks for config file failure
+      lightController.blinkEyes(5);  // 5 blinks for config file failure
       delay(500);
     }
   }
@@ -201,16 +201,6 @@ void setup() {
 
   // Initialize Bluetooth after SkullAudioAnimator
   initializeBluetooth(bluetoothSpeakerName, speakerVolume);
-}
-
-void blinkEyesForFailure(int numBlinks) {
-  for (int i = 0; i < numBlinks; i++) {
-    lightController.setEyeBrightness(255);
-    delay(100);
-    lightController.setEyeBrightness(0);
-    delay(100);
-  }
-  delay(500);  // Pause between sets of blinks
 }
 
 void loop() {

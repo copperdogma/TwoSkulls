@@ -32,7 +32,13 @@ void SkullAudioAnimator::updateJawPosition() {
 }
 
 void SkullAudioAnimator::updateEyes() {
-    if (m_audioPlayer.isCurrentlyPlaying() && !m_currentSkit.lines.empty()) {
+    if (!m_audioPlayer.isCurrentlyPlaying()) {
+        // Reset eyes to dim when audio is not playing
+        m_lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
+        return;
+    }
+
+    if (!m_currentSkit.lines.empty()) {
         unsigned long playbackTime = m_audioPlayer.getPlaybackTime();
 
         // Find the current skit line based on playback time
@@ -49,10 +55,13 @@ void SkullAudioAnimator::updateEyes() {
 
         // Update eye brightness based on speaker
         if (currentLine.speaker == 'A') {
-            m_lightController.setEyeBrightness(255);
+            m_lightController.setEyeBrightness(LightController::BRIGHTNESS_MAX);
         } else {
-            m_lightController.setEyeBrightness(100);
+            m_lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
         }
+    }
+    else {
+        Serial.println("SkullAudioAnimator: Playing audio, but no current skit lines");
     }
 }
 
@@ -62,7 +71,6 @@ void SkullAudioAnimator::updateSkit() {
 
         while (m_currentSkitLine < m_currentSkit.lines.size() && 
                currentTime >= m_currentSkit.lines[m_currentSkitLine].timestamp) {
-            processSkitLine();
             m_currentSkitLine++;
         }
 
@@ -70,11 +78,6 @@ void SkullAudioAnimator::updateSkit() {
             m_isPlayingSkit = false;
         }
     }
-}
-
-void SkullAudioAnimator::processSkitLine() {
-    // Implement skit line processing logic here
-    // This could involve setting LED states, triggering animations, etc.
 }
 
 void SkullAudioAnimator::playNow(const char* filePath) {
