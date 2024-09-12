@@ -39,8 +39,11 @@ void SkullAudioAnimator::updateSkit()
 {
     if (!m_audioPlayer.isAudioPlaying())
     {
-        Serial.println("SkullAudioAnimator: No audio playing; setting m_isCurrentlySpeaking to false");
-        m_isCurrentlySpeaking = false;  
+        if (m_isCurrentlySpeaking)
+        {
+            Serial.println("SkullAudioAnimator: No audio playing; setting m_isCurrentlySpeaking to false");
+        }
+        m_isCurrentlySpeaking = false;
         return;
     }
 

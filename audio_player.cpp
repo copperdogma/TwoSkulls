@@ -11,25 +11,10 @@
 // - it decides it's finished playing too early on the init.wav so it never turns on the lights
 // - can we kill isPlaying? Just replace it with m_isAudioPlaying?
 
-
-// TODO:
-// Should update millis based on when the last frame was read.
-// We need to keep track of this because we don't want to update the millis
-// when we're not actually playing audio.
-// We can do this by keeping a running total of the bytes read, and then
-// using the bitrate of the audio to calculate the total playtime.
-// Then we can subtract the current position in the file from the total playtime
-// to get the current playtime.
-
-// But we need a way to reset the millis back to zero when we start a new file.
-// We can do this by checking if the current file is the same as the last file.
-// If it is, then we reset the millis to zero.
-// Otherwise, we keep the millis running.
-
 AudioPlayer::AudioPlayer()
-    : m_totalBytesRead(0), m_isBluetoothConnected(false),
-      m_writePos(0), m_readPos(0), m_bufferFilled(0), m_currentFilePath(""),
-      m_isAudioPlaying(false), m_mutex()
+    : m_totalBytesRead(0), m_writePos(0), m_readPos(0), m_bufferFilled(0),
+      m_currentFilePath(""), m_isAudioPlaying(false), m_mutex(),
+      m_currentPlaybackTime(0), m_lastFrameTime(0)
 {
 }
 
@@ -43,8 +28,6 @@ void AudioPlayer::playNext(const char *filePath)
     if (filePath)
     {
         audioQueue.push(std::string(filePath));
-
-        fillBuffer();
     }
 }
 
@@ -58,23 +41,54 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     size_t bytesToRead = frame_count * sizeof(Frame);
     size_t bytesRead = 0;
 
-    if (m_bufferFilled > 0)
+    while (bytesRead < bytesToRead && m_bufferFilled > 0)
     {
-        bytesRead = std::min(m_bufferFilled, bytesToRead);
-        memcpy(frame, m_audioBuffer + m_readPos, bytesRead);
-        m_readPos = (m_readPos + bytesRead) % AUDIO_BUFFER_SIZE;
-        m_bufferFilled -= bytesRead;
+        size_t chunkSize = std::min(bytesToRead - bytesRead, m_bufferFilled);
+        size_t readPos = m_readPos % AUDIO_BUFFER_SIZE;
+
+        // Handle buffer wrap-around
+        size_t firstChunkSize = std::min(chunkSize, AUDIO_BUFFER_SIZE - readPos);
+        memcpy((uint8_t*)frame + bytesRead, m_audioBuffer + readPos, firstChunkSize);
+
+        m_readPos = (readPos + firstChunkSize) % AUDIO_BUFFER_SIZE;
+        m_bufferFilled -= firstChunkSize;
+        bytesRead += firstChunkSize;
+
+        // If there is more data to read and the buffer wraps around
+        if (firstChunkSize < chunkSize)
+        {
+            size_t secondChunkSize = chunkSize - firstChunkSize;
+            memcpy((uint8_t*)frame + bytesRead, m_audioBuffer, secondChunkSize);
+
+            m_readPos = secondChunkSize;
+            m_bufferFilled -= secondChunkSize;
+            bytesRead += secondChunkSize;
+        }
     }
 
+    // Zero-fill any remaining frames if we have insufficient data
     if (bytesRead < bytesToRead)
     {
         memset((uint8_t *)frame + bytesRead, 0, bytesToRead - bytesRead);
     }
 
-    m_totalBytesRead += bytesRead; // Not actuall used for anything.
+    m_totalBytesRead += bytesRead;
     m_isAudioPlaying = (bytesRead > 0);
 
-    fillBuffer();
+    // Update playback time based on elapsed time
+    unsigned long now = millis();
+    if (m_lastFrameTime != 0)
+    {
+        unsigned long elapsedTime = now - m_lastFrameTime;
+        m_currentPlaybackTime += elapsedTime;
+        m_lastFrameTime = now;
+    }
+    else
+    {
+        m_lastFrameTime = now;
+    }
+
+    fillBuffer(); // Fill the buffer if needed
 
     return frame_count;
 }
@@ -100,55 +114,84 @@ size_t AudioPlayer::readAudioDataFromFile(uint8_t *buffer, size_t bytesToRead)
     return 0;
 }
 
-void AudioPlayer::writeAudioDataToBuffer()
+void AudioPlayer::fillBuffer()
 {
-    if (!audioFile)
+    while (m_bufferFilled < AUDIO_BUFFER_SIZE)
     {
-        Serial.println("AudioPlayer: writeAudio called with null audioFile");
-        return;
-    }
-
-    size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
-    size_t writeAmount = std::min(spaceAvailable, static_cast<size_t>(audioFile.available()));
-
-    if (writeAmount == 0)
-    {
-        return;
-    }
-
-    if (m_writePos + writeAmount > AUDIO_BUFFER_SIZE)
-    {
-        size_t firstPart = AUDIO_BUFFER_SIZE - m_writePos;
-        size_t secondPart = writeAmount - firstPart;
-        size_t bytesRead1 = audioFile.read(m_audioBuffer + m_writePos, firstPart);
-        size_t bytesRead2 = audioFile.read(m_audioBuffer, secondPart);
-        m_writePos = secondPart;
-        if (bytesRead1 != firstPart || bytesRead2 != secondPart)
+        if (!audioFile || !audioFile.available())
         {
-            Serial.println("AudioPlayer: Error reading file in split write");
+            // Only start the next file if the buffer is empty
+            if (m_bufferFilled == 0)
+            {
+                if (!startNextFile())
+                {
+                    break; // No more files to play
+                }
+                else
+                {
+                    // Reset playback time since we're starting a new file
+                    m_currentPlaybackTime = 0;
+                    m_lastFrameTime = millis();
+                }
+            }
+            else
+            {
+                // Current file has ended, but there's still data in the buffer
+                // Do not start the next file until buffer is empty
+                break;
+            }
+        }
+
+        // Proceed to fill the buffer if we have an open file
+        if (audioFile && audioFile.available())
+        {
+            size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
+            size_t writePos = (m_readPos + m_bufferFilled) % AUDIO_BUFFER_SIZE;
+
+            // Determine how much data to read
+            size_t bytesToRead = std::min(spaceAvailable, (size_t)audioFile.available());
+
+            // Handle buffer wrap-around
+            size_t firstChunkSize = std::min(bytesToRead, AUDIO_BUFFER_SIZE - writePos);
+            size_t bytesRead = audioFile.read(m_audioBuffer + writePos, firstChunkSize);
+
+            if (bytesRead > 0)
+            {
+                m_bufferFilled += bytesRead;
+                m_writePos = (writePos + bytesRead) % AUDIO_BUFFER_SIZE;
+
+                // If there is more data to read and the buffer wraps around
+                if (bytesRead < bytesToRead)
+                {
+                    size_t secondChunkSize = bytesToRead - bytesRead;
+                    size_t additionalBytesRead = audioFile.read(m_audioBuffer, secondChunkSize);
+
+                    if (additionalBytesRead > 0)
+                    {
+                        m_bufferFilled += additionalBytesRead;
+                        m_writePos = additionalBytesRead;
+                        bytesRead += additionalBytesRead;
+                    }
+                }
+            }
+
+            if (!audioFile.available())
+            {
+                audioFile.close();
+            }
+        }
+        else
+        {
+            // No file to read from and buffer is not empty; exit loop
+            break;
         }
     }
-    else
-    {
-        size_t bytesRead = audioFile.read(m_audioBuffer + m_writePos, writeAmount);
-        m_writePos = (m_writePos + writeAmount) % AUDIO_BUFFER_SIZE;
-        if (bytesRead != writeAmount)
-        {
-            Serial.println("AudioPlayer: Error reading file in single write");
-        }
-    }
-
-    m_bufferFilled += writeAmount;
 }
 
+//CAMKILL might go away when skull_audio_animator updateJawPosition() is rewritten
 bool AudioPlayer::hasRemainingAudioData()
 {
     return audioFile && audioFile.available();
-}
-
-bool AudioPlayer::shouldPlayAudio()
-{
-    return hasRemainingAudioData() && m_isBluetoothConnected;
 }
 
 bool AudioPlayer::isAudioPlaying() const
@@ -158,51 +201,17 @@ bool AudioPlayer::isAudioPlaying() const
 
 unsigned long AudioPlayer::getPlaybackTime() const
 {
-    // if (!isPlaying) {
-    //     return 0;
-    // }
-    return millis() - m_currentFileStartTime;
+    if (!m_isAudioPlaying)
+    {
+        return 0;
+    }
+
+    return m_currentPlaybackTime;
 }
 
 String AudioPlayer::getCurrentlyPlayingFilePath() const
 {
     return m_currentFilePath;
-}
-
-// If the buffer is not full, fill it.
-// If it's reached the end of the file, try to start the next one.
-// If there's no next file, we're done.
-void AudioPlayer::fillBuffer()
-{
-    while (m_bufferFilled < AUDIO_BUFFER_SIZE)
-    {
-        if (!audioFile || !audioFile.available())
-        {
-            if (!startNextFile())
-            {
-                break;
-            }
-        }
-
-        size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
-        size_t writeAmount = std::min(spaceAvailable, static_cast<size_t>(audioFile.available()));
-
-        size_t writePos = (m_readPos + m_bufferFilled) % AUDIO_BUFFER_SIZE;
-        size_t bytesRead = audioFile.read(m_audioBuffer + writePos, writeAmount);
-
-        if (bytesRead != writeAmount)
-        {
-            Serial.println("Warning: Failed to read expected amount from file");
-        }
-
-        m_bufferFilled += bytesRead;
-
-        if (bytesRead == 0)
-        {
-            // End of current file
-            audioFile.close();
-        }
-    }
 }
 
 bool AudioPlayer::startNextFile()
@@ -229,8 +238,12 @@ bool AudioPlayer::startNextFile()
         return startNextFile(); // Try the next file in the queue
     }
 
-    m_totalBytesRead = 0;
-    m_currentFilePath = String(nextFile.c_str());  // Convert std::string to String
+    m_currentFilePath = String(nextFile.c_str());
     m_isAudioPlaying = true;
+
+    // Reset playback time since we're starting a new file
+    m_currentPlaybackTime = 0;
+    m_lastFrameTime = millis();
+
     return true;
 }
