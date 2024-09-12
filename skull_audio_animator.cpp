@@ -25,7 +25,8 @@ void SkullAudioAnimator::begin()
 
 void SkullAudioAnimator::update()
 {
-    m_audioPlayer.update();
+    // The audio player is updated when playNext() is called or when the audio engine needs more data,
+    // so we don't need to worry about it here. Here we're just reacting to what the audio player is playing.
     updateSkit();
     updateEyes();
     // CAMKILL: removing for now as it's endlessly calling provideAudioFrames and burning the data
@@ -39,7 +40,7 @@ void SkullAudioAnimator::updateSkit()
     if (!m_audioPlayer.isAudioPlaying())
     {
         Serial.println("SkullAudioAnimator: No audio playing; setting m_isCurrentlySpeaking to false");
-        m_isCurrentlySpeaking = false;
+        m_isCurrentlySpeaking = false;  
         return;
     }
 
@@ -136,11 +137,6 @@ void SkullAudioAnimator::updateEyes()
     {
         m_lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
     }
-}
-
-void SkullAudioAnimator::playNow(const char *filePath)
-{
-    m_audioPlayer.playNow(filePath);
 }
 
 void SkullAudioAnimator::playNext(const char *filePath)

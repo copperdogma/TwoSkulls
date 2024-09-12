@@ -17,7 +17,6 @@ public:
         std::vector<ParsedSkit>& skits);
     void begin();
     void update();
-    void playNow(const char* filePath);
     void playNext(const char* filePath);
     void playSkitNext(const ParsedSkit& skit);
     ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name);
