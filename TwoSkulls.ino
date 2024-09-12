@@ -72,7 +72,6 @@ bool initializeBluetooth(const String& speakerName, int volume) {
   bluetoothAudio.set_volume(volume);
   bool connected = bluetoothAudio.is_connected();
   Serial.printf("Bluetooth connected to %s: %d, Volume: %d\n", speakerName.c_str(), connected, volume);
-  skullAudioAnimator->setBluetoothConnected(connected);
   return connected;
 }
 
@@ -202,7 +201,6 @@ void setup() {
   initializeBluetooth(bluetoothSpeakerName, speakerVolume);
 
   // Set the initial state of the eyes to dim
-  Serial.println("TwoSkulls: Setting initial eye brightness to dim");
   lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
 }
 

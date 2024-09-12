@@ -38,6 +38,7 @@ void SkullAudioAnimator::updateSkit()
 {
     if (!m_audioPlayer.isAudioPlaying())
     {
+        Serial.println("SkullAudioAnimator: No audio playing; setting m_isCurrentlySpeaking to false");
         m_isCurrentlySpeaking = false;
         return;
     }
@@ -45,6 +46,7 @@ void SkullAudioAnimator::updateSkit()
     const String filePath = m_audioPlayer.getCurrentlyPlayingFilePath();
     if (filePath.isEmpty())
     {
+        Serial.println("SkullAudioAnimator: filePath.isEmpty(); setting m_isCurrentlySpeaking to false");
         m_currentAudioFilePath = filePath;
         m_isCurrentlySpeaking = false;
         return;
@@ -60,6 +62,7 @@ void SkullAudioAnimator::updateSkit()
         if (m_currentSkit.lines.empty())
         {
             Serial.printf("SkullAudioAnimator: Playing non-skit audio file: %s\n", filePath.c_str());
+            Serial.println("SkullAudioAnimator: Playing non-skit audio file; Setting m_isCurrentlySpeaking to true");
             m_isCurrentlySpeaking = true;
             return;
         }
@@ -149,11 +152,6 @@ void SkullAudioAnimator::playNext(const char *filePath)
 void SkullAudioAnimator::playSkitNext(const ParsedSkit &skit)
 {
     m_audioPlayer.playNext(skit.audioFile.c_str());
-}
-
-void SkullAudioAnimator::setBluetoothConnected(bool connected)
-{
-    m_audioPlayer.setBluetoothConnected(connected);
 }
 
 ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &skits, const String &name)

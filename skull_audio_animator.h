@@ -20,7 +20,6 @@ public:
     void playNow(const char* filePath);
     void playNext(const char* filePath);
     void playSkitNext(const ParsedSkit& skit);
-    void setBluetoothConnected(bool connected);
     ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name);
     int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
     AudioPlayer& getAudioPlayer() { return m_audioPlayer; }

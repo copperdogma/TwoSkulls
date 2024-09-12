@@ -66,24 +66,6 @@ void AudioPlayer::playNext(const char* filePath) {
     queueCV.notify_one();
 }
 
-//CAMKILL: is this even called? I don't see why it would be.
-void AudioPlayer::setBluetoothConnected(bool connected) {
-    Serial.printf("AudioPlayer::setBluetoothConnected: Bluetooth connection status changed to: %s\n", connected ? "connected" : "disconnected");
-    m_isBluetoothConnected = connected;
-    if (!connected) {
-        Serial.println("AudioPlayer::setBluetoothConnected: Bluetooth disconnected, setting m_isAudioPlaying to false");
-        m_isAudioPlaying = false;
-    }
-    if (connected) {
-        m_bufferPosition = 0;
-        if (!hasRemainingAudioData() && !audioQueue.empty()) {
-            std::string filePath = audioQueue.front();
-            audioQueue.pop();
-            playFile(filePath.c_str());
-        }
-    }
-}
-
 size_t AudioPlayer::getTotalBytesRead() const {
     return m_totalBytesRead;
 }
@@ -162,6 +144,9 @@ void AudioPlayer::audioPlayerTask() {
                         playFile(nextFile.c_str());
                     }
                 }
+                else {
+                    m_isAudioPlaying = true;
+                }
             } else {
                 m_isAudioPlaying = false;
             }
@@ -176,6 +161,10 @@ void AudioPlayer::audioPlayerTask() {
         delay(10);
     }
 }
+
+// ** ISSUES:
+// - it decides it's finished playing too early on the init.wav so it never turns on the lights
+// - can we kill isPlaying? Just replace it with m_isAudioPlaying?
 
 void AudioPlayer::playFile(const char* filePath) {
     Serial.printf("AudioPlayer: Starting playback of file: %s\n", filePath);

@@ -23,7 +23,6 @@ public:
     void playNext(const char* filePath);
     bool hasRemainingAudioData();
     bool isAudioPlaying() const;
-    void setBluetoothConnected(bool connected);
     size_t getTotalBytesRead() const;
     size_t readAudioData(uint8_t* buffer, size_t bytesToRead);
     void incrementTotalBytesRead(size_t bytesRead);
