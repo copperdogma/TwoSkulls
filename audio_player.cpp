@@ -66,8 +66,9 @@ void AudioPlayer::playNext(const char* filePath) {
     queueCV.notify_one();
 }
 
+//CAMKILL: is this even called? I don't see why it would be.
 void AudioPlayer::setBluetoothConnected(bool connected) {
-    Serial.printf("Bluetooth connection status changed to: %s\n", connected ? "connected" : "disconnected");
+    Serial.printf("AudioPlayer::setBluetoothConnected: Bluetooth connection status changed to: %s\n", connected ? "connected" : "disconnected");
     m_isBluetoothConnected = connected;
     if (!connected) {
         Serial.println("AudioPlayer::setBluetoothConnected: Bluetooth disconnected, setting m_isAudioPlaying to false");
@@ -90,55 +91,6 @@ size_t AudioPlayer::getTotalBytesRead() const {
 void AudioPlayer::incrementTotalBytesRead(size_t bytesRead) {
     m_totalBytesRead += bytesRead;
 }
-
-//CAMKILL:
-// //CAMKILL: Okay so this is called (somehow) but it's not doing anything.
-// // The provideAudioFrames also exists in the skull_audio_animator.cpp file and is the one providing actual data.
-// // Althoguh it does so by calling audio_player.readAudioData() which calls this->readAudioData()
-// // I feel like skull_audio_animator.cpp should just be using this and providing the frames directly as a pass-through.
-// int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
-//     return 0;
-//     // if (!m_isBluetoothConnected) {
-//     //     Serial.println("AudioPlayer::provideAudioFrames: Bluetooth disconnected, setting m_isAudioPlaying to false");
-//     //     m_isAudioPlaying = false;
-//     //     memset(frame, 0, frame_count * sizeof(Frame));
-//     //     return frame_count;
-//     // }
-
-//     // Serial.println("AudioPlayer: Bluetooth connected, setting m_isAudioPlaying to true");
-//     // m_isAudioPlaying = true;
-
-//     // size_t bytesToProvide = frame_count * sizeof(Frame);
-//     // size_t bytesProvided = 0;
-
-//     // while (bytesProvided < bytesToProvide) {
-//     //     if (m_bufferFilled == 0) {
-//     //         writeAudio();
-//     //         if (m_bufferFilled == 0) {
-//     //             memset((uint8_t*)frame + bytesProvided, 0, bytesToProvide - bytesProvided);
-//     //             return bytesProvided / sizeof(Frame);
-//     //         }
-//     //     }
-
-//     //     size_t bytesToCopy = min(bytesToProvide - bytesProvided, m_bufferFilled);
-//     //     if (m_readPos + bytesToCopy > AUDIO_BUFFER_SIZE) {
-//     //         size_t firstPart = AUDIO_BUFFER_SIZE - m_readPos;
-//     //         size_t secondPart = bytesToCopy - firstPart;
-//     //         memcpy((uint8_t*)frame + bytesProvided, m_audioBuffer + m_readPos, firstPart);
-//     //         memcpy((uint8_t*)frame + bytesProvided + firstPart, m_audioBuffer, secondPart);
-//     //         m_readPos = secondPart;
-//     //     } else {
-//     //         memcpy((uint8_t*)frame + bytesProvided, m_audioBuffer + m_readPos, bytesToCopy);
-//     //         m_readPos = (m_readPos + bytesToCopy) % AUDIO_BUFFER_SIZE;
-//     //     }
-
-//     //     bytesProvided += bytesToCopy;
-//     //     m_bufferFilled -= bytesToCopy;
-//     //     m_totalBytesRead += bytesToCopy;
-//     // }
-
-//     // return frame_count;
-// }
 
 size_t AudioPlayer::readAudioData(uint8_t* buffer, size_t bytesToRead) {
     if (!audioFile || !audioFile.available()) {
@@ -196,7 +148,6 @@ void AudioPlayer::audioPlayerTask() {
             if (isPlaying) {
                 if (!hasRemainingAudioData()) {
                     isPlaying = false;
-                    Serial.println("AudioPlayer: No remaining audio data, setting m_isAudioPlaying to false");
                     m_isAudioPlaying = false;
                     Serial.printf("AudioPlayer: Finished playback of file\n");
 
@@ -212,7 +163,6 @@ void AudioPlayer::audioPlayerTask() {
                     }
                 }
             } else {
-                Serial.println("AudioPlayer: isPlaying=false, setting m_isAudioPlaying to false");
                 m_isAudioPlaying = false;
             }
             // ... rest of the method ...

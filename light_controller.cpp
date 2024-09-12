@@ -26,7 +26,6 @@ void LightController::setEyeBrightness(uint8_t brightness)  // Changed int to ui
         ledcWrite(PWM_CHANNEL_LEFT, brightness);
         ledcWrite(PWM_CHANNEL_RIGHT, brightness);
         _currentBrightness = brightness;
-        Serial.println("Updated eye brightness to: " + String(brightness));
     }
 }
 

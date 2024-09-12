@@ -220,6 +220,10 @@ void loop() {
     lastMillis = currentMillis;
   }
 
+  // There is no loop() call to play more audio.
+  // The skull_audio_animator.getAudioFrames() is called by the bluetooth_audio library
+  // when there's an active bluetooth connection and it needs more audio data.
+
   // Update SkullAudioAnimator
   skullAudioAnimator->update();
 

@@ -25,7 +25,6 @@ public:
     bool isAudioPlaying() const;
     void setBluetoothConnected(bool connected);
     size_t getTotalBytesRead() const;
-    //CAMKILL:int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
     size_t readAudioData(uint8_t* buffer, size_t bytesToRead);
     void incrementTotalBytesRead(size_t bytesRead);
     unsigned long getPlaybackTime() const;

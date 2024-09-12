@@ -13,7 +13,7 @@
 SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController &servoController, LightController &lightController, std::vector<ParsedSkit> &skits)
     : m_audioPlayer(), m_servoController(servoController), m_lightController(lightController),
       m_isPrimary(isPrimary), m_skits(skits), m_currentAudioFilePath(""),
-      m_currentSkit(ParsedSkit()), m_currentSkitLineNumber(0), m_isCurrentlySpeaking(false),
+      m_currentSkit(ParsedSkit()), m_currentSkitLineNumber(-1), m_isCurrentlySpeaking(false),
       FFT(vReal, vImag, SAMPLES, SAMPLE_RATE)
 {
 }
@@ -28,12 +28,9 @@ void SkullAudioAnimator::update()
     m_audioPlayer.update();
     updateSkit();
     updateEyes();
-    //CAMKILL: removing for now as it's endlessly calling provideAudioFrames and burning the data
-    //updateJawPosition();
+    // CAMKILL: removing for now as it's endlessly calling provideAudioFrames and burning the data
+    // updateJawPosition();
 }
-
-
-    // ** CLOSE! It's setting eyes back to 255 after I set them to 100 in setup. Why?
 
 // Determine the currently playing skit and line.
 // Will set m_currentSkit and m_currentSkitLineNumber to the current skit and line.
@@ -41,7 +38,6 @@ void SkullAudioAnimator::updateSkit()
 {
     if (!m_audioPlayer.isAudioPlaying())
     {
-        //Serial.println("SkullAudioAnimator: m_audioPlayer.isCurrentlyPlaying()=false so m_isCurrentlySpeaking=false");
         m_isCurrentlySpeaking = false;
         return;
     }
@@ -50,7 +46,6 @@ void SkullAudioAnimator::updateSkit()
     if (filePath.isEmpty())
     {
         m_currentAudioFilePath = filePath;
-        //Serial.println("SkullAudioAnimator: filePath.isEmpty() so m_isCurrentlySpeaking=false");
         m_isCurrentlySpeaking = false;
         return;
     }
@@ -64,14 +59,12 @@ void SkullAudioAnimator::updateSkit()
         m_currentSkit = findSkitByName(m_skits, filePath);
         if (m_currentSkit.lines.empty())
         {
-            //Serial.printf("SkullAudioAnimator: No associated skit found for %s\n", filePath.c_str());
-            //Serial.println("SkullAudioAnimator: No associated skit so m_isCurrentlySpeaking=true");
+            Serial.printf("SkullAudioAnimator: Playing non-skit audio file: %s\n", filePath.c_str());
             m_isCurrentlySpeaking = true;
-
             return;
         }
 
-        //Serial.printf("SkullAudioAnimator: Playing new skit: %s\n", m_currentSkit.audioFile.c_str());
+        Serial.printf("SkullAudioAnimator: Playing new skit: %s\n", m_currentSkit.audioFile.c_str());
 
         // Keep only the lines that are for us.
         std::vector<ParsedSkitLine> lines;
@@ -82,7 +75,7 @@ void SkullAudioAnimator::updateSkit()
                 lines.push_back(line);
             }
         }
-        //Serial.printf("SkullAudioAnimator: Parsed skit '%s' with %d lines. %d lines for us.\n", m_currentSkit.audioFile.c_str(), m_currentSkit.lines.size(), lines.size());
+        Serial.printf("SkullAudioAnimator: Parsed skit '%s' with %d lines. %d lines for us.\n", m_currentSkit.audioFile.c_str(), m_currentSkit.lines.size(), lines.size());
         m_currentSkit.lines = lines;
     }
 
@@ -90,26 +83,29 @@ void SkullAudioAnimator::updateSkit()
     // The lines have been filtered to only include the lines for us.
     // We need to check if the current time is after the line's timestamp and before the line's timestamp + duration.
     unsigned long playbackTime = m_audioPlayer.getPlaybackTime();
+    size_t originalLineNumber = m_currentSkitLineNumber;
+    bool foundLine = false;
     for (const auto &line : m_currentSkit.lines)
     {
         if (playbackTime >= line.timestamp && playbackTime < line.timestamp + line.duration)
         {
-            if (m_currentSkitLineNumber != line.lineNumber)
-            {
-                //Serial.printf("SkullAudioAnimator: Now speaking line %d\n", line.lineNumber);
-            }
             m_currentSkitLineNumber = line.lineNumber;
-            //Serial.println("SkullAudioAnimator: Speaking skit line so m_isCurrentlySpeaking=true");
-            m_isCurrentlySpeaking = true;
+            foundLine = true;
             break;
         }
-        else
-        {
-            m_currentSkitLineNumber = -1;
-            //Serial.println("SkullAudioAnimator: Not speaking skit line so m_isCurrentlySpeaking=false");
-            m_isCurrentlySpeaking = false;
-        }
     }
+
+    if (m_currentSkitLineNumber != originalLineNumber)
+    {
+        Serial.printf("SkullAudioAnimator: Now speaking line %d\n", m_currentSkitLineNumber);
+    }
+
+    if (m_isCurrentlySpeaking && !foundLine)
+    {
+        Serial.printf("SkullAudioAnimator: Ended speaking line %d\n", m_currentSkitLineNumber);
+    }
+
+    m_isCurrentlySpeaking = foundLine;
 }
 
 void SkullAudioAnimator::updateJawPosition()
@@ -131,12 +127,10 @@ void SkullAudioAnimator::updateEyes()
 {
     if (m_isCurrentlySpeaking)
     {
-        //Serial.println("SkullAudioAnimator: m_isCurrentlySpeaking=true so Setting eye brightness to max");
         m_lightController.setEyeBrightness(LightController::BRIGHTNESS_MAX);
     }
     else
     {
-        //Serial.println("SkullAudioAnimator: m_isCurrentlySpeaking=false so Setting eye brightness to dim");
         m_lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
     }
 }
@@ -174,35 +168,10 @@ ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &ski
     return ParsedSkit(); // Return an empty ParsedSkit if not found
 }
 
-// CAMKILL: does this need to be exposed?
-size_t SkullAudioAnimator::getTotalBytesRead() const
-{
-    return m_audioPlayer.getTotalBytesRead();
-}
-
-// CAMKILL: This is the one providing data. Despite audio_player.cpp having a provideAudioFrames
-// which IS getting called.. somehow. But doesn't do anything.
-// Regardless, perhaps we can use this one by saving the played buffer for use with FFT?
+// CAMKILL: Perhaps we can use this one by saving the played buffer for use with FFT?
 int32_t SkullAudioAnimator::provideAudioFrames(Frame *frame, int32_t frame_count)
 {
     return m_audioPlayer.provideAudioFrames(frame, frame_count);
-}
-
-//CAMKILL: is this used? I thought all of this was done in the sd_card_manager.cpp file.
-// Although.. where SHOULD it be? Probably here. This is the only thing that should know about skits.
-ParsedSkit SkullAudioAnimator::parseSkitFile(const String &wavFile, const String &txtFile)
-{
-    // Implement skit file parsing logic
-    ParsedSkit skit;
-    skit.audioFile = wavFile;
-    skit.txtFile = txtFile;
-    return skit;
-}
-
-// CAMKILL: does this need to be exposed?
-const ParsedSkit &SkullAudioAnimator::getCurrentSkit() const
-{
-    return m_currentSkit;
 }
 
 void SkullAudioAnimator::performFFT()

@@ -22,10 +22,7 @@ public:
     void playSkitNext(const ParsedSkit& skit);
     void setBluetoothConnected(bool connected);
     ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name);
-    size_t getTotalBytesRead() const;
     int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
-    ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile);
-    const ParsedSkit& getCurrentSkit() const;
     AudioPlayer& getAudioPlayer() { return m_audioPlayer; }
 
 private:
