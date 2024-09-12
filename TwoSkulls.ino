@@ -200,6 +200,10 @@ void setup() {
 
   // Initialize Bluetooth after SkullAudioAnimator
   initializeBluetooth(bluetoothSpeakerName, speakerVolume);
+
+  // Set the initial state of the eyes to dim
+  Serial.println("TwoSkulls: Setting initial eye brightness to dim");
+  lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
 }
 
 void loop() {

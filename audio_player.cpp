@@ -8,8 +8,9 @@
 #include <thread>
 
 AudioPlayer::AudioPlayer() 
-    : m_totalBytesRead(0), m_isBluetoothConnected(false), m_isAudioReadyToPlay(false),
-      m_writePos(0), m_readPos(0), m_bufferFilled(0), m_currentFilePath("") {
+    : m_totalBytesRead(0), m_isBluetoothConnected(false),
+      m_writePos(0), m_readPos(0), m_bufferFilled(0), m_currentFilePath(""),
+      m_isAudioPlaying(false) {
 }
 
 void AudioPlayer::begin() {
@@ -65,22 +66,16 @@ void AudioPlayer::playNext(const char* filePath) {
     queueCV.notify_one();
 }
 
-// Aren't these two just the same but inversed?
-// TODO: just use isCurrentlyPlaying() and kill the other one.
-bool AudioPlayer::isCurrentlyPlaying() {
-    return audioFile && audioFile.available();
-}
-
-bool AudioPlayer::hasFinishedPlaying() {
-    return !audioFile || !audioFile.available();
-}
-
 void AudioPlayer::setBluetoothConnected(bool connected) {
     Serial.printf("Bluetooth connection status changed to: %s\n", connected ? "connected" : "disconnected");
     m_isBluetoothConnected = connected;
+    if (!connected) {
+        Serial.println("AudioPlayer::setBluetoothConnected: Bluetooth disconnected, setting m_isAudioPlaying to false");
+        m_isAudioPlaying = false;
+    }
     if (connected) {
         m_bufferPosition = 0;
-        if (!isCurrentlyPlaying() && !audioQueue.empty()) {
+        if (!hasRemainingAudioData() && !audioQueue.empty()) {
             std::string filePath = audioQueue.front();
             audioQueue.pop();
             playFile(filePath.c_str());
@@ -88,51 +83,62 @@ void AudioPlayer::setBluetoothConnected(bool connected) {
     }
 }
 
-void AudioPlayer::setAudioReadyToPlay(bool ready) {
-    m_isAudioReadyToPlay = ready;
-}
-
 size_t AudioPlayer::getTotalBytesRead() const {
     return m_totalBytesRead;
 }
 
-int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
-    if (!m_isBluetoothConnected) {
-        memset(frame, 0, frame_count * sizeof(Frame));
-        return frame_count;
-    }
-
-    size_t bytesToProvide = frame_count * sizeof(Frame);
-    size_t bytesProvided = 0;
-
-    while (bytesProvided < bytesToProvide) {
-        if (m_bufferFilled == 0) {
-            writeAudio();
-            if (m_bufferFilled == 0) {
-                memset((uint8_t*)frame + bytesProvided, 0, bytesToProvide - bytesProvided);
-                return bytesProvided / sizeof(Frame);
-            }
-        }
-
-        size_t bytesToCopy = min(bytesToProvide - bytesProvided, m_bufferFilled);
-        if (m_readPos + bytesToCopy > AUDIO_BUFFER_SIZE) {
-            size_t firstPart = AUDIO_BUFFER_SIZE - m_readPos;
-            size_t secondPart = bytesToCopy - firstPart;
-            memcpy((uint8_t*)frame + bytesProvided, m_audioBuffer + m_readPos, firstPart);
-            memcpy((uint8_t*)frame + bytesProvided + firstPart, m_audioBuffer, secondPart);
-            m_readPos = secondPart;
-        } else {
-            memcpy((uint8_t*)frame + bytesProvided, m_audioBuffer + m_readPos, bytesToCopy);
-            m_readPos = (m_readPos + bytesToCopy) % AUDIO_BUFFER_SIZE;
-        }
-
-        bytesProvided += bytesToCopy;
-        m_bufferFilled -= bytesToCopy;
-        m_totalBytesRead += bytesToCopy;
-    }
-
-    return frame_count;
+void AudioPlayer::incrementTotalBytesRead(size_t bytesRead) {
+    m_totalBytesRead += bytesRead;
 }
+
+//CAMKILL:
+// //CAMKILL: Okay so this is called (somehow) but it's not doing anything.
+// // The provideAudioFrames also exists in the skull_audio_animator.cpp file and is the one providing actual data.
+// // Althoguh it does so by calling audio_player.readAudioData() which calls this->readAudioData()
+// // I feel like skull_audio_animator.cpp should just be using this and providing the frames directly as a pass-through.
+// int32_t AudioPlayer::provideAudioFrames(Frame* frame, int32_t frame_count) {
+//     return 0;
+//     // if (!m_isBluetoothConnected) {
+//     //     Serial.println("AudioPlayer::provideAudioFrames: Bluetooth disconnected, setting m_isAudioPlaying to false");
+//     //     m_isAudioPlaying = false;
+//     //     memset(frame, 0, frame_count * sizeof(Frame));
+//     //     return frame_count;
+//     // }
+
+//     // Serial.println("AudioPlayer: Bluetooth connected, setting m_isAudioPlaying to true");
+//     // m_isAudioPlaying = true;
+
+//     // size_t bytesToProvide = frame_count * sizeof(Frame);
+//     // size_t bytesProvided = 0;
+
+//     // while (bytesProvided < bytesToProvide) {
+//     //     if (m_bufferFilled == 0) {
+//     //         writeAudio();
+//     //         if (m_bufferFilled == 0) {
+//     //             memset((uint8_t*)frame + bytesProvided, 0, bytesToProvide - bytesProvided);
+//     //             return bytesProvided / sizeof(Frame);
+//     //         }
+//     //     }
+
+//     //     size_t bytesToCopy = min(bytesToProvide - bytesProvided, m_bufferFilled);
+//     //     if (m_readPos + bytesToCopy > AUDIO_BUFFER_SIZE) {
+//     //         size_t firstPart = AUDIO_BUFFER_SIZE - m_readPos;
+//     //         size_t secondPart = bytesToCopy - firstPart;
+//     //         memcpy((uint8_t*)frame + bytesProvided, m_audioBuffer + m_readPos, firstPart);
+//     //         memcpy((uint8_t*)frame + bytesProvided + firstPart, m_audioBuffer, secondPart);
+//     //         m_readPos = secondPart;
+//     //     } else {
+//     //         memcpy((uint8_t*)frame + bytesProvided, m_audioBuffer + m_readPos, bytesToCopy);
+//     //         m_readPos = (m_readPos + bytesToCopy) % AUDIO_BUFFER_SIZE;
+//     //     }
+
+//     //     bytesProvided += bytesToCopy;
+//     //     m_bufferFilled -= bytesToCopy;
+//     //     m_totalBytesRead += bytesToCopy;
+//     // }
+
+//     // return frame_count;
+// }
 
 size_t AudioPlayer::readAudioData(uint8_t* buffer, size_t bytesToRead) {
     if (!audioFile || !audioFile.available()) {
@@ -149,10 +155,6 @@ size_t AudioPlayer::readAudioData(uint8_t* buffer, size_t bytesToRead) {
     }
     
     return 0;
-}
-
-void AudioPlayer::incrementTotalBytesRead(size_t bytesRead) {
-    m_totalBytesRead += bytesRead;
 }
 
 void AudioPlayer::writeAudio() {
@@ -192,8 +194,10 @@ void AudioPlayer::audioPlayerTask() {
     while (!shouldStop) {
         try {
             if (isPlaying) {
-                if (!isCurrentlyPlaying()) {
+                if (!hasRemainingAudioData()) {
                     isPlaying = false;
+                    Serial.println("AudioPlayer: No remaining audio data, setting m_isAudioPlaying to false");
+                    m_isAudioPlaying = false;
                     Serial.printf("AudioPlayer: Finished playback of file\n");
 
                     m_currentFilePath = "";
@@ -208,18 +212,10 @@ void AudioPlayer::audioPlayerTask() {
                     }
                 }
             } else {
-                std::unique_lock<std::mutex> lock(queueMutex);
-                if (!audioQueue.empty()) {
-                    std::string nextFile = audioQueue.front();
-                    audioQueue.pop();
-                    Serial.printf("AudioPlayer: Starting file from idle state: %s\n", nextFile.c_str());
-                    lock.unlock();
-                    playFile(nextFile.c_str());
-                } else {
-                    m_currentFilePath = "";
-                    queueCV.wait(lock, [this] { return !audioQueue.empty() || shouldStop; });
-                }
+                Serial.println("AudioPlayer: isPlaying=false, setting m_isAudioPlaying to false");
+                m_isAudioPlaying = false;
             }
+            // ... rest of the method ...
         } catch (const std::exception& e) {
             Serial.printf("AudioPlayer: Exception caught in audioPlayerTask: %s\n", e.what());
             isPlaying = false;
@@ -278,6 +274,14 @@ void AudioPlayer::playFile(const char* filePath) {
     }
 }
 
+bool AudioPlayer::hasRemainingAudioData() {
+    return audioFile && audioFile.available();
+}
+
+bool AudioPlayer::isAudioPlaying() const {
+    return m_isAudioPlaying;
+}
+
 unsigned long AudioPlayer::getPlaybackTime() const {
     if (!isPlaying) {
         return 0;
@@ -287,4 +291,34 @@ unsigned long AudioPlayer::getPlaybackTime() const {
 
 String AudioPlayer::getCurrentlyPlayingFilePath() const {
     return m_currentFilePath;
+}
+
+int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
+{
+    if (!hasRemainingAudioData())
+    {
+        m_isAudioPlaying = false;
+        memset(frame, 0, frame_count * sizeof(Frame));
+        return frame_count;
+    }
+
+    m_isAudioPlaying = true;
+
+    size_t bytesToRead = frame_count * sizeof(Frame);
+    size_t bytesRead = readAudioData((uint8_t *)frame, bytesToRead);
+
+    if (bytesRead < bytesToRead)
+    {
+        memset((uint8_t *)frame + bytesRead, 0, bytesToRead - bytesRead);
+
+        if (bytesRead == 0)
+        {
+            Serial.println("AudioPlayer: End of file reached, attempting to play next file");
+            playNext(nullptr);
+        }
+    }
+
+    incrementTotalBytesRead(bytesRead);
+
+    return frame_count;
 }

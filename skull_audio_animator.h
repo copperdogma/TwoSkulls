@@ -20,18 +20,13 @@ public:
     void playNow(const char* filePath);
     void playNext(const char* filePath);
     void playSkitNext(const ParsedSkit& skit);
-    bool isCurrentlyPlaying();
-    bool isPlayingSkit() const;
-    bool hasFinishedPlaying();
-    bool isCurrentlySpeaking() const;
     void setBluetoothConnected(bool connected);
-    void setAudioReadyToPlay(bool ready);
     ParsedSkit findSkitByName(const std::vector<ParsedSkit>& skits, const String& name);
     size_t getTotalBytesRead() const;
-    void logState();
     int32_t provideAudioFrames(Frame* frame, int32_t frame_count);
     ParsedSkit parseSkitFile(const String& wavFile, const String& txtFile);
     const ParsedSkit& getCurrentSkit() const;
+    AudioPlayer& getAudioPlayer() { return m_audioPlayer; }
 
 private:
     AudioPlayer m_audioPlayer;
@@ -39,8 +34,7 @@ private:
     LightController& m_lightController;
     bool m_isPrimary;
     std::vector<ParsedSkit>& m_skits;
-    bool m_isPlayingSkit;
-    String m_currentSkitPath;
+    String m_currentAudioFilePath;
     bool m_isCurrentlySpeaking;
     size_t m_currentSkitLineNumber;
     ParsedSkit m_currentSkit;
@@ -54,7 +48,6 @@ private:
     double calculateRMS(const int16_t* samples, int numSamples);
     void performFFT();
     double getFFTResult(int index);
-    void updateIsCurrentlySpeaking();
 };
 
 #endif // SKULL_AUDIO_ANIMATOR_H
