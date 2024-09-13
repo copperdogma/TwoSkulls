@@ -7,9 +7,9 @@
 
 enum class Command : int {
     KEEPALIVE = 0,          // Maintain connection
-    PLAY_FILE = 1,          // Instruct peer to play a specific file
-    CONNECTION_REQUEST = 2, // Request to establish a connection
-    CONNECTION_ACK = 3      // Acknowledge a connection request
+    CONNECTION_REQUEST = 1, // Request to establish a connection
+    CONNECTION_ACK = 2,     // Acknowledge a connection request
+    PLAY_FILE = 3           // Instruct peer to play a specific file
 };
 
 class SkullCommunication {

@@ -4,12 +4,12 @@
 
 extern SkullAudioAnimator *skullAudioAnimator;
 
-SkullCommunication* SkullCommunication::instance = nullptr;
+SkullCommunication *SkullCommunication::instance = nullptr;
 
 // Structure for messages
 typedef struct struct_message
 {
-    Command command;          // Changed from int to Command
+    Command command; // Changed from int to Command
     char filename[32];
 } struct_message;
 
@@ -82,7 +82,7 @@ void SkullCommunication::update()
         if (isPrimary && currentMillis - lastKeepAlive > CONNECTION_RETRY_DELAY)
         {
             myData.command = Command::CONNECTION_REQUEST; // Changed from 2 to enum
-            esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t*>(&myData), sizeof(myData));
+            esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t *>(&myData), sizeof(myData));
             if (result == ESP_OK)
             {
                 Serial.println("COMMS: Connection request sent");
@@ -114,7 +114,7 @@ void SkullCommunication::sendPlayCommand(const char *filename)
 
     myData.command = Command::PLAY_FILE; // Changed from 1 to enum
     strncpy(myData.filename, filename, sizeof(myData.filename));
-    esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t*>(&myData), sizeof(myData));
+    esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t *>(&myData), sizeof(myData));
 
     if (result == ESP_OK)
     {
@@ -129,7 +129,7 @@ void SkullCommunication::sendPlayCommand(const char *filename)
 void SkullCommunication::sendKeepAlive()
 {
     myData.command = Command::KEEPALIVE; // Changed from 0 to enum
-    esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t*>(&myData), sizeof(myData));
+    esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t *>(&myData), sizeof(myData));
 
     if (result == ESP_OK)
     {
@@ -160,14 +160,13 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
     case Command::CONNECTION_REQUEST:
         Serial.println("Received connection request");
         myData.command = Command::CONNECTION_ACK; // Changed from 3
-        esp_now_send(mac, reinterpret_cast<uint8_t*>(&myData), sizeof(myData));
+        esp_now_send(mac, reinterpret_cast<uint8_t *>(&myData), sizeof(myData));
         instance->m_isPeerConnected = true;
         break;
     case Command::CONNECTION_ACK:
         Serial.println("COMMS: Connected! Received connection acknowledgment");
         instance->m_isPeerConnected = true;
         break;
-    }
     case Command::PLAY_FILE:
         Serial.printf("COMMS: Received play command for file: %s\n", receivedData.filename);
         if (skullAudioAnimator)
@@ -175,13 +174,17 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
             skullAudioAnimator->playNext(receivedData.filename);
         }
         break;
+    }
 }
 
-void SkullCommunication::printMacAddress(const uint8_t* macAddress, const char* description) {
+void SkullCommunication::printMacAddress(const uint8_t *macAddress, const char *description)
+{
     Serial.print(description);
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 6; i++)
+    {
         Serial.printf("%02X", macAddress[i]);
-        if (i < 5) Serial.print(":");
+        if (i < 5)
+            Serial.print(":");
     }
     Serial.println();
 }
