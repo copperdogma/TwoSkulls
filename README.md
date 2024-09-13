@@ -38,7 +38,7 @@ Core Debug Level: "None"
 Erase All Flash Before Sketch Upload: "Disabled"
 Flash Frequency: "80MHz"
 Flash Mode: "QIO"
-Partition Scheme: "Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)"
+Partition Scheme: "Huge APP (3MB No OTA/1MB SPIFFS)" (originally "Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)" but I ran out of space)
 Upload Speed: "460800"
 
 BOARD/LIBRARIES:
@@ -109,9 +109,7 @@ ISSUES
   ** start overall log to document these issues/components
   ** connect to second skull; maybe use existing bluetooth library which has examples: https://github.com/pschatzmann/ESP32-A2DP
   ** try ArduinoFFT as simple audio analysis we can use to sync skull jaw motion to audi.o
-  ** use the Audio Player Class for other functionality like FFT and SD support: https://github.com/pschatzmann/arduino-audio-tools/wiki/The-Audio-Player-Class
   ** do a pre-pass on the audio to get max volume so we can peg that at max jaw movement. PER SKULL. Should be doable cuz we can do it on startup and save with the skit/skitline info. So it can be slowish.
-  ** MVP: work on the skull only speaking/animating its OWN lines
   ** fix primary skull's servo seat; carve out jawbone a bit more so it catches better
   ** external 5v, 1A power needed for servo
     - original issue was it would crash when servo would run, because it was drawing too many amps (.8 at stall whereas esp32 supplied max .4?), which dropped the voltage enough to crash SD reader
@@ -120,6 +118,28 @@ ISSUES
     - power board, providing power to both the ESP32 board and the servo: I think I only have one
   ** rebuild secondary perfboard with dupont connectors
   ** staging: mount on sticks, make name signs, figure out where to put electronics + batteries, figure out where/how to hide speakers
+
+  ** use the Audio Player Class for other functionality like FFT and SD support: https://github.com/pschatzmann/arduino-audio-tools/wiki/The-Audio-Player-Class
+    - oooo shit... the examples are all A2DP (music sender or receiver). Technically I could try to set up primary as a sender TWICE (once for bluetooth audio, once for connecting to the secondary skull), and set up the secondary as a receiver, then abuse the metadata protocol to control the second skull... But I'm not even sure if it's possible to set up a single device as a dual sender, and I'm not sure I could abuse the protocols just right. Also it feels icky.
+
+What communication method do you plan to use between the skulls? WiFi, Bluetooth, or another method?
+Not sure. I'm already using bluetooth. Both skulls are acting as bluetooth senders, connecting to their own individual speakers to play audio. I'm not sure I could set the primary up as a second sender, or even if you can use the bluetooth chip to make multiple connections at once. I need help with this part for sure.
+
+Will the secondary skull need to send any information back to the primary, or is this a one-way communication?
+Yes? I'd assume we need some sort of ACK, and perhaps two-way comms to establish a common time to ensure our timing is correct.
+
+Do you want to implement a simple command system (e.g., "play file X", "start now"), or do you need a more complex protocol?
+Very simple. Basically establish a connection, primary sends message saying it's primary/secondary ACK, keepalive ping/secondary ACK, primary synchronizes time/secondary ACK, primary tells secondary what file to play starting at what time/secondary ACK
+
+How precise does the synchronization need to be? Are we aiming for millisecond accuracy, or is a slight delay acceptable?
+Within 100ms should be fine.
+
+Will both skulls have identical audio files, or will the primary need to specify different files for each skull?
+Both have identical files.
+
+How do you want to handle potential communication failures or disconnections?
+A primary keep-alive ping ACKed by secondary. If primary doesn't see an ACK for a bit it goes back to it's connection protocol. If secondary doesn't see a ping for a while it goes back to it's connection protocol.
+  
 
   
   SD CARD

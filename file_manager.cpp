@@ -17,6 +17,8 @@ String FileManager::readLine(File& file) {
     return file.readStringUntil('\n');
 }
 
+// TODO: move this into the SDCardManager class
+// In fact, can we just trasfer all functionality into the SDCardManager class?
 ParsedSkit FileManager::parseSkitFile(const String& wavFile, const String& txtFile) {
     ParsedSkit parsedSkit;
     parsedSkit.audioFile = wavFile;

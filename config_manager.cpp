@@ -66,6 +66,14 @@ String ConfigManager::getRole() const {
     return getValue("role", "unknown");
 }
 
+String ConfigManager::getPrimaryMacAddress() const {
+    return getValue("primary_mac_address", "unknown");
+}
+
+String ConfigManager::getSecondaryMacAddress() const {
+    return getValue("secondary_mac_address", "unknown");
+}
+
 int ConfigManager::getUltrasonicTriggerDistance() const {
     return getValue("ultrasonic_trigger_distance", "100").toInt();
 }

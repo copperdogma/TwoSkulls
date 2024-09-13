@@ -12,6 +12,8 @@ public:
     bool loadConfig();
     String getBluetoothSpeakerName() const;  // Renamed from getSpeakerName
     String getRole() const;
+    String getPrimaryMacAddress() const;
+    String getSecondaryMacAddress() const;
     int getUltrasonicTriggerDistance() const;
     String getValue(const String& key, const String& defaultValue = "") const;
     int getSpeakerVolume() const { return speakerVolume; }

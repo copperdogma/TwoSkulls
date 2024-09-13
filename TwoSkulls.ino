@@ -5,14 +5,14 @@
 
 */
 #include "bluetooth_audio.h"
-#include "FS.h"      // Ensure ESP32 board package is installed
-#include "SD.h"      // Ensure ESP32 board package is installed
-#include <HCSR04.h>  // Install HCSR04 library via Arduino Library Manager
+#include "FS.h"     // Ensure ESP32 board package is installed
+#include "SD.h"     // Ensure ESP32 board package is installed
+#include <HCSR04.h> // Install HCSR04 library via Arduino Library Manager
 #include "light_controller.h"
 #include "servo_controller.h"
 #include "sd_card_manager.h"
 #include "skull_audio_animator.h"
-#include <Servo.h>  // Use ESP32-specific Servo library
+#include <Servo.h> // Use ESP32-specific Servo library
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp32-hal-log.h"
@@ -21,29 +21,32 @@
 #include "esp_bt_main.h"
 #include "esp_bt_device.h"
 #include "nvs_flash.h"
+#include "skull_communication.h"
 
 // Remove this line
 // AudioPlayer* audioPlayer = nullptr;
 
-const int LEFT_EYE_PIN = 32;   // GPIO pin for left eye LED
-const int RIGHT_EYE_PIN = 33;  // GPIO pin for right eye LED
+const int LEFT_EYE_PIN = 32;  // GPIO pin for left eye LED
+const int RIGHT_EYE_PIN = 33; // GPIO pin for right eye LED
 LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
 
 // Ultrasonic sensor
-UltraSonicDistanceSensor* distanceSensor = nullptr;  // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
-const int TRIGGER_PIN = 2;                           // Pin number ultrasonic pulse trigger
-const int ECHO_PIN = 22;                             // Pin number ultrasonic echo detection
+UltraSonicDistanceSensor *distanceSensor = nullptr; // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
+const int TRIGGER_PIN = 2;                          // Pin number ultrasonic pulse trigger
+const int ECHO_PIN = 22;                            // Pin number ultrasonic echo detection
 
-SDCardManager* sdCardManager = nullptr;
+SDCardManager *sdCardManager = nullptr;
 SDCardContent sdCardContent;
 
 bool isPrimary = false;
-ServoController servoController;                   // Keep this line
-SkullAudioAnimator* skullAudioAnimator = nullptr;  // Change this line
-bluetooth_audio bluetoothAudio;                    // Declare the bluetoothAudio object
+ServoController servoController;                  // Keep this line
+SkullAudioAnimator *skullAudioAnimator = nullptr; // Change this line
+bluetooth_audio bluetoothAudio;                   // Declare the bluetoothAudio object
+SkullCommunication *skullCommunication = nullptr;
 
 // Exponential smoothing
-struct AudioState {
+struct AudioState
+{
   double smoothedPosition = 0;
   double maxObservedRMS = 0;
   bool isJawClosed = true;
@@ -52,20 +55,21 @@ struct AudioState {
 
 AudioState audioState;
 
-const double ALPHA = 0.2;              // Smoothing factor; 0-1, lower=smoother
-const double SILENCE_THRESHOLD = 200;  // Higher = vol needs to be louder to be considered "not silence", max 2000?
-const int MIN_MOVEMENT_THRESHOLD = 3;  // Minimum degree change to move the servo
-const double MOVE_EXPONENT = 0.2;      // 0-1, smaller = more movement
-const double RMS_MAX = 32768.0;        // Maximum possible RMS value for 16-bit audio
+const double ALPHA = 0.2;             // Smoothing factor; 0-1, lower=smoother
+const double SILENCE_THRESHOLD = 200; // Higher = vol needs to be louder to be considered "not silence", max 2000?
+const int MIN_MOVEMENT_THRESHOLD = 3; // Minimum degree change to move the servo
+const double MOVE_EXPONENT = 0.2;     // 0-1, smaller = more movement
+const double RMS_MAX = 32768.0;       // Maximum possible RMS value for 16-bit audio
 
-const int CHUNKS_NEEDED = 17;  // Number of chunks needed for 100ms (34)
+const int CHUNKS_NEEDED = 17; // Number of chunks needed for 100ms (34)
 
 // Servo
-const int SERVO_PIN = 15;  // Servo control pin
+const int SERVO_PIN = 15; // Servo control pin
 const int SERVO_MIN_DEGREES = 0;
-const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
+const int SERVO_MAX_DEGREES = 80; // Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
 
-void custom_crash_handler() {
+void custom_crash_handler()
+{
   Serial.println("detected!");
   Serial.printf("Free memory at crash: %d bytes\n", ESP.getFreeHeap());
 
@@ -89,7 +93,8 @@ void custom_crash_handler() {
   esp_restart();
 }
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
 
   // Register custom crash handler
@@ -112,30 +117,35 @@ void setup() {
   sdCardManager = new SDCardManager(skullAudioAnimator);
   bool sdCardInitialized = false;
 
-  while (!sdCardInitialized) {
+  while (!sdCardInitialized)
+  {
     sdCardInitialized = sdCardManager->begin();
-    if (!sdCardInitialized) {
+    if (!sdCardInitialized)
+    {
       Serial.println("SD Card: Mount Failed! Retrying...");
-      lightController.blinkEyes(3);  // 3 blinks for SD card failure
+      lightController.blinkEyes(3); // 3 blinks for SD card failure
       delay(500);
     }
   }
 
   // Load SD card content
   sdCardContent = sdCardManager->loadContent();
-  if (sdCardContent.skits.empty()) {
+  if (sdCardContent.skits.empty())
+  {
     Serial.println("No skits found on SD card.");
   }
 
   // Now that SD card is initialized, load configuration
-  ConfigManager& config = ConfigManager::getInstance();
+  ConfigManager &config = ConfigManager::getInstance();
   bool configLoaded = false;
 
-  while (!configLoaded) {
+  while (!configLoaded)
+  {
     configLoaded = config.loadConfig();
-    if (!configLoaded) {
+    if (!configLoaded)
+    {
       Serial.println("Failed to load configuration. Retrying...");
-      lightController.blinkEyes(5);  // 5 blinks for config file failure
+      lightController.blinkEyes(5); // 5 blinks for config file failure
       delay(500);
     }
   }
@@ -147,16 +157,21 @@ void setup() {
   int speakerVolume = config.getSpeakerVolume();
 
   // Determine role based on settings.txt
-  if (role.equals("primary")) {
+  if (role.equals("primary"))
+  {
     isPrimary = true;
-    lightController.blinkEyes(4);  // Blink eyes 4 times for Primary
+    lightController.blinkEyes(4); // Blink eyes 4 times for Primary
     Serial.println("This skull is configured as PRIMARY");
-  } else if (role.equals("secondary")) {
+  }
+  else if (role.equals("secondary"))
+  {
     isPrimary = false;
-    lightController.blinkEyes(2);  // Blink eyes twice for Secondary
+    lightController.blinkEyes(2); // Blink eyes twice for Secondary
     Serial.println("This skull is configured as SECONDARY");
-  } else {
-    lightController.blinkEyes(2);  // Blink eyes twice for Secondary
+  }
+  else
+  {
+    lightController.blinkEyes(2); // Blink eyes twice for Secondary
     Serial.println("Invalid role in settings.txt. Defaulting to SECONDARY");
     isPrimary = false;
   }
@@ -181,25 +196,36 @@ void setup() {
   distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
 
   // Ping ultrasonic sensor 10 times for initialization and logging
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 10; i++)
+  {
     float distance = distanceSensor->measureDistanceCm();
     Serial.println("Ultrasonic distance: " + String(distance) + "cm");
-    delay(50);  // Wait between readings
+    delay(50); // Wait between readings
   }
 
+  // Initialize SkullCommunication after determining the role
+  String primaryMacAddress = config.getPrimaryMacAddress();
+  String secondaryMacAddress = config.getSecondaryMacAddress();
+
+  String macAddress = isPrimary ? primaryMacAddress : secondaryMacAddress;
+  String otherMacAddress = isPrimary ? secondaryMacAddress : primaryMacAddress;
+
+  skullCommunication = new SkullCommunication(isPrimary, macAddress, otherMacAddress);
+  skullCommunication->begin();
+
   // Initialize Bluetooth after SkullAudioAnimator.
-  // Include the callback so that the bluetooth_audio library can call the SkullAudioAnimator's 
+  // Include the callback so that the bluetooth_audio library can call the SkullAudioAnimator's
   // provideAudioFrames method to get more audio data when the bluetooth speaker needs it.
-  bluetoothAudio.begin(bluetoothSpeakerName.c_str(), [](Frame* frame, int32_t frame_count) {
-    return skullAudioAnimator->provideAudioFrames(frame, frame_count);
-  });
+  bluetoothAudio.begin(bluetoothSpeakerName.c_str(), [](Frame *frame, int32_t frame_count)
+                       { return skullAudioAnimator->provideAudioFrames(frame, frame_count); });
   bluetoothAudio.set_volume(speakerVolume);
 
   // Set the initial state of the eyes to dim
   lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
 }
 
-void loop() {
+void loop()
+{
   unsigned long currentMillis = millis();
   static unsigned long lastMillis = 0;
 
@@ -207,7 +233,8 @@ void loop() {
   esp_task_wdt_reset();
 
   // Every 5000ms output "loop() running" and check memory
-  if (currentMillis - lastMillis >= 5000) {
+  if (currentMillis - lastMillis >= 5000)
+  {
     size_t freeHeap = ESP.getFreeHeap();
     Serial.printf("%d loop() running. Free memory: %d bytes\n", currentMillis, freeHeap);
     lastMillis = currentMillis;
@@ -220,6 +247,20 @@ void loop() {
   // Update SkullAudioAnimator
   skullAudioAnimator->update();
 
+  // Update SkullCommunication
+  if (skullCommunication)
+  {
+    skullCommunication->update();
+  }
+
   // Allow other tasks to run
   delay(1);
+
+  // Test sending play command every 10 seconds
+  static unsigned long lastPlayCommand = 0;
+  if (isPrimary && currentMillis - lastPlayCommand >= 10000)
+  {
+    skullCommunication->sendPlayCommand("test_file.wav");
+    lastPlayCommand = currentMillis;
+  }
 }
