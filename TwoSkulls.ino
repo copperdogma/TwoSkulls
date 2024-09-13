@@ -65,16 +65,6 @@ const int SERVO_PIN = 15;  // Servo control pin
 const int SERVO_MIN_DEGREES = 0;
 const int SERVO_MAX_DEGREES = 80;  //Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
 
-bool initializeBluetooth(const String& speakerName, int volume) {
-  bluetoothAudio.begin(speakerName.c_str(), [](Frame* frame, int32_t frame_count) {
-    return skullAudioAnimator->provideAudioFrames(frame, frame_count);
-  });
-  bluetoothAudio.set_volume(volume);
-  bool connected = bluetoothAudio.is_connected();
-  Serial.printf("Bluetooth connected to %s: %d, Volume: %d\n", speakerName.c_str(), connected, volume);
-  return connected;
-}
-
 void custom_crash_handler() {
   Serial.println("detected!");
   Serial.printf("Free memory at crash: %d bytes\n", ESP.getFreeHeap());
@@ -197,8 +187,13 @@ void setup() {
     delay(50);  // Wait between readings
   }
 
-  // Initialize Bluetooth after SkullAudioAnimator
-  initializeBluetooth(bluetoothSpeakerName, speakerVolume);
+  // Initialize Bluetooth after SkullAudioAnimator.
+  // Include the callback so that the bluetooth_audio library can call the SkullAudioAnimator's 
+  // provideAudioFrames method to get more audio data when the bluetooth speaker needs it.
+  bluetoothAudio.begin(bluetoothSpeakerName.c_str(), [](Frame* frame, int32_t frame_count) {
+    return skullAudioAnimator->provideAudioFrames(frame, frame_count);
+  });
+  bluetoothAudio.set_volume(speakerVolume);
 
   // Set the initial state of the eyes to dim
   lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
