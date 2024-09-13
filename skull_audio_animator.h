@@ -33,6 +33,7 @@ private:
     bool m_isCurrentlySpeaking;
     size_t m_currentSkitLineNumber;
     ParsedSkit m_currentSkit;
+    bool m_wasAudioPlaying;
     double vReal[SAMPLES];
     double vImag[SAMPLES];
     arduinoFFT FFT;

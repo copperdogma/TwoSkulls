@@ -8,8 +8,8 @@
 #include <thread>
 
 // ** ISSUES:
-// - it decides it's finished playing too early on the init.wav so it never turns on the lights
-// - can we kill isPlaying? Just replace it with m_isAudioPlaying?
+// - The light just stays on between files when it's speaking. 
+// Let's add a 200ms after we're finished playing a file before starting hte next one.
 
 AudioPlayer::AudioPlayer()
     : m_totalBytesRead(0), m_writePos(0), m_readPos(0), m_bufferFilled(0),
@@ -73,7 +73,18 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     }
 
     m_totalBytesRead += bytesRead;
-    m_isAudioPlaying = (bytesRead > 0);
+
+    fillBuffer(); // Fill the buffer if needed
+
+    // Determine if audio is still playing
+    if (bytesRead == 0 && m_bufferFilled == 0 && (!audioFile || !audioFile.available()) && audioQueue.empty())
+    {
+        m_isAudioPlaying = false;
+    }
+    else
+    {
+        m_isAudioPlaying = true;
+    }
 
     // Update playback time based on elapsed time
     unsigned long now = millis();
@@ -87,8 +98,6 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     {
         m_lastFrameTime = now;
     }
-
-    fillBuffer(); // Fill the buffer if needed
 
     return frame_count;
 }
@@ -224,7 +233,7 @@ bool AudioPlayer::startNextFile()
     if (audioQueue.empty())
     {
         m_isAudioPlaying = false;
-        m_currentFilePath = "";
+        // Do not reset m_currentFilePath here; keep it for logging purposes
         return false;
     }
 

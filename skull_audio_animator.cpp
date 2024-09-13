@@ -14,9 +14,10 @@ SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController &servoCon
     : m_audioPlayer(), m_servoController(servoController), m_lightController(lightController),
       m_isPrimary(isPrimary), m_skits(skits), m_currentAudioFilePath(""),
       m_currentSkit(ParsedSkit()), m_currentSkitLineNumber(-1), m_isCurrentlySpeaking(false),
-      FFT(vReal, vImag, SAMPLES, SAMPLE_RATE)
+      m_wasAudioPlaying(false), FFT(vReal, vImag, SAMPLES, SAMPLE_RATE)
 {
 }
+
 
 void SkullAudioAnimator::begin()
 {
@@ -37,7 +38,19 @@ void SkullAudioAnimator::update()
 // Will set m_currentSkit and m_currentSkitLineNumber to the current skit and line.
 void SkullAudioAnimator::updateSkit()
 {
-    if (!m_audioPlayer.isAudioPlaying())
+    bool isAudioPlaying = m_audioPlayer.isAudioPlaying();
+
+    // Detect when audio playback has just stopped
+    if (m_wasAudioPlaying && !isAudioPlaying)
+    {
+        Serial.printf("SkullAudioAnimator: Finished playing audio file: %s\n", m_currentAudioFilePath.c_str());
+        m_currentAudioFilePath = "";          // Reset current audio file path after logging
+        m_currentSkit = ParsedSkit();         // Reset current skit
+        m_currentSkitLineNumber = -1;         // Reset current skit line number
+    }
+    m_wasAudioPlaying = isAudioPlaying;
+
+    if (!isAudioPlaying)
     {
         if (m_isCurrentlySpeaking)
         {
@@ -48,20 +61,20 @@ void SkullAudioAnimator::updateSkit()
     }
 
     const String filePath = m_audioPlayer.getCurrentlyPlayingFilePath();
+
     if (filePath.isEmpty())
     {
         Serial.println("SkullAudioAnimator: filePath.isEmpty(); setting m_isCurrentlySpeaking to false");
-        m_currentAudioFilePath = filePath;
+        // Do not reset m_currentAudioFilePath here
         m_isCurrentlySpeaking = false;
         return;
     }
 
-    // If the file path is different from the current skit path, we're playing a new skit.
     if (filePath != m_currentAudioFilePath)
     {
         m_currentAudioFilePath = filePath;
+        m_currentSkitLineNumber = -1; // Reset line number when new audio starts
 
-        // If there no no associated skit, it's assumed to be something this skull should say.
         m_currentSkit = findSkitByName(m_skits, filePath);
         if (m_currentSkit.lines.empty())
         {
@@ -73,7 +86,7 @@ void SkullAudioAnimator::updateSkit()
 
         Serial.printf("SkullAudioAnimator: Playing new skit: %s\n", m_currentSkit.audioFile.c_str());
 
-        // Keep only the lines that are for us.
+        // Filter lines for the current skull
         std::vector<ParsedSkitLine> lines;
         for (const auto &line : m_currentSkit.lines)
         {
@@ -82,13 +95,11 @@ void SkullAudioAnimator::updateSkit()
                 lines.push_back(line);
             }
         }
-        Serial.printf("SkullAudioAnimator: Parsed skit '%s' with %d lines. %d lines for us.\n", m_currentSkit.audioFile.c_str(), m_currentSkit.lines.size(), lines.size());
+        Serial.printf("SkullAudioAnimator: Parsed skit '%s' with %d lines. %d lines for us.\n",
+                      m_currentSkit.audioFile.c_str(), m_currentSkit.lines.size(), lines.size());
         m_currentSkit.lines = lines;
     }
 
-    // We're playing a skit. Is it our line?
-    // The lines have been filtered to only include the lines for us.
-    // We need to check if the current time is after the line's timestamp and before the line's timestamp + duration.
     unsigned long playbackTime = m_audioPlayer.getPlaybackTime();
     size_t originalLineNumber = m_currentSkitLineNumber;
     bool foundLine = false;
@@ -102,17 +113,28 @@ void SkullAudioAnimator::updateSkit()
         }
     }
 
-    if (m_currentSkitLineNumber != originalLineNumber)
+    // Log when starting a new line, only if there are lines
+    if (m_currentSkitLineNumber != originalLineNumber && !m_currentSkit.lines.empty())
     {
         Serial.printf("SkullAudioAnimator: Now speaking line %d\n", m_currentSkitLineNumber);
     }
 
-    if (m_isCurrentlySpeaking && !foundLine)
+    // Log when ending a line, only if there are lines
+    if (m_isCurrentlySpeaking && !foundLine && !m_currentSkit.lines.empty())
     {
         Serial.printf("SkullAudioAnimator: Ended speaking line %d\n", m_currentSkitLineNumber);
     }
 
-    m_isCurrentlySpeaking = foundLine;
+    // Update speaking status
+    if (!m_currentSkit.lines.empty())
+    {
+        m_isCurrentlySpeaking = foundLine;
+    }
+    else
+    {
+        // For non-skit audio files, keep m_isCurrentlySpeaking true while audio is playing
+        m_isCurrentlySpeaking = true;
+    }
 }
 
 void SkullAudioAnimator::updateJawPosition()
