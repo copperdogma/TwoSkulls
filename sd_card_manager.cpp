@@ -112,6 +112,8 @@ ParsedSkit SDCardManager::parseSkitFile(const String& wavFile, const String& txt
             skitLine.jawPosition = -1;  // Indicating dynamic jaw movement
         }
 
+        //Serial.println("Parsed skit line: #" + String(skitLine.lineNumber) + " " + skitLine.speaker + " " + skitLine.timestamp + " " + skitLine.duration + " " + skitLine.jawPosition);
+
         parsedSkit.lines.push_back(skitLine);
     }
 

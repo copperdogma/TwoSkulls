@@ -18,7 +18,6 @@ SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController &servoCon
 {
 }
 
-
 void SkullAudioAnimator::begin()
 {
     m_audioPlayer.begin();

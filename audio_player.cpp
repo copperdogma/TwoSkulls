@@ -7,7 +7,7 @@
 #include <mutex>
 #include <thread>
 
-// ** ISSUES:
+// TODO:
 // - The light just stays on between files when it's speaking. 
 // Let's add a 200ms after we're finished playing a file before starting hte next one.
 
