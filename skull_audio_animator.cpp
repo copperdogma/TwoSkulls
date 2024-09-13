@@ -43,9 +43,9 @@ void SkullAudioAnimator::updateSkit()
     if (m_wasAudioPlaying && !isAudioPlaying)
     {
         Serial.printf("SkullAudioAnimator: Finished playing audio file: %s\n", m_currentAudioFilePath.c_str());
-        m_currentAudioFilePath = "";          // Reset current audio file path after logging
-        m_currentSkit = ParsedSkit();         // Reset current skit
-        m_currentSkitLineNumber = -1;         // Reset current skit line number
+        m_currentAudioFilePath = "";  // Reset current audio file path after logging
+        m_currentSkit = ParsedSkit(); // Reset current skit
+        m_currentSkitLineNumber = -1; // Reset current skit line number
     }
     m_wasAudioPlaying = isAudioPlaying;
 
@@ -134,6 +134,9 @@ void SkullAudioAnimator::updateSkit()
         // For non-skit audio files, keep m_isCurrentlySpeaking true while audio is playing
         m_isCurrentlySpeaking = true;
     }
+
+    // Mute the audio if not currently speaking
+    m_audioPlayer.setMuted(!m_isCurrentlySpeaking);
 }
 
 void SkullAudioAnimator::updateJawPosition()

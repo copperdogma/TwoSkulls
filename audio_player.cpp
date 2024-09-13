@@ -8,12 +8,12 @@
 #include <thread>
 
 // TODO:
-// - The light just stays on between files when it's speaking. 
+// - The light just stays on between files when it's speaking.
 // Let's add a 200ms after we're finished playing a file before starting hte next one.
 
 AudioPlayer::AudioPlayer()
     : m_totalBytesRead(0), m_writePos(0), m_readPos(0), m_bufferFilled(0),
-      m_currentFilePath(""), m_isAudioPlaying(false), m_mutex(),
+      m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
       m_currentPlaybackTime(0), m_lastFrameTime(0)
 {
 }
@@ -48,7 +48,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
 
         // Handle buffer wrap-around
         size_t firstChunkSize = std::min(chunkSize, AUDIO_BUFFER_SIZE - readPos);
-        memcpy((uint8_t*)frame + bytesRead, m_audioBuffer + readPos, firstChunkSize);
+        memcpy((uint8_t *)frame + bytesRead, m_audioBuffer + readPos, firstChunkSize);
 
         m_readPos = (readPos + firstChunkSize) % AUDIO_BUFFER_SIZE;
         m_bufferFilled -= firstChunkSize;
@@ -58,7 +58,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         if (firstChunkSize < chunkSize)
         {
             size_t secondChunkSize = chunkSize - firstChunkSize;
-            memcpy((uint8_t*)frame + bytesRead, m_audioBuffer, secondChunkSize);
+            memcpy((uint8_t *)frame + bytesRead, m_audioBuffer, secondChunkSize);
 
             m_readPos = secondChunkSize;
             m_bufferFilled -= secondChunkSize;
@@ -86,6 +86,12 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         m_isAudioPlaying = true;
     }
 
+    if (m_muted)
+    {
+        // Zero out the frames to mute the audio
+        memset(frame, 0, frame_count * sizeof(Frame));
+    }
+    
     // Update playback time based on elapsed time
     unsigned long now = millis();
     if (m_lastFrameTime != 0)
@@ -197,7 +203,7 @@ void AudioPlayer::fillBuffer()
     }
 }
 
-//CAMKILL might go away when skull_audio_animator updateJawPosition() is rewritten
+// CAMKILL might go away when skull_audio_animator updateJawPosition() is rewritten
 bool AudioPlayer::hasRemainingAudioData()
 {
     return audioFile && audioFile.available();
@@ -255,4 +261,9 @@ bool AudioPlayer::startNextFile()
     m_lastFrameTime = millis();
 
     return true;
+}
+
+void AudioPlayer::setMuted(bool muted)
+{
+    m_muted = muted;
 }

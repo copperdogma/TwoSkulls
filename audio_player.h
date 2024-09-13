@@ -16,6 +16,7 @@ public:
     void playNext(const char* filePath);
     bool hasRemainingAudioData();
     bool isAudioPlaying() const;
+    void setMuted(bool muted);
     size_t readAudioDataFromFile(uint8_t* buffer, size_t bytesToRead);
     unsigned long getPlaybackTime() const;
     String getCurrentlyPlayingFilePath() const;
@@ -29,6 +30,7 @@ private:
     size_t m_readPos;
     size_t m_bufferFilled;
     bool m_isAudioPlaying;
+    bool m_muted;
     std::mutex m_mutex;
     std::queue<std::string> audioQueue;
     String m_currentFilePath;
