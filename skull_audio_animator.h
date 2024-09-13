@@ -4,17 +4,20 @@
 #include "audio_player.h"
 #include "servo_controller.h"
 #include "arduinoFFT.h"
-#include "file_manager.h"
-#include "light_controller.h"  // Add this line
+#include "light_controller.h"
+#include "parsed_skit.h"  // Add this line to include the ParsedSkit definition
 #include <vector>
 
 #define SAMPLES 256
 #define SAMPLE_RATE 44100
 
+// Forward declaration
+class SDCardManager;
+
 class SkullAudioAnimator {
 public:
     SkullAudioAnimator(bool isPrimary, ServoController& servoController, LightController& lightController, 
-        std::vector<ParsedSkit>& skits);
+        std::vector<ParsedSkit>& skits, SDCardManager* sdCardManager);
     void begin();
     void update();
     void playNext(const char* filePath);
@@ -27,6 +30,7 @@ private:
     AudioPlayer m_audioPlayer;
     ServoController& m_servoController;
     LightController& m_lightController;
+    SDCardManager* m_sdCardManager;
     bool m_isPrimary;
     std::vector<ParsedSkit>& m_skits;
     String m_currentAudioFilePath;

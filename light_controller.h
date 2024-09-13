@@ -11,19 +11,19 @@
 
 class LightController {
 public:
-    static const uint8_t BRIGHTNESS_MAX = 255;
+    static const uint8_t BRIGHTNESS_MAX = PWM_MAX;
     static const uint8_t BRIGHTNESS_DIM = 100;
     static const uint8_t BRIGHTNESS_OFF = 0;
 
     LightController(int leftEyePin, int rightEyePin);
     void begin();
     void setEyeBrightness(uint8_t brightness);
-    void blinkEyes(int numBlinks, int onBrightness = PWM_MAX, int offBrightness = 0);
+    void blinkEyes(int numBlinks, int onBrightness = BRIGHTNESS_MAX, int offBrightness = BRIGHTNESS_OFF);
 
 private:
     int _leftEyePin;
     int _rightEyePin;
-    int _currentBrightness;  // Add this line
+    int _currentBrightness;
 };
 
 #endif // LIGHT_CONTROLLER_H

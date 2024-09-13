@@ -23,9 +23,6 @@
 #include "nvs_flash.h"
 #include "skull_communication.h"
 
-// Remove this line
-// AudioPlayer* audioPlayer = nullptr;
-
 const int LEFT_EYE_PIN = 32;  // GPIO pin for left eye LED
 const int RIGHT_EYE_PIN = 33; // GPIO pin for right eye LED
 LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
@@ -39,9 +36,9 @@ SDCardManager *sdCardManager = nullptr;
 SDCardContent sdCardContent;
 
 bool isPrimary = false;
-ServoController servoController;                  // Keep this line
-SkullAudioAnimator *skullAudioAnimator = nullptr; // Change this line
-bluetooth_audio bluetoothAudio;                   // Declare the bluetoothAudio object
+ServoController servoController;
+bluetooth_audio bluetoothAudio;
+SkullAudioAnimator *skullAudioAnimator = nullptr;
 SkullCommunication *skullCommunication = nullptr;
 
 // Exponential smoothing
@@ -110,22 +107,15 @@ void setup()
   // Initialize servo
   servoController.initialize(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-  // Remove this line:
-  // AudioPlayer* audioPlayer = new AudioPlayer();
-
   // Initialize SD Card Manager
-  sdCardManager = new SDCardManager(skullAudioAnimator);
-  bool sdCardInitialized = false;
+  sdCardManager = new SDCardManager();
 
-  while (!sdCardInitialized)
+  // Attempt to initialize the SD card until successful
+  while (!sdCardManager->begin())
   {
-    sdCardInitialized = sdCardManager->begin();
-    if (!sdCardInitialized)
-    {
-      Serial.println("SD Card: Mount Failed! Retrying...");
-      lightController.blinkEyes(3); // 3 blinks for SD card failure
-      delay(500);
-    }
+    Serial.println("SD Card: Mount Failed! Retrying...");
+    lightController.blinkEyes(3); // 3 blinks for SD card failure
+    delay(500);
   }
 
   // Load SD card content
@@ -177,7 +167,7 @@ void setup()
   }
 
   // Initialize SkullAudioAnimator
-  skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits);
+  skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits, sdCardManager);
   skullAudioAnimator->begin();
 
   // Announce "System initialized" and role

@@ -1,5 +1,5 @@
 #include "audio_player.h"
-#include "file_manager.h"
+#include "sd_card_manager.h"
 #include <cmath>
 #include <algorithm>
 #include <Arduino.h>
@@ -11,10 +11,10 @@
 // - The light just stays on between files when it's speaking.
 // Let's add a 200ms after we're finished playing a file before starting hte next one.
 
-AudioPlayer::AudioPlayer()
+AudioPlayer::AudioPlayer(SDCardManager* sdCardManager)
     : m_totalBytesRead(0), m_writePos(0), m_readPos(0), m_bufferFilled(0),
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
-      m_currentPlaybackTime(0), m_lastFrameTime(0)
+      m_currentPlaybackTime(0), m_lastFrameTime(0), m_sdCardManager(sdCardManager)
 {
 }
 
@@ -113,7 +113,7 @@ size_t AudioPlayer::readAudioDataFromFile(uint8_t *buffer, size_t bytesToRead)
     if (!audioFile || !audioFile.available())
     {
         String currentFilePath = audioFile.name();
-        audioFile = SD.open(currentFilePath.c_str());
+        audioFile = m_sdCardManager->openFile(currentFilePath.c_str());
         if (!audioFile)
         {
             return 0;
@@ -246,7 +246,7 @@ bool AudioPlayer::startNextFile()
     std::string nextFile = audioQueue.front();
     audioQueue.pop();
 
-    audioFile = SD.open(nextFile.c_str());
+    audioFile = m_sdCardManager->openFile(nextFile.c_str());
     if (!audioFile)
     {
         Serial.printf("Failed to open audio file: %s\n", nextFile.c_str());

@@ -10,11 +10,18 @@
 #include "skull_audio_animator.h"
 #include <cmath>
 
-SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController &servoController, LightController &lightController, std::vector<ParsedSkit> &skits)
-    : m_audioPlayer(), m_servoController(servoController), m_lightController(lightController),
-      m_isPrimary(isPrimary), m_skits(skits), m_currentAudioFilePath(""),
-      m_currentSkit(ParsedSkit()), m_currentSkitLineNumber(-1), m_isCurrentlySpeaking(false),
-      m_wasAudioPlaying(false), FFT(vReal, vImag, SAMPLES, SAMPLE_RATE)
+SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController& servoController, LightController& lightController, 
+    std::vector<ParsedSkit>& skits, SDCardManager* sdCardManager)
+    : m_audioPlayer(sdCardManager),
+      m_servoController(servoController),
+      m_lightController(lightController),
+      m_sdCardManager(sdCardManager),
+      m_isPrimary(isPrimary),
+      m_skits(skits),
+      m_isCurrentlySpeaking(false),
+      m_currentSkitLineNumber(0),
+      m_wasAudioPlaying(false),
+      FFT(vReal, vImag, SAMPLES, SAMPLE_RATE)
 {
 }
 

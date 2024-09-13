@@ -16,7 +16,7 @@ private:
     std::atomic<double> maxObservedRMS;
 
 public:
-    ServoController();  // Add constructor declaration
+    ServoController();
     void initialize(int pin, int minDeg, int maxDeg);
     void setPosition(int degrees);
     int getCurrentPosition() const { return currentPosition.load(std::memory_order_relaxed); }

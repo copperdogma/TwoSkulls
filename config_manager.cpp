@@ -78,7 +78,7 @@ int ConfigManager::getUltrasonicTriggerDistance() const {
     return getValue("ultrasonic_trigger_distance", "100").toInt();
 }
 
-void ConfigManager::printConfig() const {  // Add 'const' here
+void ConfigManager::printConfig() const {
     for (const auto& pair : m_config) {
         Serial.printf("%s: %s\n", pair.first.c_str(), pair.second.c_str());
     }

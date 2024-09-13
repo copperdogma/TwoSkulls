@@ -125,8 +125,12 @@ ISSUES
   ** rebuild secondary perfboard with dupont connectors
   ** staging: mount on sticks, make name signs, figure out where to put electronics + batteries, figure out where/how to hide speakers
 
-  ** use the Audio Player Class for other functionality like FFT and SD support: https://github.com/pschatzmann/arduino-audio-tools/wiki/The-Audio-Player-Class
-    - oooo shit... the examples are all A2DP (music sender or receiver). Technically I could try to set up primary as a sender TWICE (once for bluetooth audio, once for connecting to the secondary skull), and set up the secondary as a receiver, then abuse the metadata protocol to control the second skull... But I'm not even sure if it's possible to set up a single device as a dual sender, and I'm not sure I could abuse the protocols just right. Also it feels icky.
+  ** skull communication using wifi
+    ** when connection drops it just keeps trying to send keepalive. Need it to understand when it's lost
+       connection and then try to re-connect.
+       ** is there a way to detect if communication is broken aside from just keepalive/acks?
+    ** play marco/polo when attempting to connect
+
 
 What communication method do you plan to use between the skulls? WiFi, Bluetooth, or another method?
 Not sure. I'm already using bluetooth. Both skulls are acting as bluetooth senders, connecting to their own individual speakers to play audio. I'm not sure I could set the primary up as a second sender, or even if you can use the bluetooth chip to make multiple connections at once. I need help with this part for sure.

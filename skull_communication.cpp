@@ -4,12 +4,12 @@
 
 extern SkullAudioAnimator *skullAudioAnimator;
 
-SkullCommunication* SkullCommunication::instance = nullptr;  // Add this line
+SkullCommunication* SkullCommunication::instance = nullptr;
 
 // Structure for messages
 typedef struct struct_message
 {
-    int command; // 0: keepalive, 1: play file, 2: connection request, 3: connection ack
+    Command command;          // Changed from int to Command
     char filename[32];
 } struct_message;
 
@@ -18,7 +18,7 @@ struct_message myData;
 SkullCommunication::SkullCommunication(bool isPrimary, const String &macAddress, const String &otherMacAddress)
     : isPrimary(isPrimary)
 {
-    instance = this;  // Add this line
+    instance = this;
     sscanf(macAddress.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
            &myMac[0], &myMac[1], &myMac[2], &myMac[3], &myMac[4], &myMac[5]);
     sscanf(otherMacAddress.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
@@ -27,32 +27,32 @@ SkullCommunication::SkullCommunication(bool isPrimary, const String &macAddress,
 
 void SkullCommunication::begin()
 {
-    Serial.println("SkullCommunication: Initializing...");
+    Serial.println("COMMS: Initializing...");
     WiFi.mode(WIFI_STA);
-    Serial.println("SkullCommunication: WiFi mode set to STATION");
+    Serial.println("COMMS: WiFi mode set to STATION");
 
     if (esp_wifi_set_mac(WIFI_IF_STA, myMac) == ESP_OK)
     {
-        Serial.println("SkullCommunication: Successfully set device MAC address");
+        Serial.println("COMMS: Successfully set device MAC address");
     }
     else
     {
-        Serial.println("SkullCommunication: Failed to set device MAC address");
+        Serial.println("COMMS: Failed to set device MAC address");
     }
 
-    printMacAddress(myMac, "SkullCommunication: This device's MAC Address: ");
-    printMacAddress(otherSkullMac, "SkullCommunication: Other skull's MAC Address: ");
+    printMacAddress(myMac, "COMMS: This device's MAC Address: ");
+    printMacAddress(otherSkullMac, "COMMS: Other skull's MAC Address: ");
 
     if (esp_now_init() != ESP_OK)
     {
-        Serial.println("SkullCommunication: Error initializing ESP-NOW");
+        Serial.println("COMMS: Error initializing ESP-NOW");
         return;
     }
-    Serial.println("SkullCommunication: ESP-NOW initialized successfully");
+    Serial.println("COMMS: ESP-NOW initialized successfully");
 
     esp_now_register_send_cb(onDataSent);
     esp_now_register_recv_cb(onDataReceived);
-    Serial.println("SkullCommunication: Callbacks registered");
+    Serial.println("COMMS: Callbacks registered");
 
     esp_now_peer_info_t peerInfo;
     memset(&peerInfo, 0, sizeof(esp_now_peer_info_t));
@@ -62,15 +62,15 @@ void SkullCommunication::begin()
 
     if (esp_now_add_peer(&peerInfo) == ESP_OK)
     {
-        Serial.println("SkullCommunication: Peer added successfully");
+        Serial.println("COMMS: Peer added successfully");
         isPeerAdded = true;
     }
     else
     {
-        Serial.println("SkullCommunication: Failed to add peer");
+        Serial.println("COMMS: Failed to add peer");
     }
 
-    Serial.println("SkullCommunication: Initialization complete");
+    Serial.println("COMMS: Initialization complete");
 }
 
 void SkullCommunication::update()
@@ -81,15 +81,15 @@ void SkullCommunication::update()
     {
         if (isPrimary && currentMillis - lastKeepAlive > CONNECTION_RETRY_DELAY)
         {
-            myData.command = 2; // Connection request
-            esp_err_t result = esp_now_send(otherSkullMac, (uint8_t *)&myData, sizeof(myData));
+            myData.command = Command::CONNECTION_REQUEST; // Changed from 2 to enum
+            esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t*>(&myData), sizeof(myData));
             if (result == ESP_OK)
             {
-                Serial.println("SkullCommunication: Connection request sent");
+                Serial.println("COMMS: Connection request sent");
             }
             else
             {
-                Serial.println("SkullCommunication: Failed to send connection request");
+                Serial.println("COMMS: Failed to send connection request");
             }
             lastKeepAlive = currentMillis;
         }
@@ -106,44 +106,44 @@ void SkullCommunication::update()
 
 void SkullCommunication::sendPlayCommand(const char *filename)
 {
-    if (!m_isPeerConnected)  // Change this line
+    if (!m_isPeerConnected)
     {
-        Serial.println("SkullCommunication: Cannot send play command, peer not connected");
+        Serial.println("COMMS: Cannot send play command, peer not connected");
         return;
     }
 
-    myData.command = 1;
+    myData.command = Command::PLAY_FILE; // Changed from 1 to enum
     strncpy(myData.filename, filename, sizeof(myData.filename));
-    esp_err_t result = esp_now_send(otherSkullMac, (uint8_t *)&myData, sizeof(myData));
+    esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t*>(&myData), sizeof(myData));
 
     if (result == ESP_OK)
     {
-        Serial.println("SkullCommunication: Play command sent");
+        Serial.println("COMMS: Play command sent");
     }
     else
     {
-        Serial.println("SkullCommunication: Error sending play command");
+        Serial.println("COMMS: Error sending play command");
     }
 }
 
 void SkullCommunication::sendKeepAlive()
 {
-    myData.command = 0;
-    esp_err_t result = esp_now_send(otherSkullMac, (uint8_t *)&myData, sizeof(myData));
+    myData.command = Command::KEEPALIVE; // Changed from 0 to enum
+    esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t*>(&myData), sizeof(myData));
 
     if (result == ESP_OK)
     {
-        Serial.println("SkullCommunication: Keepalive sent");
+        Serial.println("COMMS: Keepalive sent");
     }
     else
     {
-        Serial.println("SkullCommunication: Error sending keepalive");
+        Serial.println("COMMS: Error sending keepalive");
     }
 }
 
 void SkullCommunication::onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
-    Serial.print("Last Packet Send Status: ");
+    Serial.print("COMMS: Last Packet Send Status: ");
     Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
@@ -154,27 +154,27 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
 
     switch (receivedData.command)
     {
-    case 0: // Keepalive
-        Serial.println("Received keepalive");
+    case Command::KEEPALIVE:
+        Serial.println("COMMS: Received keepalive");
         break;
-    case 1: // Play file
-        Serial.printf("Received play command for file: %s\n", receivedData.filename);
+    case Command::CONNECTION_REQUEST:
+        Serial.println("Received connection request");
+        myData.command = Command::CONNECTION_ACK; // Changed from 3
+        esp_now_send(mac, reinterpret_cast<uint8_t*>(&myData), sizeof(myData));
+        instance->m_isPeerConnected = true;
+        break;
+    case Command::CONNECTION_ACK:
+        Serial.println("COMMS: Connected! Received connection acknowledgment");
+        instance->m_isPeerConnected = true;
+        break;
+    }
+    case Command::PLAY_FILE:
+        Serial.printf("COMMS: Received play command for file: %s\n", receivedData.filename);
         if (skullAudioAnimator)
         {
             skullAudioAnimator->playNext(receivedData.filename);
         }
         break;
-    case 2: // Connection request
-        Serial.println("Received connection request");
-        myData.command = 3; // Connection ack
-        esp_now_send(mac, (uint8_t *)&myData, sizeof(myData));
-        instance->m_isPeerConnected = true;
-        break;
-    case 3: // Connection ack
-        Serial.println("Received connection acknowledgment");
-        instance->m_isPeerConnected = true;
-        break;
-    }
 }
 
 void SkullCommunication::printMacAddress(const uint8_t* macAddress, const char* description) {

@@ -7,11 +7,14 @@
 #include "BluetoothA2DPSource.h"
 #include "SD.h"
 
-#define AUDIO_BUFFER_SIZE 32768  // Increased buffer size
+#define AUDIO_BUFFER_SIZE 32768
+
+// Forward declaration
+class SDCardManager;
 
 class AudioPlayer {
 public:
-    AudioPlayer();
+    AudioPlayer(SDCardManager* sdCardManager);
     void begin();
     void playNext(const char* filePath);
     bool hasRemainingAudioData();
@@ -36,6 +39,7 @@ private:
     String m_currentFilePath;
     unsigned long m_currentPlaybackTime;
     unsigned long m_lastFrameTime;
+    SDCardManager* m_sdCardManager;
 
     void fillBuffer();
     bool startNextFile();

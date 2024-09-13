@@ -1,6 +1,6 @@
 #include "sd_card_manager.h"
 
-SDCardManager::SDCardManager(SkullAudioAnimator* skullAudioAnimator) : m_skullAudioAnimator(skullAudioAnimator) {}
+SDCardManager::SDCardManager() {}
 
 bool SDCardManager::begin() {
     if (!SD.begin()) {
@@ -15,17 +15,17 @@ SDCardContent SDCardManager::loadContent() {
     SDCardContent content;
 
     // Check for initialization files
-    if (SD.exists("/audio/Initialized - Primary.wav")) {
+    if (fileExists("/audio/Initialized - Primary.wav")) {
         content.primaryInitAudio = "/audio/Initialized - Primary.wav";
     }
-    if (SD.exists("/audio/Initialized - Secondary.wav")) {
+    if (fileExists("/audio/Initialized - Secondary.wav")) {
         content.secondaryInitAudio = "/audio/Initialized - Secondary.wav";
     }
 
     Serial.println("Required file '/audio/Initialized - Primary.wav' " + 
-        String(SD.exists("/audio/Initialized - Primary.wav") ? "found." : "missing."));
+        String(fileExists("/audio/Initialized - Primary.wav") ? "found." : "missing."));
     Serial.println("Required file '/audio/Initialized - Secondary.wav' " + 
-        String(SD.exists("/audio/Initialized - Secondary.wav") ? "found." : "missing."));
+        String(fileExists("/audio/Initialized - Secondary.wav") ? "found." : "missing."));
 
     processSkitFiles(content);
 
@@ -53,18 +53,10 @@ bool SDCardManager::processSkitFiles(SDCardContent& content) {
     for (const auto& fileName : skitFiles) {
         String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
         String txtFileName = baseName + ".txt";
-        String fullWavPath = "/audio/" + fileName;
-        String fullTxtPath = "/audio/" + txtFileName;
+        String fullWavPath = constructValidPath("/audio", fileName);
+        String fullTxtPath = constructValidPath("/audio", txtFileName);
 
-        // Check if the paths already contain "/audio/"
-        if (!fullWavPath.startsWith("/audio/")) {
-            fullWavPath = "/audio/" + fullWavPath;
-        }
-        if (!fullTxtPath.startsWith("/audio/")) {
-            fullTxtPath = "/audio/" + fullTxtPath;
-        }
-
-        if (SD.exists(fullTxtPath)) {
+        if (fileExists(fullTxtPath.c_str())) {
             ParsedSkit parsedSkit = parseSkitFile(fullWavPath, fullTxtPath);
             content.skits.push_back(parsedSkit);
             Serial.println("- Processing skit '" + fileName + "' - success. (" + String(parsedSkit.lines.size()) + " lines)");
@@ -78,13 +70,12 @@ bool SDCardManager::processSkitFiles(SDCardContent& content) {
     return true;
 }
 
-// Add this method to the SDCardManager class
 ParsedSkit SDCardManager::parseSkitFile(const String& wavFile, const String& txtFile) {
     ParsedSkit parsedSkit;
     parsedSkit.audioFile = wavFile;
     parsedSkit.txtFile = txtFile;
 
-    File file = SD.open(txtFile);
+    File file = openFile(txtFile.c_str());
     if (!file) {
         Serial.println("Failed to open skit file: " + txtFile);
         return parsedSkit;
@@ -92,7 +83,7 @@ ParsedSkit SDCardManager::parseSkitFile(const String& wavFile, const String& txt
 
     size_t lineNumber = 0;
     while (file.available()) {
-        String line = file.readStringUntil('\n');
+        String line = readLine(file);
         line.trim();
         if (line.length() == 0) continue;
 
@@ -112,8 +103,6 @@ ParsedSkit SDCardManager::parseSkitFile(const String& wavFile, const String& txt
             skitLine.jawPosition = -1;  // Indicating dynamic jaw movement
         }
 
-        //Serial.println("Parsed skit line: #" + String(skitLine.lineNumber) + " " + skitLine.speaker + " " + skitLine.timestamp + " " + skitLine.duration + " " + skitLine.jawPosition);
-
         parsedSkit.lines.push_back(skitLine);
     }
 
@@ -128,4 +117,44 @@ ParsedSkit SDCardManager::findSkitByName(const std::vector<ParsedSkit>& skits, c
         }
     }
     return ParsedSkit(); // Return an empty ParsedSkit if not found
+}
+
+bool SDCardManager::fileExists(const char* path) {
+    File file = SD.open(path);
+    if (!file || file.isDirectory()) {
+        return false;
+    }
+    file.close();
+    return true;
+}
+
+File SDCardManager::openFile(const char* path) {
+    return SD.open(path);
+}
+
+String SDCardManager::readLine(File& file) {
+    return file.readStringUntil('\n');
+}
+
+size_t SDCardManager::readFileBytes(File& file, uint8_t* buffer, size_t bufferSize) {
+    return file.read(buffer, bufferSize);
+}
+
+String SDCardManager::constructValidPath(const String& basePath, const String& fileName) {
+    String result = basePath;
+    
+    // Ensure base path ends with a separator
+    if (result.length() > 0 && result.charAt(result.length() - 1) != '/') {
+        result += '/';
+    }
+    
+    // Append fileName without modification
+    result += fileName;
+    
+    return result;
+}
+
+bool SDCardManager::isValidPathChar(char c) {
+    // Allow alphanumeric characters, underscore, hyphen, and period
+    return isalnum(c) || c == '_' || c == '-' || c == '.';
 }
