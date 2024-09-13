@@ -11,6 +11,12 @@
   - Once both connected, they'll play skit: "Morning, Jeff." "Morning, Tony."
   - Then Primary starts monitoring ultrasonic sensor.
 
+  LED Blinking Legend
+  2 - this skull is SECONDARY
+  4 - this skull is PRIMARY
+  3 - SD card mount failed; retrying
+  5 - failed to load config.txt; retrying
+
   Ongoing:
   - heartbeat between skulls every second to ensure they're still responding
 

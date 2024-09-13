@@ -172,7 +172,7 @@ void setup()
   else
   {
     lightController.blinkEyes(2); // Blink eyes twice for Secondary
-    Serial.println("Invalid role in settings.txt. Defaulting to SECONDARY");
+    Serial.printf("Invalid role in settings.txt ('%s'). Defaulting to SECONDARY\n", role.c_str());
     isPrimary = false;
   }
 
@@ -253,14 +253,19 @@ void loop()
     skullCommunication->update();
   }
 
-  // Allow other tasks to run
-  delay(1);
-
   // Test sending play command every 10 seconds
   static unsigned long lastPlayCommand = 0;
   if (isPrimary && currentMillis - lastPlayCommand >= 10000)
   {
-    skullCommunication->sendPlayCommand("test_file.wav");
     lastPlayCommand = currentMillis;
+    if (skullCommunication->isPeerConnected()) {
+      skullCommunication->sendPlayCommand("test_file.wav");
+      lastPlayCommand = currentMillis;
+    } else {
+      Serial.println("SkullCommunication: Cannot send play command, peer not connected");
+    }
   }
+
+  // Allow other tasks to run
+  delay(1);
 }

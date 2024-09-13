@@ -4,21 +4,21 @@
 
 extern SkullAudioAnimator *skullAudioAnimator;
 
+SkullCommunication* SkullCommunication::instance = nullptr;  // Add this line
+
 // Structure for messages
 typedef struct struct_message
 {
-    int command; // 0: keepalive, 1: play file
+    int command; // 0: keepalive, 1: play file, 2: connection request, 3: connection ack
     char filename[32];
 } struct_message;
 
 struct_message myData;
 
-// MAC Address of the other skull (to be set in setup)
-uint8_t otherSkullMac[6];
-
 SkullCommunication::SkullCommunication(bool isPrimary, const String &macAddress, const String &otherMacAddress)
     : isPrimary(isPrimary)
 {
+    instance = this;  // Add this line
     sscanf(macAddress.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
            &myMac[0], &myMac[1], &myMac[2], &myMac[3], &myMac[4], &myMac[5]);
     sscanf(otherMacAddress.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
@@ -31,7 +31,6 @@ void SkullCommunication::begin()
     WiFi.mode(WIFI_STA);
     Serial.println("SkullCommunication: WiFi mode set to STATION");
 
-    // Set the device's MAC address
     if (esp_wifi_set_mac(WIFI_IF_STA, myMac) == ESP_OK)
     {
         Serial.println("SkullCommunication: Successfully set device MAC address");
@@ -41,11 +40,7 @@ void SkullCommunication::begin()
         Serial.println("SkullCommunication: Failed to set device MAC address");
     }
 
-    // Get and print this device's MAC address
-    uint8_t macAddress[6];
-    esp_read_mac(macAddress, ESP_MAC_WIFI_STA);
-
-    printMacAddress(macAddress, "SkullCommunication: This device's MAC Address: ");
+    printMacAddress(myMac, "SkullCommunication: This device's MAC Address: ");
     printMacAddress(otherSkullMac, "SkullCommunication: Other skull's MAC Address: ");
 
     if (esp_now_init() != ESP_OK)
@@ -59,35 +54,20 @@ void SkullCommunication::begin()
     esp_now_register_recv_cb(onDataReceived);
     Serial.println("SkullCommunication: Callbacks registered");
 
-    // Add peer
     esp_now_peer_info_t peerInfo;
     memset(&peerInfo, 0, sizeof(esp_now_peer_info_t));
     memcpy(peerInfo.peer_addr, otherSkullMac, 6);
     peerInfo.channel = 0;
     peerInfo.encrypt = false;
 
-    int retryCount = 0;
-    const int maxRetries = 5;
-    while (retryCount < maxRetries)
+    if (esp_now_add_peer(&peerInfo) == ESP_OK)
     {
-        esp_err_t addStatus = esp_now_add_peer(&peerInfo);
-        if (addStatus == ESP_OK)
-        {
-            Serial.println("SkullCommunication: Peer added successfully");
-            isConnected = true;
-            break;
-        }
-        else
-        {
-            Serial.printf("SkullCommunication: Failed to add peer, error: %d. Retry %d/%d\n", addStatus, retryCount + 1, maxRetries);
-            retryCount++;
-            delay(1000); // Wait for 1 second before retrying
-        }
+        Serial.println("SkullCommunication: Peer added successfully");
+        isPeerAdded = true;
     }
-
-    if (!isConnected)
+    else
     {
-        Serial.println("SkullCommunication: Failed to add peer after maximum retries");
+        Serial.println("SkullCommunication: Failed to add peer");
     }
 
     Serial.println("SkullCommunication: Initialization complete");
@@ -97,7 +77,24 @@ void SkullCommunication::update()
 {
     unsigned long currentMillis = millis();
 
-    if (isConnected && isPrimary)
+    if (!m_isPeerConnected)
+    {
+        if (isPrimary && currentMillis - lastKeepAlive > CONNECTION_RETRY_DELAY)
+        {
+            myData.command = 2; // Connection request
+            esp_err_t result = esp_now_send(otherSkullMac, (uint8_t *)&myData, sizeof(myData));
+            if (result == ESP_OK)
+            {
+                Serial.println("SkullCommunication: Connection request sent");
+            }
+            else
+            {
+                Serial.println("SkullCommunication: Failed to send connection request");
+            }
+            lastKeepAlive = currentMillis;
+        }
+    }
+    else if (isPrimary)
     {
         if (currentMillis - lastKeepAlive > KEEPALIVE_INTERVAL)
         {
@@ -109,8 +106,11 @@ void SkullCommunication::update()
 
 void SkullCommunication::sendPlayCommand(const char *filename)
 {
-    if (!isConnected)
+    if (!m_isPeerConnected)  // Change this line
+    {
+        Serial.println("SkullCommunication: Cannot send play command, peer not connected");
         return;
+    }
 
     myData.command = 1;
     strncpy(myData.filename, filename, sizeof(myData.filename));
@@ -118,11 +118,11 @@ void SkullCommunication::sendPlayCommand(const char *filename)
 
     if (result == ESP_OK)
     {
-        Serial.println("Play command sent successfully");
+        Serial.println("SkullCommunication: Play command sent");
     }
     else
     {
-        Serial.println("Error sending play command");
+        Serial.println("SkullCommunication: Error sending play command");
     }
 }
 
@@ -133,11 +133,11 @@ void SkullCommunication::sendKeepAlive()
 
     if (result == ESP_OK)
     {
-        Serial.println("Keepalive sent successfully");
+        Serial.println("SkullCommunication: Keepalive sent");
     }
     else
     {
-        Serial.println("Error sending keepalive");
+        Serial.println("SkullCommunication: Error sending keepalive");
     }
 }
 
@@ -163,6 +163,16 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
         {
             skullAudioAnimator->playNext(receivedData.filename);
         }
+        break;
+    case 2: // Connection request
+        Serial.println("Received connection request");
+        myData.command = 3; // Connection ack
+        esp_now_send(mac, (uint8_t *)&myData, sizeof(myData));
+        instance->m_isPeerConnected = true;
+        break;
+    case 3: // Connection ack
+        Serial.println("Received connection acknowledgment");
+        instance->m_isPeerConnected = true;
         break;
     }
 }
