@@ -14,6 +14,16 @@ enum class Message : int
     PLAY_FILE = 4           // Instruct peer to play a specific file
 };
 
+typedef struct struct_message
+{
+    Message message;
+    char filename[32];
+} struct_message;
+
+extern struct_message myData;
+
+typedef void (*MessageCallback)(const struct_message &msg);
+
 class SkullCommunication
 {
 public:
@@ -23,6 +33,10 @@ public:
     void update();
     void sendPlayCommand(const char *filename);
     bool isPeerConnected() const { return m_isPeerConnected; }
+
+    // Update callback registration methods
+    void registerSendCallback(MessageCallback callback);
+    void registerReceiveCallback(MessageCallback callback);
 
 private:
     bool isPrimary;
@@ -40,12 +54,15 @@ private:
     static void onDataReceived(const uint8_t *mac, const uint8_t *incomingData, int len);
     void printMacAddress(const uint8_t *macAddress, const char *description);
 
-    static const int CONNECTION_RETRY_DELAY = 7000; // 7 seconds
-    static const unsigned long TIMEOUT_INTERVAL = 10000; // 10 seconds
+    static const int CONNECTION_RETRY_DELAY = 7000;       // 7 seconds
+    static const unsigned long TIMEOUT_INTERVAL = 10000;  // 10 seconds
     static const unsigned long KEEPALIVE_INTERVAL = 5000; // 5 seconds
     static const int MAX_FAILURES = 3;
 
     static SkullCommunication *instance;
+
+    MessageCallback onSendCallback = nullptr;
+    MessageCallback onReceiveCallback = nullptr;
 };
 
 #endif // SKULL_COMMUNICATION_H

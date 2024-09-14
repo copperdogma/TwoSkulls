@@ -95,6 +95,17 @@ void custom_crash_handler()
   esp_restart();
 }
 
+
+void onMessageSent(const struct_message &msg)
+{
+    Serial.printf("TwoSkulls.ino: Callback: Message sent - %d, Filename: %s\n", static_cast<int>(msg.message), msg.filename);
+}
+
+void onMessageReceived(const struct_message &msg)
+{
+    Serial.printf("TwoSkulls.ino: Callback: Message received - %d, Filename: %s\n", static_cast<int>(msg.message), msg.filename);
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -206,6 +217,8 @@ void setup()
   String otherMacAddress = isPrimary ? secondaryMacAddress : primaryMacAddress;
 
   skullCommunication = new SkullCommunication(isPrimary, macAddress, otherMacAddress);
+  skullCommunication->registerSendCallback(onMessageSent);
+  skullCommunication->registerReceiveCallback(onMessageReceived);
   skullCommunication->begin();
 
   // Initialize Bluetooth after SkullAudioAnimator.

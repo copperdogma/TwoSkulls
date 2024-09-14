@@ -5,15 +5,7 @@
 extern SkullAudioAnimator *skullAudioAnimator;
 
 SkullCommunication *SkullCommunication::instance = nullptr;
-
-// Structure for messages
-typedef struct struct_message
-{
-    Message message;
-    char filename[32];
-} struct_message;
-
-struct_message myData;
+struct_message myData;  // Added definition here
 
 SkullCommunication::SkullCommunication(bool isPrimary, const String &macAddress, const String &otherMacAddress)
     : isPrimary(isPrimary)
@@ -23,6 +15,16 @@ SkullCommunication::SkullCommunication(bool isPrimary, const String &macAddress,
            &myMac[0], &myMac[1], &myMac[2], &myMac[3], &myMac[4], &myMac[5]);
     sscanf(otherMacAddress.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
            &otherSkullMac[0], &otherSkullMac[1], &otherSkullMac[2], &otherSkullMac[3], &otherSkullMac[4], &otherSkullMac[5]);
+}
+
+void SkullCommunication::registerSendCallback(MessageCallback callback)
+{
+    onSendCallback = callback;
+}
+
+void SkullCommunication::registerReceiveCallback(MessageCallback callback)
+{
+    onReceiveCallback = callback;
 }
 
 void SkullCommunication::begin()
@@ -56,7 +58,7 @@ void SkullCommunication::begin()
     Serial.println("COMMS: ESP-NOW initialized successfully");
 
     // This callback could be useful for debugging but I found it decided there were a LOT of send failures that didn't seem correct.
-    //esp_now_register_send_cb(onDataSent);
+    // esp_now_register_send_cb(onDataSent);
     esp_now_register_recv_cb(onDataReceived);
 
     addPeer("Peer added successfully", "Failed to add peer");
@@ -126,6 +128,10 @@ void SkullCommunication::sendMessage(Message message, const char *successMessage
     {
         Serial.printf("COMMS: %s\n", successMessage);
         lastSentTime = millis();
+        if (onSendCallback)
+        {
+            onSendCallback(myData);
+        }
     }
     else
     {
@@ -160,6 +166,10 @@ void SkullCommunication::sendPlayCommand(const char *filename)
     if (result == ESP_OK)
     {
         Serial.println("COMMS: Play command sent");
+        if (onSendCallback)
+        {
+            onSendCallback(myData);
+        }
     }
     else
     {
@@ -241,6 +251,12 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
             Serial.printf("COMMS: Received unknown message: %d\n", receivedData.message);
             break;
         }
+    }
+
+    // After processing the message
+    if (instance->onReceiveCallback)
+    {
+        instance->onReceiveCallback(receivedData);
     }
 }
 
