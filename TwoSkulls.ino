@@ -22,6 +22,9 @@
 #include "esp_bt_device.h"
 #include "nvs_flash.h"
 #include "skull_communication.h"
+#include "esp_sleep.h"
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
 
 const int LEFT_EYE_PIN = 32;  // GPIO pin for left eye LED
 const int RIGHT_EYE_PIN = 33; // GPIO pin for right eye LED
@@ -64,6 +67,8 @@ const int CHUNKS_NEEDED = 17; // Number of chunks needed for 100ms (34)
 const int SERVO_PIN = 15; // Servo control pin
 const int SERVO_MIN_DEGREES = 0;
 const int SERVO_MAX_DEGREES = 80; // Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
+
+esp_adc_cal_characteristics_t adc_chars;
 
 void custom_crash_handler()
 {
@@ -212,6 +217,11 @@ void setup()
 
   // Set the initial state of the eyes to dim
   lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
+
+  // Configure ADC
+  adc1_config_width(ADC_WIDTH_BIT_12);
+  adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
+  esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
 }
 
 void loop()
@@ -222,11 +232,24 @@ void loop()
   // Reset the watchdog timer
   esp_task_wdt_reset();
 
-  // Every 5000ms output "loop() running" and check memory
+  // Every 5000ms output "loop() running" and check memory, reset reason, and power info
   if (currentMillis - lastMillis >= 5000)
   {
     size_t freeHeap = ESP.getFreeHeap();
-    Serial.printf("%d loop() running. Free memory: %d bytes\n", currentMillis, freeHeap);
+    esp_reset_reason_t reset_reason = esp_reset_reason();
+
+    // Read ADC and convert to voltage
+    uint32_t adc_reading = adc1_get_raw(ADC1_CHANNEL_0);
+    uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_chars);
+
+    Serial.printf("%d loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
+    Serial.printf("Voltage: %d mV\n", voltage);
+
+    if (reset_reason == ESP_RST_BROWNOUT)
+    {
+      Serial.println("WARNING: Last reset was due to brownout!");
+    }
+
     lastMillis = currentMillis;
   }
 

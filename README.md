@@ -126,9 +126,6 @@ ISSUES
   ** staging: mount on sticks, make name signs, figure out where to put electronics + batteries, figure out where/how to hide speakers
 
   ** skull communication using wifi
-    ** when connection drops it just keeps trying to send keepalive. Need it to understand when it's lost
-       connection and then try to re-connect.
-       ** is there a way to detect if communication is broken aside from just keepalive/acks?
     ** play marco/polo when attempting to connect
 
 
