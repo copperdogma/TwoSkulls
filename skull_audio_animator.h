@@ -26,6 +26,7 @@ public:
     ParsedSkit findSkitByName(const std::vector<ParsedSkit> &skits, const String &name);
     int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
     AudioPlayer &getAudioPlayer() { return m_audioPlayer; }
+    bool isCurrentlySpeaking() { return m_isCurrentlySpeaking; }
 
 private:
     AudioPlayer m_audioPlayer;

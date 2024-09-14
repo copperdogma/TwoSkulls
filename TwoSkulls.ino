@@ -95,16 +95,28 @@ void custom_crash_handler()
   esp_restart();
 }
 
-
 void onMessageSent(const struct_message &msg)
 {
-  //CAMKILL: should check to see if bluetooth is connected here, but I'm not sure that's exposed yet
-  if (isPrimary && msg.message == Message::CONNECTION_REQUEST) {
-    skullAudioAnimator->playNext("/audio/Marco.wav");
+  // Blink eyes and play audio when attempting to connect.
+  // But only if there is an active bluetooth connection and the skull is not currently speaking,
+  // otherwise the Marco/Polo queue up and you might get four of them after it's done speaking.
+
+  if (isPrimary && msg.message == Message::CONNECTION_REQUEST)
+  {
+    lightController.blinkEyes(1); // 1 blink for wifi connection request
+    if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())
+    {
+      skullAudioAnimator->playNext("/audio/Marco.wav");
+    }
   }
 
-  if (!isPrimary && msg.message == Message::CONNECTION_ACK) {
-    skullAudioAnimator->playNext("/audio/Polo.wav");
+  if (!isPrimary && msg.message == Message::CONNECTION_ACK)
+  {
+    lightController.blinkEyes(1); // 1 blink for wifi connection received
+    if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())
+    {
+      skullAudioAnimator->playNext("/audio/Polo.wav");
+    }
   }
 }
 
@@ -198,11 +210,11 @@ void setup()
   skullAudioAnimator->playNext(initAudioFilePath.c_str());
   Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
-//CAMKILL: put back
-  // Queue the "Skit - names" skit to play next
-  // ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
-  // skullAudioAnimator->playSkitNext(namesSkit);
-  // Serial.printf("'Skit - names' found; queueing audio: %s\n", namesSkit.audioFile.c_str());
+  // CAMKILL: put back
+  //  Queue the "Skit - names" skit to play next
+  //  ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
+  //  skullAudioAnimator->playSkitNext(namesSkit);
+  //  Serial.printf("'Skit - names' found; queueing audio: %s\n", namesSkit.audioFile.c_str());
 
   // Initialize ultrasonic sensor (for both primary and secondary)
   distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
@@ -262,6 +274,8 @@ void loop()
     uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_chars);
 
     Serial.printf("%d loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
+    Serial.printf("Bluetooth connected: %s, ", bluetoothAudio.is_connected() ? "true" : "false");
+    Serial.printf("Peer connected: %s, ", skullCommunication->isPeerConnected() ? "true" : "false");
     Serial.printf("Voltage: %d mV\n", voltage);
 
     if (reset_reason == ESP_RST_BROWNOUT)
@@ -290,10 +304,13 @@ void loop()
   if (isPrimary && currentMillis - lastPlayCommand >= 10000)
   {
     lastPlayCommand = currentMillis;
-    if (skullCommunication->isPeerConnected()) {
+    if (skullCommunication->isPeerConnected())
+    {
       skullCommunication->sendPlayCommand("test_file.wav");
       lastPlayCommand = currentMillis;
-    } else {
+    }
+    else
+    {
       Serial.println("SkullCommunication: Cannot send play command, peer not connected");
     }
   }

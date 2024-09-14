@@ -12,6 +12,7 @@
   - Then Primary starts monitoring ultrasonic sensor.
 
   LED Blinking Legend
+  1 - Wifi connection attempt (PRIMARY)/receipt (SECONDARY)
   2 - this skull is SECONDARY
   4 - this skull is PRIMARY
   3 - SD card mount failed; retrying
@@ -132,6 +133,7 @@ ISSUES
     ** on connected, clear the audio queue
     ** flash eyes endlessly when attempting to connect via wifi... they can't really do anything until they do
     ** ISSUE: secondary doesn't seem to be receiving the keepalive pings
+    ** it's clicking again at the end of audio
 
 
 What communication method do you plan to use between the skulls? WiFi, Bluetooth, or another method?

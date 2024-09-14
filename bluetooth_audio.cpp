@@ -37,8 +37,8 @@ void bluetooth_audio::begin(const char* speaker_name, std::function<int32_t(Fram
     Serial.println("Bluetooth initialization complete.");
 }
 
-// This is called to get audio data from the audio player to the bluetooth module.
-// It's only called when there's an active bluetooth connection.
+// The bluetooth library automatically calls this to get audio data from the audio player to the bluetooth module.
+// The bluetooth only calls it when there's an active bluetooth connection.
 int bluetooth_audio::audio_callback_trampoline(Frame* frame, int frame_count) {
     if (instance && instance->audio_provider_callback) {
         return static_cast<int>(instance->audio_provider_callback(frame, static_cast<int32_t>(frame_count)));
