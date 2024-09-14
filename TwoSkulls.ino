@@ -98,12 +98,18 @@ void custom_crash_handler()
 
 void onMessageSent(const struct_message &msg)
 {
-    Serial.printf("TwoSkulls.ino: Callback: Message sent - %d, Filename: %s\n", static_cast<int>(msg.message), msg.filename);
+  //CAMKILL: should check to see if bluetooth is connected here, but I'm not sure that's exposed yet
+  if (isPrimary && msg.message == Message::CONNECTION_REQUEST) {
+    skullAudioAnimator->playNext("/audio/Marco.wav");
+  }
+
+  if (!isPrimary && msg.message == Message::CONNECTION_ACK) {
+    skullAudioAnimator->playNext("/audio/Polo.wav");
+  }
 }
 
 void onMessageReceived(const struct_message &msg)
 {
-    Serial.printf("TwoSkulls.ino: Callback: Message received - %d, Filename: %s\n", static_cast<int>(msg.message), msg.filename);
 }
 
 void setup()
@@ -192,11 +198,11 @@ void setup()
   skullAudioAnimator->playNext(initAudioFilePath.c_str());
   Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
+//CAMKILL: put back
   // Queue the "Skit - names" skit to play next
-  ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
-  Serial.println("'Skit - names' found; playing next.");
-  skullAudioAnimator->playSkitNext(namesSkit);
-  Serial.printf("Queued 'Skit - names' audio: %s\n", namesSkit.audioFile.c_str());
+  // ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
+  // skullAudioAnimator->playSkitNext(namesSkit);
+  // Serial.printf("'Skit - names' found; queueing audio: %s\n", namesSkit.audioFile.c_str());
 
   // Initialize ultrasonic sensor (for both primary and secondary)
   distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);

@@ -5,7 +5,7 @@
 extern SkullAudioAnimator *skullAudioAnimator;
 
 SkullCommunication *SkullCommunication::instance = nullptr;
-struct_message myData;  // Added definition here
+struct_message myData; // Added definition here
 
 SkullCommunication::SkullCommunication(bool isPrimary, const String &macAddress, const String &otherMacAddress)
     : isPrimary(isPrimary)
@@ -124,10 +124,10 @@ void SkullCommunication::sendMessage(Message message, const char *successMessage
 
     myData.message = message;
     esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t *>(&myData), sizeof(myData));
+    lastSentTime = millis();
     if (result == ESP_OK)
     {
         Serial.printf("COMMS: %s\n", successMessage);
-        lastSentTime = millis();
         if (onSendCallback)
         {
             onSendCallback(myData);
@@ -162,6 +162,7 @@ void SkullCommunication::sendPlayCommand(const char *filename)
     myData.message = Message::PLAY_FILE;
     strncpy(myData.filename, filename, sizeof(myData.filename));
     esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t *>(&myData), sizeof(myData));
+    lastSentTime = millis();
 
     if (result == ESP_OK)
     {
@@ -221,7 +222,7 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
         {
         case Message::CONNECTION_REQUEST:
         {
-            Serial.println("COMMS: Received connection request");
+            Serial.println("COMMS: Received CONNECTION_REQUEST");
 
             instance->sendMessage(Message::CONNECTION_ACK, "CONNECTION_ACK sent", "Failed to send CONNECTION_ACK");
             break;

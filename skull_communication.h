@@ -55,9 +55,8 @@ private:
     void printMacAddress(const uint8_t *macAddress, const char *description);
 
     static const int CONNECTION_RETRY_DELAY = 7000;       // 7 seconds
-    static const unsigned long TIMEOUT_INTERVAL = 10000;  // 10 seconds
+    static const unsigned long TIMEOUT_INTERVAL = 11000;  // 11 seconds
     static const unsigned long KEEPALIVE_INTERVAL = 5000; // 5 seconds
-    static const int MAX_FAILURES = 3;
 
     static SkullCommunication *instance;
 
