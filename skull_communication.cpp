@@ -36,16 +36,8 @@ void SkullCommunication::begin()
     // If experiencing brownouts, try this. (untested)
     // esp_wifi_set_max_tx_power(8); // Set to minimum power (8dBm)
 
-    if (esp_wifi_set_mac(WIFI_IF_STA, myMac) == ESP_OK)
-
-        if (esp_wifi_set_mac(WIFI_IF_STA, myMac) == ESP_OK)
-        {
-            Serial.println("COMMS: Successfully set device MAC address");
-        }
-        else
-        {
-            Serial.println("COMMS: Failed to set device MAC address");
-        }
+    // Set Wi-Fi channel to a fixed value (e.g., channel 1)
+    esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
 
     printMacAddress(myMac, "COMMS: This device's MAC Address: ");
     printMacAddress(otherSkullMac, "COMMS: Other skull's MAC Address: ");
@@ -71,7 +63,7 @@ void SkullCommunication::addPeer(const char *successMessage, const char *failure
     esp_now_peer_info_t peerInfo;
     memset(&peerInfo, 0, sizeof(esp_now_peer_info_t));
     memcpy(peerInfo.peer_addr, otherSkullMac, 6);
-    peerInfo.channel = 0;
+    peerInfo.channel = WIFI_CHANNEL;
     peerInfo.encrypt = false;
 
     if (esp_now_add_peer(&peerInfo) == ESP_OK)
@@ -118,8 +110,8 @@ void SkullCommunication::sendMessage(Message message, const char *successMessage
 {
     if (!esp_now_is_peer_exist(otherSkullMac))
     {
-        Serial.println("COMMS: Peer not in list, attempting to re-add");
-        addPeer("Peer re-added successfully", "Failed to re-add peer");
+        Serial.println("COMMS: Peer not in list, cannot send message");
+        return; // Exit the function instead of trying to re-add
     }
 
     myData.message = message;
@@ -135,7 +127,7 @@ void SkullCommunication::sendMessage(Message message, const char *successMessage
     }
     else
     {
-        Serial.printf("COMMS: %s\n", failureMessage);
+        Serial.printf("COMMS: %s (code: %d)\n", failureMessage, result);
     }
 }
 
@@ -155,8 +147,8 @@ void SkullCommunication::sendPlayCommand(const char *filename)
 
     if (!esp_now_is_peer_exist(otherSkullMac))
     {
-        Serial.println("COMMS: Peer not in list, attempting to re-add");
-        addPeer("Peer re-added successfully", "Failed to re-add peer");
+        Serial.println("COMMS: Peer not in list, cannot send play command");
+        return; // Exit the function instead of trying to re-add
     }
 
     myData.message = Message::PLAY_FILE;

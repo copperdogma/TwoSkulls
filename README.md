@@ -129,6 +129,9 @@ ISSUES
   ** skull communication using wifi
     ** ISSUE: secondary doesn't seem to be receiving the KEEPALIVE pings.
       - Sometimes it works fine but not others, but I have a new clue: sometimes if I reset the primary it all starts working perfectly. Eventually it loses the connection again and can never re-establish it. The secondary skull keeps sending back CONNECTION_ACK but the primary skull doesn't seem to see them.
+      - It may be losing the connection once it connects to bluetooth. Perhaps it's a voltage robbing issue
+        or perhaps the audio playing isn't yeilding so it's timing out. But then it often fails to ever
+        connect again so... Maybe not, or maybe it's two issues.
 
 What communication method do you plan to use between the skulls? WiFi, Bluetooth, or another method?
 Not sure. I'm already using bluetooth. Both skulls are acting as bluetooth senders, connecting to their own individual speakers to play audio. I'm not sure I could set the primary up as a second sender, or even if you can use the bluetooth chip to make multiple connections at once. I need help with this part for sure.
