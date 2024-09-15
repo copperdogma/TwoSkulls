@@ -7,14 +7,12 @@
 #include <mutex>
 #include <thread>
 
-// TODO:
-// - The light just stays on between files when it's speaking.
-// Let's add a 200ms after we're finished playing a file before starting hte next one.
-
-AudioPlayer::AudioPlayer(SDCardManager* sdCardManager)
+AudioPlayer::AudioPlayer(SDCardManager *sdCardManager)
     : m_totalBytesRead(0), m_writePos(0), m_readPos(0), m_bufferFilled(0),
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
-      m_currentPlaybackTime(0), m_lastFrameTime(0), m_sdCardManager(sdCardManager)
+      m_currentPlaybackTime(0), m_lastFrameTime(0), m_sdCardManager(sdCardManager),
+      m_fadeInInProgress(false), m_fadeOutInProgress(false),
+      m_fadeVolume(0.0f)
 {
 }
 
@@ -66,12 +64,6 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         }
     }
 
-    // Zero-fill any remaining frames if we have insufficient data
-    if (bytesRead < bytesToRead)
-    {
-        memset((uint8_t *)frame + bytesRead, 0, bytesToRead - bytesRead);
-    }
-
     m_totalBytesRead += bytesRead;
 
     fillBuffer(); // Fill the buffer if needed
@@ -79,19 +71,30 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     // Determine if audio is still playing
     if (bytesRead == 0 && m_bufferFilled == 0 && (!audioFile || !audioFile.available()) && audioQueue.empty())
     {
-        m_isAudioPlaying = false;
+        if (!m_fadeOutInProgress)
+        {
+            m_fadeOutInProgress = true;
+            m_fadeVolume = 1.0f;
+        }
     }
-    else
+    else if (!m_fadeOutInProgress)
     {
         m_isAudioPlaying = true;
     }
 
-    if (m_muted)
+    // Apply fade-in and fade-out
+    if (!m_muted)
+    {
+        int16_t* samples = reinterpret_cast<int16_t*>(frame);
+        int32_t sampleCount = frame_count * 2; // Assuming stereo audio (2 channels)
+        applyFade(samples, sampleCount);
+    }
+    else
     {
         // Zero out the frames to mute the audio
         memset(frame, 0, frame_count * sizeof(Frame));
     }
-    
+
     // Update playback time based on elapsed time
     unsigned long now = millis();
     if (m_lastFrameTime != 0)
@@ -103,6 +106,12 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     else
     {
         m_lastFrameTime = now;
+    }
+
+    // Check if fade-out is complete
+    if (m_fadeOutInProgress && m_fadeVolume <= 0.0f)
+    {
+        m_isAudioPlaying = false;
     }
 
     return frame_count;
@@ -260,10 +269,49 @@ bool AudioPlayer::startNextFile()
     m_currentPlaybackTime = 0;
     m_lastFrameTime = millis();
 
+    // Start fade-in
+    m_fadeInInProgress = true;
+    m_fadeVolume = 0.0f;
+
     return true;
 }
 
 void AudioPlayer::setMuted(bool muted)
 {
     m_muted = muted;
+}
+
+void AudioPlayer::applyFade(int16_t* samples, int32_t sampleCount)
+{
+    for (int i = 0; i < sampleCount; ++i)
+    {
+        float sampleValue = static_cast<float>(samples[i]);
+
+        // Apply fade-in
+        if (m_fadeInInProgress)
+        {
+            sampleValue *= m_fadeVolume;
+            m_fadeVolume += FADE_STEP;
+            if (m_fadeVolume >= 1.0f)
+            {
+                m_fadeVolume = 1.0f;
+                m_fadeInInProgress = false;
+            }
+        }
+        // Apply fade-out
+        else if (m_fadeOutInProgress)
+        {
+            sampleValue *= m_fadeVolume;
+            m_fadeVolume -= FADE_STEP;
+            if (m_fadeVolume <= 0.0f)
+            {
+                sampleValue = 0.0f; // Ensure sample is zero to prevent clicks
+                m_fadeVolume = 0.0f;
+                m_fadeOutInProgress = false;
+            }
+        }
+
+        // Update the sample with the applied fade
+        samples[i] = static_cast<int16_t>(sampleValue);
+    }
 }
