@@ -127,13 +127,9 @@ ISSUES
   ** staging: mount on sticks, make name signs, figure out where to put electronics + batteries, figure out where/how to hide speakers
 
   ** skull communication using wifi
-    ** play marco/polo when attempting to connect
-    ** create skull_audio_animator::isConnectedToBluetooth() so we know if we should even send a Marco/Polo
-    ** reimplement playNow() so Marco can blow away the queue and stop current playback... 
-    ** on connected, clear the audio queue
-    ** flash eyes endlessly when attempting to connect via wifi... they can't really do anything until they do
-    ** ISSUE: secondary doesn't seem to be receiving the keepalive pings
-    ** it's clicking again at the end of audio
+    ** minor muted clicking at end of some audio
+    ** sync time
+    ** let primary tell secondary what file to play and when to start
 
 
 What communication method do you plan to use between the skulls? WiFi, Bluetooth, or another method?

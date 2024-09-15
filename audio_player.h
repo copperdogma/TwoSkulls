@@ -41,8 +41,25 @@ private:
     unsigned long m_lastFrameTime;
     SDCardManager* m_sdCardManager;
 
+    // Define SAMPLE_RATE as a static constexpr within AudioPlayer
+    static constexpr unsigned int SAMPLE_RATE = 44100; // Sample rate in Hz
+
+    // Define unified fade settings
+    static constexpr unsigned int FADE_DURATION_MS = 500;         // Total fade duration in milliseconds
+    static constexpr float FADE_AGGRESSIVENESS = 0.5f;           // Determines the rate of volume change (1.0f = normal)
+
+    // Calculate FADE_STEP based on duration and aggressiveness
+    static constexpr float FADE_STEP_BASE = 1.0f / (FADE_DURATION_MS * SAMPLE_RATE / 1000.0f);
+    static constexpr float FADE_STEP = FADE_STEP_BASE * FADE_AGGRESSIVENESS;
+
+    // Members for fade-in and fade-out
+    bool m_fadeInInProgress;
+    bool m_fadeOutInProgress;
+    float m_fadeVolume;
+
     void fillBuffer();
     bool startNextFile();
+    void applyFade(int16_t* samples, int32_t sampleCount);
 };
 
 #endif // AUDIO_PLAYER_H
