@@ -97,7 +97,7 @@ void custom_crash_handler()
 
 void onMessageSent(const struct_message &msg)
 {
-    if (isPrimary && msg.message == CONNECTION_REQUEST)
+    if (isPrimary && msg.message == Message::CONNECTION_REQUEST)
     {
         lightController.blinkEyes(1); // 1 blink for wifi connection request
         if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())
@@ -106,7 +106,7 @@ void onMessageSent(const struct_message &msg)
         }
     }
 
-    if (!isPrimary && msg.message == CONNECTION_ACK)
+    if (!isPrimary && msg.message == Message::CONNECTION_ACK)
     {
         lightController.blinkEyes(1); // 1 blink for wifi connection received
         if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())

@@ -33,6 +33,7 @@ public:
     void update();
     void sendPlayCommand(const char *filename);
     bool isPeerConnected() const { return m_isPeerConnected; }
+    unsigned long getLastHeardTime() const { return lastHeardTime; }
 
     // Update callback registration methods
     void registerSendCallback(MessageCallback callback);
