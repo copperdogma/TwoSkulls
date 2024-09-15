@@ -127,14 +127,8 @@ ISSUES
   ** staging: mount on sticks, make name signs, figure out where to put electronics + batteries, figure out where/how to hide speakers
 
   ** skull communication using wifi
-    ** play marco/polo when attempting to connect
-    ** create skull_audio_animator::isConnectedToBluetooth() so we know if we should even send a Marco/Polo
-    ** reimplement playNow() so Marco can blow away the queue and stop current playback... 
-    ** on connected, clear the audio queue
-    ** flash eyes endlessly when attempting to connect via wifi... they can't really do anything until they do
-    ** ISSUE: secondary doesn't seem to be receiving the keepalive pings
-    ** it's clicking again at the end of audio
-
+    ** ISSUE: secondary doesn't seem to be receiving the KEEPALIVE pings.
+      - Sometimes it works fine but not others, but I have a new clue: sometimes if I reset the primary it all starts working perfectly. Eventually it loses the connection again and can never re-establish it. The secondary skull keeps sending back CONNECTION_ACK but the primary skull doesn't seem to see them.
 
 What communication method do you plan to use between the skulls? WiFi, Bluetooth, or another method?
 Not sure. I'm already using bluetooth. Both skulls are acting as bluetooth senders, connecting to their own individual speakers to play audio. I'm not sure I could set the primary up as a second sender, or even if you can use the bluetooth chip to make multiple connections at once. I need help with this part for sure.

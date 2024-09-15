@@ -97,30 +97,26 @@ void custom_crash_handler()
 
 void onMessageSent(const struct_message &msg)
 {
-  // Blink eyes and play audio when attempting to connect.
-  // But only if there is an active bluetooth connection and the skull is not currently speaking,
-  // otherwise the Marco/Polo queue up and you might get four of them after it's done speaking.
-
-  if (isPrimary && msg.message == Message::CONNECTION_REQUEST)
-  {
-    lightController.blinkEyes(1); // 1 blink for wifi connection request
-    if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())
+    if (isPrimary && msg.message == CONNECTION_REQUEST)
     {
-      skullAudioAnimator->playNext("/audio/Marco.wav");
+        lightController.blinkEyes(1); // 1 blink for wifi connection request
+        if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())
+        {
+            skullAudioAnimator->playNext("/audio/Marco.wav");
+        }
     }
-  }
 
-  if (!isPrimary && msg.message == Message::CONNECTION_ACK)
-  {
-    lightController.blinkEyes(1); // 1 blink for wifi connection received
-    if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())
+    if (!isPrimary && msg.message == CONNECTION_ACK)
     {
-      // The CONNECTION_REQUEST/CONNECTION_ACK is so fast that the Polo will play while Marco is still playing.
-      // Wait 1000ms before playing Polo.
-      delay(1500); 
-      skullAudioAnimator->playNext("/audio/Polo.wav");
+        lightController.blinkEyes(1); // 1 blink for wifi connection received
+        if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())
+        {
+            // The CONNECTION_REQUEST/CONNECTION_ACK is so fast that the Polo will play while Marco is still playing.
+            // Wait 1000ms before playing Polo.
+            delay(1500); 
+            skullAudioAnimator->playNext("/audio/Polo.wav");
+        }
     }
-  }
 }
 
 void onMessageReceived(const struct_message &msg)
@@ -276,10 +272,11 @@ void loop()
     uint32_t adc_reading = adc1_get_raw(ADC1_CHANNEL_0);
     uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_chars);
 
-    Serial.printf("%d loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
+    Serial.printf("%lu loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
     Serial.printf("Bluetooth connected: %s, ", bluetoothAudio.is_connected() ? "true" : "false");
     Serial.printf("Peer connected: %s, ", skullCommunication->isPeerConnected() ? "true" : "false");
-    Serial.printf("Voltage: %d mV\n", voltage);
+    Serial.printf("Voltage: %d mV, ", voltage);
+    Serial.printf("lastHeardTime: %lu\n", skullCommunication->getLastHeardTime());
 
     if (reset_reason == ESP_RST_BROWNOUT)
     {

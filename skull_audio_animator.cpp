@@ -65,10 +65,6 @@ void SkullAudioAnimator::updateSkit()
 
     if (!isAudioPlaying)
     {
-        if (m_isCurrentlySpeaking)
-        {
-            Serial.println("SkullAudioAnimator: No audio playing; setting m_isCurrentlySpeaking to false");
-        }
         m_isCurrentlySpeaking = false;
         return;
     }
@@ -92,7 +88,6 @@ void SkullAudioAnimator::updateSkit()
         if (m_currentSkit.lines.empty())
         {
             Serial.printf("SkullAudioAnimator: Playing non-skit audio file: %s\n", filePath.c_str());
-            Serial.println("SkullAudioAnimator: Playing non-skit audio file; Setting m_isCurrentlySpeaking to true");
             m_isCurrentlySpeaking = true;
             return;
         }
