@@ -115,6 +115,9 @@ void onMessageSent(const struct_message &msg)
     lightController.blinkEyes(1); // 1 blink for wifi connection received
     if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())
     {
+      // The CONNECTION_REQUEST/CONNECTION_ACK is so fast that the Polo will play while Marco is still playing.
+      // Wait 1000ms before playing Polo.
+      delay(1500); 
       skullAudioAnimator->playNext("/audio/Polo.wav");
     }
   }

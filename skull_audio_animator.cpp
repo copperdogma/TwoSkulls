@@ -5,6 +5,13 @@
 
     Although it provides pass-throughs for playing audio, it has no effect on the playing state.
     It only reacts to what is being currently played, which is entirely controlled by the audio player.
+
+    Note: Frame is defined in SoundData.h in https://github.com/pschatzmann/ESP32-A2DP like so:
+
+      Frame(int ch1, int ch2){
+        channel1 = ch1;
+        channel2 = ch2;
+      }
 */
 
 #include "skull_audio_animator.h"

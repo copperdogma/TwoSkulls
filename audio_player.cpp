@@ -1,3 +1,14 @@
+/*
+    This is the audio player for the skull.
+
+    Note: Frame is defined in SoundData.h in https://github.com/pschatzmann/ESP32-A2DP like so:
+
+      Frame(int ch1, int ch2){
+        channel1 = ch1;
+        channel2 = ch2;
+      }
+*/
+
 #include "audio_player.h"
 #include "sd_card_manager.h"
 #include <cmath>
@@ -252,6 +263,9 @@ bool AudioPlayer::startNextFile()
         Serial.printf("Failed to open audio file: %s\n", nextFile.c_str());
         return startNextFile(); // Try the next file in the queue
     }
+
+    // Skip WAV header (44 bytes)
+    audioFile.seek(44);
 
     m_currentFilePath = String(nextFile.c_str());
     m_isAudioPlaying = true;
