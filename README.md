@@ -141,16 +141,12 @@ ISSUES
   ** staging: mount on sticks, make name signs, figure out where to put electronics + batteries, figure out where/how to hide speakers
 
   ** skull communication using wifi
-    ** ISSUE: secondary doesn't seem to be receiving the KEEPALIVE pings.
-      - The cause is simultaneous Wifi and Bluetooth. There's only one radio and when Bluetooth tries to
-        do something then wifi can't send/receive properly and thinks it's disconnected.
-      - It's not CPU overuse; I checked. 
-      - FIX: wait we don't NEED to do both at once. If it's playing audio it doens't need any wifi comms and vice versa. Just use the isPlayingAudio flag to know when to ignore incoming comms.
-        - What if I just strip out most of the connect/reconnect/kseepalive stuff, keep the initial connection +
-        marco/polo, and once connected assume we're connected. We don't even REALLY need to do it, but it will
-        confirm we've connected at least once so we should be good from then on. Then when we need to play
-        a file we NEED to get a response from the secondary to know it's ready.
-    ** PLAY_FILE command: start simply: send message, start playing the second you get the ACK.
+    ** ISSUE: primary frequently doesn't hear secondary and vice-versa
+      - try setting different channel?
+    ** ISSUE: audio all over the map
+      - this is because it's attempting to connect/ack and play/ack before the bluetooth is connected which
+      is pointless and disruptive. Add skullCommunication->Enabled(true/false) when bluetooth is connected.
+      - could also just have a skullAnimator or INO state machine
     ** TODO: why does skull_communication have access to skullAudioAnimator? That seems like the wrong inversion.
              Perhaps skull_communication should have a callback, coordinated by skull_audio_animator or the INO
              file, which sets skull_communication->Enabled(true/false) (for when it's playing audio), and

@@ -13,9 +13,6 @@
 */
 #include "esp_wifi.h"
 #include "skull_communication.h"
-#include "skull_audio_animator.h"
-
-extern SkullAudioAnimator *skullAudioAnimator;
 
 SkullCommunication *SkullCommunication::instance = nullptr;
 struct_message myData;
@@ -247,15 +244,8 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
             Serial.println("COMMS: WARNING: Received PLAY_FILE despite being PRIMARY. Should never happen.");
             break;
         case Message::PLAY_FILE_ACK:
-            if (skullAudioAnimator)
-            {
-                if (instance->m_audioFileToPlay.isEmpty())
-                {
-                    Serial.println("COMMS: Error - Attempted to play empty audio file name");
-                    return;
-                }
-                Serial.printf("COMMS: Received PLAY_FILE_ACK. Now playing file: %s\n", instance->m_audioFileToPlay.c_str());
-                skullAudioAnimator->playNext(instance->m_audioFileToPlay.c_str());
+            if (instance->playFileCallback) {
+                instance->playFileCallback(instance->m_audioFileToPlay.c_str());
             }
             break;
         default:
@@ -305,9 +295,8 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
 
             instance->sendMessage(Message::PLAY_FILE_ACK, "PLAY_FILE_ACK sent", "Failed to send PLAY_FILE_ACK");
 
-            if (skullAudioAnimator)
-            {
-                skullAudioAnimator->playNext(receivedData.filename);
+            if (instance->playFileCallback) {
+                instance->playFileCallback(instance->m_audioFileToPlay.c_str());
             }
             break;
         case Message::PLAY_FILE_ACK:

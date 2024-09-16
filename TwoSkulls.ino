@@ -214,9 +214,9 @@ void setup()
 
   // CAMKILL: put back
   //  Queue the "Skit - names" skit to play next
-  //  ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
-  //  skullAudioAnimator->playSkitNext(namesSkit);
-  //  Serial.printf("'Skit - names' found; queueing audio: %s\n", namesSkit.audioFile.c_str());
+   ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
+   skullAudioAnimator->playSkitNext(namesSkit);
+   Serial.printf("'Skit - names' found; queueing audio: %s\n", namesSkit.audioFile.c_str());
 
   // Initialize ultrasonic sensor (for both primary and secondary)
   distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
@@ -255,69 +255,81 @@ void setup()
   adc1_config_width(ADC_WIDTH_BIT_12);
   adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
   esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
+
+  // Set enabled callback for skull_communication
+  skullCommunication->setEnabledCallback([](bool enabled) {
+    // This callback is called when skull_communication should be enabled/disabled
+    // You might want to disable it when audio is playing
+  });
+
+  // Set play file callback for skull_communication
+  skullCommunication->setPlayFileCallback([](const char* filename) {
+    // This callback is called when a PLAY_FILE_ACK is received and it's time to play audio
+    skullAudioAnimator->playNext(filename);
+  });
 }
 
 void loop()
 {
-  unsigned long currentMillis = millis();
-  static unsigned long lastMillis = 0;
+    unsigned long currentMillis = millis();
+    static unsigned long lastMillis = 0;
 
-  // Reset the watchdog timer
-  esp_task_wdt_reset();
+    // Reset the watchdog timer
+    esp_task_wdt_reset();
 
-  // Every 5000ms output "loop() running" and check memory, reset reason, and power info
-  if (currentMillis - lastMillis >= 5000)
-  {
-    size_t freeHeap = ESP.getFreeHeap();
-    esp_reset_reason_t reset_reason = esp_reset_reason();
+    // Update the audio player's state
+    bool isAudioPlaying = skullAudioAnimator->isCurrentlySpeaking();
 
-    // Read ADC and convert to voltage
-    uint32_t adc_reading = adc1_get_raw(ADC1_CHANNEL_0);
-    uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_chars);
-
-    Serial.printf("%lu loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
-    Serial.printf("Bluetooth connected: %s, ", bluetoothAudio.is_connected() ? "true" : "false");
-    Serial.printf("Peer connected: %s, ", skullCommunication->isPeerConnected() ? "true" : "false");
-    Serial.printf("Voltage: %d mV, ", voltage);
-    Serial.printf("lastHeardTime: %lu\n", skullCommunication->getLastHeardTime());
-
-    if (reset_reason == ESP_RST_BROWNOUT)
+    // Every 5000ms output "loop() running" and check memory, reset reason, and power info
+    if (currentMillis - lastMillis >= 5000)
     {
-      Serial.println("WARNING: Last reset was due to brownout!");
+        size_t freeHeap = ESP.getFreeHeap();
+        esp_reset_reason_t reset_reason = esp_reset_reason();
+
+        // Read ADC and convert to voltage
+        uint32_t adc_reading = adc1_get_raw(ADC1_CHANNEL_0);
+        uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_chars);
+
+        Serial.printf("%lu loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
+        Serial.printf("Bluetooth connected: %s, ", bluetoothAudio.is_connected() ? "true" : "false");
+        Serial.printf("isAudioPlaying: %s, ", isAudioPlaying ? "true" : "false");
+        Serial.printf("Peer connected: %s, ", skullCommunication->isPeerConnected() ? "true" : "false");
+        Serial.printf("Voltage: %d mV, ", voltage);
+        Serial.printf("lastHeardTime: %lu\n", skullCommunication->getLastHeardTime());
+
+        if (reset_reason == ESP_RST_BROWNOUT)
+        {
+            Serial.println("WARNING: Last reset was due to brownout!");
+        }
+
+        lastMillis = currentMillis;
     }
 
-    lastMillis = currentMillis;
-  }
+    // Update SkullAudioAnimator
+    skullAudioAnimator->update();
 
-  // There is no loop() call to play more audio.
-  // The skull_audio_animator.getAudioFrames() is called by the bluetooth_audio library
-  // when there's an active bluetooth connection and it needs more audio data.
-
-  // Update SkullAudioAnimator
-  skullAudioAnimator->update();
-
-  // Update SkullCommunication
-  if (skullCommunication)
-  {
-    skullCommunication->update();
-  }
-
-  // Test sending play command every 10 seconds
-  static unsigned long lastPlayCommand = 0;
-  if (isPrimary && currentMillis - lastPlayCommand >= 10000)
-  {
-    lastPlayCommand = currentMillis;
-    if (skullCommunication->isPeerConnected())
+    // Update SkullCommunication
+    if (skullCommunication)
     {
-      skullCommunication->sendPlayCommand("/audio/Skit - names.wav");
-      lastPlayCommand = currentMillis;
+        skullCommunication->update();
     }
-    else
-    {
-      Serial.println("SkullCommunication: Cannot send play command, peer not connected");
-    }
-  }
 
-  // Allow other tasks to run
-  delay(1);
+    // Test sending play command every 10 seconds
+    static unsigned long lastPlayCommand = 0;
+    if (isPrimary && currentMillis - lastPlayCommand >= 10000)
+    {
+        lastPlayCommand = currentMillis;
+        if (skullCommunication->isPeerConnected())
+        {
+            skullCommunication->sendPlayCommand("/audio/Skit - names.wav");
+            lastPlayCommand = currentMillis;
+        }
+        else
+        {
+            Serial.println("SkullCommunication: Cannot send play command, peer not connected");
+        }
+    }
+
+    // Allow other tasks to run
+    delay(1);
 }

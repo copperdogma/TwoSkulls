@@ -40,6 +40,16 @@ public:
     void registerSendCallback(MessageCallback callback);
     void registerReceiveCallback(MessageCallback callback);
 
+    void setEnabledCallback(std::function<void(bool)> callback) { enabledCallback = callback; }
+    void setPlayFileCallback(std::function<void(const char*)> callback) { playFileCallback = callback; }
+
+    void setEnabled(bool enabled) {
+        if (enabledCallback) {
+            enabledCallback(enabled);
+        }
+        // Additional logic to enable/disable communication if needed
+    }
+
 private:
     bool isPrimary;
     uint8_t myMac[6];
@@ -65,6 +75,8 @@ private:
 
     MessageCallback onSendCallback = nullptr;
     MessageCallback onReceiveCallback = nullptr;
+    std::function<void(bool)> enabledCallback;
+    std::function<void(const char*)> playFileCallback;
 };
 
 #endif // SKULL_COMMUNICATION_H
