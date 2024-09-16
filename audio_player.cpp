@@ -260,7 +260,7 @@ bool AudioPlayer::startNextFile()
     audioFile = m_sdCardManager->openFile(nextFile.c_str());
     if (!audioFile)
     {
-        Serial.printf("Failed to open audio file: %s\n", nextFile.c_str());
+        Serial.printf("AudioPlayer: Failed to open audio file: %s\n", nextFile.c_str());
         return startNextFile(); // Try the next file in the queue
     }
 

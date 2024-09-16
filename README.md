@@ -11,6 +11,20 @@
   - Once both connected, they'll play skit: "Morning, Jeff." "Morning, Tony."
   - Then Primary starts monitoring ultrasonic sensor.
 
+  System Operation:
+
+   - Primary connects to Seondary via WiFi to confirm presence
+   - Primary has two modes:
+     a. Listening: 
+        - Waits for ultrasonic sensor trigger
+        - Selects random audio file
+        - Instructs Secondary to play that file (Priamry plays it at the exact same time)
+     b. Playing: 
+        - Ignores triggers until playback completes
+
+  Wifi/Bluetooth Radio: Should have minimal overlap. When playing audio there is no wifi communication and vice versa.
+
+
   LED Blinking Legend
   1 - Wifi connection attempt (PRIMARY)/receipt (SECONDARY)
   2 - this skull is SECONDARY
@@ -128,30 +142,19 @@ ISSUES
 
   ** skull communication using wifi
     ** ISSUE: secondary doesn't seem to be receiving the KEEPALIVE pings.
-      - Sometimes it works fine but not others, but I have a new clue: sometimes if I reset the primary it all starts working perfectly. Eventually it loses the connection again and can never re-establish it. The secondary skull keeps sending back CONNECTION_ACK but the primary skull doesn't seem to see them.
-      - It may be losing the connection once it connects to bluetooth. Perhaps it's a voltage robbing issue
-        or perhaps the audio playing isn't yeilding so it's timing out. But then it often fails to ever
-        connect again so... Maybe not, or maybe it's two issues.
-
-What communication method do you plan to use between the skulls? WiFi, Bluetooth, or another method?
-Not sure. I'm already using bluetooth. Both skulls are acting as bluetooth senders, connecting to their own individual speakers to play audio. I'm not sure I could set the primary up as a second sender, or even if you can use the bluetooth chip to make multiple connections at once. I need help with this part for sure.
-
-Will the secondary skull need to send any information back to the primary, or is this a one-way communication?
-Yes? I'd assume we need some sort of ACK, and perhaps two-way comms to establish a common time to ensure our timing is correct.
-
-Do you want to implement a simple command system (e.g., "play file X", "start now"), or do you need a more complex protocol?
-Very simple. Basically establish a connection, primary sends message saying it's primary/secondary ACK, keepalive ping/secondary ACK, primary synchronizes time/secondary ACK, primary tells secondary what file to play starting at what time/secondary ACK
-
-How precise does the synchronization need to be? Are we aiming for millisecond accuracy, or is a slight delay acceptable?
-Within 100ms should be fine.
-
-Will both skulls have identical audio files, or will the primary need to specify different files for each skull?
-Both have identical files.
-
-How do you want to handle potential communication failures or disconnections?
-A primary keep-alive ping ACKed by secondary. If primary doesn't see an ACK for a bit it goes back to it's connection protocol. If secondary doesn't see a ping for a while it goes back to it's connection protocol.
-  
-
+      - The cause is simultaneous Wifi and Bluetooth. There's only one radio and when Bluetooth tries to
+        do something then wifi can't send/receive properly and thinks it's disconnected.
+      - It's not CPU overuse; I checked. 
+      - FIX: wait we don't NEED to do both at once. If it's playing audio it doens't need any wifi comms and vice versa. Just use the isPlayingAudio flag to know when to ignore incoming comms.
+        - What if I just strip out most of the connect/reconnect/kseepalive stuff, keep the initial connection +
+        marco/polo, and once connected assume we're connected. We don't even REALLY need to do it, but it will
+        confirm we've connected at least once so we should be good from then on. Then when we need to play
+        a file we NEED to get a response from the secondary to know it's ready.
+    ** PLAY_FILE command: start simply: send message, start playing the second you get the ACK.
+    ** TODO: why does skull_communication have access to skullAudioAnimator? That seems like the wrong inversion.
+             Perhaps skull_communication should have a callback, coordinated by skull_audio_animator or the INO
+             file, which sets skull_communication->Enabled(true/false) (for when it's playing audio), and
+             the callback should be for when the primary gets PLAY_FILE_ACK and should start playing the file.
   
   SD CARD
   - 20240707: Fixed initialization issue. Finally connected the power directly to the board's 3.3v pin to power it. Before I connected the 3.3 pin to the positive bar on the breadboard and it only worked 1/20 times. Bizarre. Took forever to debug.

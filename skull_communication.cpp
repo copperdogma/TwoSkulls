@@ -1,3 +1,16 @@
+/*
+    This is the main communication class for the skulls. It handles all the low-level communication
+    between the primary and secondary skulls.
+
+    Communication protocol:
+    - Primary sends Secondary a CONNECTION_REQUEST message, Secondary sends back a CONNECTION_ACK message.
+    - Primary sends Secondary a PLAY_FILE message, Secondary sends back a PLAY_FILE_ACK message.
+
+    The idea is the Primary and Secondary will start playing the same audio file simultaneously.
+
+    NOTE: This module will not send or receive while audio is playing. A2DP (bluetooth audio) and wifi
+          share the radio and don't play well together.
+*/
 #include "esp_wifi.h"
 #include "skull_communication.h"
 #include "skull_audio_animator.h"
@@ -5,7 +18,7 @@
 extern SkullAudioAnimator *skullAudioAnimator;
 
 SkullCommunication *SkullCommunication::instance = nullptr;
-struct_message myData; // Added definition here
+struct_message myData;
 
 SkullCommunication::SkullCommunication(bool isPrimary, const String &macAddress, const String &otherMacAddress)
     : isPrimary(isPrimary)
@@ -31,19 +44,9 @@ void SkullCommunication::begin()
 {
     Serial.printf("COMMS: Initializing as %s...\n", isPrimary ? "PRIMARY" : "SECONDARY");
 
-    // Initialize Wi-Fi as station
+    // Initialize Wi-Fi as station. Most compatible with Bluetooth, especially when sharing the radio.
     WiFi.mode(WIFI_STA);
     WiFi.disconnect(); // Disconnect from any previous network
-
-    // Set country code to prevent automatic channel switching
-    wifi_country_t country = {
-        .cc = "US",
-        .schan = 1,
-        .nchan = 11,
-        .max_tx_power = 20, // 78 = maximum power
-        .policy = WIFI_COUNTRY_POLICY_MANUAL,
-    };
-    esp_wifi_set_country(&country);
 
     // Set the Wi-Fi channel
     esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
@@ -116,12 +119,13 @@ void SkullCommunication::update()
 
     unsigned long currentMillis = millis();
 
-    // Check for timeout
-    if (m_isPeerConnected && (currentMillis - lastHeardTime > TIMEOUT_INTERVAL))
-    {
-        m_isPeerConnected = false;
-        Serial.println("COMMS: Lost connection due to lastHeardTime timeout");
-    }
+    // CAMKILL:
+    //  // Check for timeout
+    //  if (m_isPeerConnected && (currentMillis - lastHeardTime > TIMEOUT_INTERVAL))
+    //  {
+    //      m_isPeerConnected = false;
+    //      Serial.println("COMMS: Lost connection due to lastHeardTime timeout");
+    //  }
 
     // Attempt reconnection if not connected
     if (!m_isPeerConnected && (currentMillis - lastSentTime > CONNECTION_RETRY_DELAY))
@@ -129,11 +133,12 @@ void SkullCommunication::update()
         sendMessage(Message::CONNECTION_REQUEST, "CONNECTION_REQUEST sent", "Failed to send CONNECTION_REQUEST");
     }
 
-    // Send KEEPALIVE if idle
-    if (m_isPeerConnected && (currentMillis - lastSentTime > KEEPALIVE_INTERVAL))
-    {
-        sendMessage(Message::KEEPALIVE, "KEEPALIVE sent", "Failed to send KEEPALIVE");
-    }
+    // CAMKILL:
+    //  // Send KEEPALIVE if idle
+    //  if (m_isPeerConnected && (currentMillis - lastSentTime > KEEPALIVE_INTERVAL))
+    //  {
+    //      sendMessage(Message::KEEPALIVE, "KEEPALIVE sent", "Failed to send KEEPALIVE");
+    //  }
 
     // If peer is not in the list, try to add it
     if (!esp_now_is_peer_exist(otherSkullMac))
@@ -164,8 +169,8 @@ void SkullCommunication::sendMessage(Message message, const char *successMessage
     else
     {
         Serial.printf("COMMS: %s (code: %d)\n", failureMessage, result);
-        m_isPeerConnected = false;  // Mark as disconnected on send failure
-        // Optionally, trigger a reconnection attempt here
+        // CAMKILL:m_isPeerConnected = false; // Mark as disconnected on send failure
+        //  Optionally, trigger a reconnection attempt here
     }
 }
 
@@ -188,6 +193,8 @@ void SkullCommunication::sendPlayCommand(const char *filename)
         Serial.println("COMMS: Peer not in list, cannot send play command");
         return; // Exit the function instead of trying to re-add
     }
+
+    m_audioFileToPlay = filename;
 
     myData.message = Message::PLAY_FILE;
     strncpy(myData.filename, filename, sizeof(myData.filename));
@@ -212,7 +219,6 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
 {
     instance->m_isPeerConnected = true; // Ensure connection is marked as active
     instance->lastHeardTime = millis(); // Update last heard time
-    instance->sendFailures = 0;         // Reset failure count on successful receive
 
     struct_message receivedData;
     memcpy(&receivedData, incomingData, sizeof(receivedData));
@@ -230,14 +236,27 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
         case Message::CONNECTION_ACK:
             Serial.println("COMMS: Connected! Received CONNECTION_ACK");
             break;
-        case Message::KEEPALIVE:
-            Serial.println("COMMS: WARNING: Received KEEPALIVE despite being PRIMARY. Should never happen.");
-            break;
-        case Message::KEEPALIVE_ACK:
-            Serial.println("COMMS: Received KEEPALIVE_ACK");
-            break;
+            // CAMKILL:
+        // case Message::KEEPALIVE:
+        //     Serial.println("COMMS: WARNING: Received KEEPALIVE despite being PRIMARY. Should never happen.");
+        //     break;
+        // case Message::KEEPALIVE_ACK:
+        //     Serial.println("COMMS: Received KEEPALIVE_ACK");
+        //     break;
         case Message::PLAY_FILE:
             Serial.println("COMMS: WARNING: Received PLAY_FILE despite being PRIMARY. Should never happen.");
+            break;
+        case Message::PLAY_FILE_ACK:
+            if (skullAudioAnimator)
+            {
+                if (instance->m_audioFileToPlay.isEmpty())
+                {
+                    Serial.println("COMMS: Error - Attempted to play empty audio file name");
+                    return;
+                }
+                Serial.printf("COMMS: Received PLAY_FILE_ACK. Now playing file: %s\n", instance->m_audioFileToPlay.c_str());
+                skullAudioAnimator->playNext(instance->m_audioFileToPlay.c_str());
+            }
             break;
         default:
             Serial.printf("COMMS: Received unknown message: %d\n", receivedData.message);
@@ -260,23 +279,39 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
         case Message::CONNECTION_ACK:
             Serial.println("COMMS: WARNING: Received CONNECTION_ACK despite being SECONDARY. Should never happen.");
             break;
-        case Message::KEEPALIVE:
-        {
-            Serial.println("COMMS: Received KEEPALIVE");
+            // CAMKILL:
+        // case Message::KEEPALIVE:
+        // {
+        //     Serial.println("COMMS: Received KEEPALIVE");
 
-            instance->sendMessage(Message::KEEPALIVE_ACK, "KEEPALIVE_ACK sent", "Failed to send KEEPALIVE_ACK");
-            break;
-        }
-        case Message::KEEPALIVE_ACK:
-            Serial.println("COMMS: WARNING: Received KEEPALIVE_ACK despite being SECONDARY. Should never happen.");
-            break;
+        //     instance->sendMessage(Message::KEEPALIVE_ACK, "KEEPALIVE_ACK sent", "Failed to send KEEPALIVE_ACK");
+        //     break;
+        // }
+        // case Message::KEEPALIVE_ACK:
+        //     Serial.println("COMMS: WARNING: Received KEEPALIVE_ACK despite being SECONDARY. Should never happen.");
+        //     break;
+        // case Message::PLAY_FILE:
+        //     // Only secondary skull should be told to play anything. The primary decides what to play.
+        //     Serial.printf("COMMS: Received play command for file: %s\n", receivedData.filename);
+
+        //     if (skullAudioAnimator)
+        //     {
+        //         skullAudioAnimator->playNext(receivedData.filename);
+        //     }
+        //     break;
         case Message::PLAY_FILE:
             // Only secondary skull should be told to play anything. The primary decides what to play.
             Serial.printf("COMMS: Received play command for file: %s\n", receivedData.filename);
+
+            instance->sendMessage(Message::PLAY_FILE_ACK, "PLAY_FILE_ACK sent", "Failed to send PLAY_FILE_ACK");
+
             if (skullAudioAnimator)
             {
                 skullAudioAnimator->playNext(receivedData.filename);
             }
+            break;
+        case Message::PLAY_FILE_ACK:
+            Serial.println("COMMS: WARNING: Received PLAY_FILE_ACK despite being SECONDARY. Should never happen.");
             break;
         default:
             Serial.printf("COMMS: Received unknown message: %d\n", receivedData.message);

@@ -20,6 +20,7 @@
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include "esp_bt_device.h"
+#include <esp_coexist.h>
 #include "nvs_flash.h"
 #include "skull_communication.h"
 #include "esp_sleep.h"
@@ -200,6 +201,8 @@ void setup()
   }
 
   // Initialize SkullAudioAnimator
+  esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
+
   skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits, sdCardManager);
   skullAudioAnimator->begin();
 
@@ -306,7 +309,7 @@ void loop()
     lastPlayCommand = currentMillis;
     if (skullCommunication->isPeerConnected())
     {
-      skullCommunication->sendPlayCommand("test_file.wav");
+      skullCommunication->sendPlayCommand("/audio/Skit - names.wav");
       lastPlayCommand = currentMillis;
     }
     else

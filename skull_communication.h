@@ -9,9 +9,11 @@ enum class Message : int
 {
     CONNECTION_REQUEST = 0, // Request to establish a connection
     CONNECTION_ACK = 1,     // Acknowledge a connection request
-    KEEPALIVE = 2,          // Maintain connection
-    KEEPALIVE_ACK = 3,      // Acknowledge a keepalive
-    PLAY_FILE = 4           // Instruct peer to play a specific file
+    // CAMKILL:
+    //  KEEPALIVE = 2,          // Maintain connection
+    //  KEEPALIVE_ACK = 3,      // Acknowledge a keepalive
+    PLAY_FILE = 2,          // Instruct peer to play a specific file
+    PLAY_FILE_ACK = 3 // Acknowledge a play file request
 };
 
 typedef struct struct_message
@@ -35,7 +37,6 @@ public:
     bool isPeerConnected() const { return m_isPeerConnected; }
     unsigned long getLastHeardTime() const { return lastHeardTime; }
 
-    // Update callback registration methods
     void registerSendCallback(MessageCallback callback);
     void registerReceiveCallback(MessageCallback callback);
 
@@ -47,7 +48,7 @@ private:
     bool m_isPeerConnected = false;
     unsigned long lastHeardTime = 0;
     unsigned long lastSentTime = 0;
-    int sendFailures = 0;
+    String m_audioFileToPlay;
 
     void addPeer(const char *successMessage, const char *failureMessage);
     void sendMessage(Message message, const char *successMessage, const char *failureMessage);
