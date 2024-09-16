@@ -55,7 +55,7 @@ private:
     static void onDataReceived(const uint8_t *mac, const uint8_t *incomingData, int len);
     void printMacAddress(const uint8_t *macAddress, const char *description);
 
-    static const int WIFI_CHANNEL = 1;
+    static const int WIFI_CHANNEL = 2;
     static const int CONNECTION_RETRY_DELAY = 7000;       // 7 seconds
     static const unsigned long TIMEOUT_INTERVAL = 11000;  // 11 seconds
     static const unsigned long KEEPALIVE_INTERVAL = 5000; // 5 seconds

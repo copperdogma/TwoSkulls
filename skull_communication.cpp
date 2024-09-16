@@ -39,8 +39,8 @@ void SkullCommunication::begin()
     wifi_country_t country = {
         .cc = "US",
         .schan = 1,
-        .nchan = 13,
-        .max_tx_power = 20,
+        .nchan = 11,
+        .max_tx_power = 20, // 78 = maximum power
         .policy = WIFI_COUNTRY_POLICY_MANUAL,
     };
     esp_wifi_set_country(&country);
