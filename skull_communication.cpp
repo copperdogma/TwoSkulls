@@ -30,18 +30,34 @@ void SkullCommunication::registerReceiveCallback(MessageCallback callback)
 void SkullCommunication::begin()
 {
     Serial.printf("COMMS: Initializing as %s...\n", isPrimary ? "PRIMARY" : "SECONDARY");
+
+    // Initialize Wi-Fi as station
     WiFi.mode(WIFI_STA);
-    Serial.println("COMMS: WiFi mode set to STATION");
+    WiFi.disconnect(); // Disconnect from any previous network
 
-    // If experiencing brownouts, try this. (untested)
-    // esp_wifi_set_max_tx_power(8); // Set to minimum power (8dBm)
+    // Set country code to prevent automatic channel switching
+    wifi_country_t country = {
+        .cc = "US",
+        .schan = 1,
+        .nchan = 13,
+        .max_tx_power = 20,
+        .policy = WIFI_COUNTRY_POLICY_MANUAL,
+    };
+    esp_wifi_set_country(&country);
 
-    // Set Wi-Fi channel to a fixed value (e.g., channel 1)
+    // Set the Wi-Fi channel
     esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
 
-    printMacAddress(myMac, "COMMS: This device's MAC Address: ");
-    printMacAddress(otherSkullMac, "COMMS: Other skull's MAC Address: ");
+    // Start the Wi-Fi driver
+    esp_err_t wifi_start_result = esp_wifi_start();
+    if (wifi_start_result != ESP_OK)
+    {
+        Serial.printf("COMMS: Failed to start Wi-Fi (code: %d)\n", wifi_start_result);
+        return;
+    }
+    Serial.println("COMMS: Wi-Fi started successfully");
 
+    // Initialize ESP-NOW
     if (esp_now_init() != ESP_OK)
     {
         Serial.println("COMMS: Error initializing ESP-NOW");
@@ -49,13 +65,27 @@ void SkullCommunication::begin()
     }
     Serial.println("COMMS: ESP-NOW initialized successfully");
 
-    // This callback could be useful for debugging but I found it decided there were a LOT of send failures that didn't seem correct.
-    // esp_now_register_send_cb(onDataSent);
+    // After esp_wifi_start(), reapply the channel setting
+    esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
+
+    esp_now_register_send_cb(onDataSent);
     esp_now_register_recv_cb(onDataReceived);
 
     addPeer("Peer added successfully", "Failed to add peer");
 
     Serial.println("COMMS: Initialization complete");
+}
+
+void SkullCommunication::onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
+{
+    if (status == ESP_NOW_SEND_SUCCESS)
+    {
+        Serial.println("COMMS: Message sent successfully");
+    }
+    else
+    {
+        Serial.printf("COMMS: Message send failed with status: %d\n", status);
+    }
 }
 
 void SkullCommunication::addPeer(const char *successMessage, const char *failureMessage)
@@ -104,6 +134,12 @@ void SkullCommunication::update()
     {
         sendMessage(Message::KEEPALIVE, "KEEPALIVE sent", "Failed to send KEEPALIVE");
     }
+
+    // If peer is not in the list, try to add it
+    if (!esp_now_is_peer_exist(otherSkullMac))
+    {
+        addPeer("Peer re-added successfully", "Failed to re-add peer");
+    }
 }
 
 void SkullCommunication::sendMessage(Message message, const char *successMessage, const char *failureMessage)
@@ -128,6 +164,8 @@ void SkullCommunication::sendMessage(Message message, const char *successMessage
     else
     {
         Serial.printf("COMMS: %s (code: %d)\n", failureMessage, result);
+        m_isPeerConnected = false;  // Mark as disconnected on send failure
+        // Optionally, trigger a reconnection attempt here
     }
 }
 
