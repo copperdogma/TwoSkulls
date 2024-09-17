@@ -32,11 +32,6 @@ SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController& servoCon
 {
 }
 
-void SkullAudioAnimator::begin()
-{
-    m_audioPlayer.begin();
-}
-
 void SkullAudioAnimator::update()
 {
     // The audio player is updated when playNext() is called or when the audio engine needs more data,
@@ -175,17 +170,6 @@ void SkullAudioAnimator::updateEyes()
     }
 }
 
-void SkullAudioAnimator::playNext(const char *filePath)
-{
-    Serial.printf("SkullAudioAnimator: Queuing next audio file: %s\n", filePath);
-    m_audioPlayer.playNext(filePath);
-}
-
-void SkullAudioAnimator::playSkitNext(const ParsedSkit &skit)
-{
-    m_audioPlayer.playNext(skit.audioFile.c_str());
-}
-
 ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &skits, const String &name)
 {
     for (const auto &skit : skits)
@@ -196,12 +180,6 @@ ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &ski
         }
     }
     return ParsedSkit(); // Return an empty ParsedSkit if not found
-}
-
-// CAMKILL: Perhaps we can use this one by saving the played buffer for use with FFT?
-int32_t SkullAudioAnimator::provideAudioFrames(Frame *frame, int32_t frame_count)
-{
-    return m_audioPlayer.provideAudioFrames(frame, frame_count);
 }
 
 void SkullAudioAnimator::performFFT()

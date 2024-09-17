@@ -151,6 +151,9 @@ ISSUES
              Perhaps skull_communication should have a callback, coordinated by skull_audio_animator or the INO
              file, which sets skull_communication->Enabled(true/false) (for when it's playing audio), and
              the callback should be for when the primary gets PLAY_FILE_ACK and should start playing the file.
+      - REFACTORING
+        - need to give skull_audio_animator AP.isPlaying (better to raise events on start/end with filename), AP.getPlaybackTime(),
+          AP.playingAudioFrames(audioFrames BT just grabbed)
   
   SD CARD
   - 20240707: Fixed initialization issue. Finally connected the power directly to the board's 3.3v pin to power it. Before I connected the 3.3 pin to the positive bar on the breadboard and it only worked 1/20 times. Bizarre. Took forever to debug.

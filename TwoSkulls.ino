@@ -40,7 +40,6 @@ SDCardContent sdCardContent;
 bool isPrimary = false;
 ServoController servoController;
 bluetooth_audio bluetoothAudio;
-SkullAudioAnimator *skullAudioAnimator = nullptr;
 AudioPlayer *audioPlayer = nullptr;
 SkullCommunication *skullCommunication = nullptr;
 
@@ -202,8 +201,6 @@ void setup()
   // Initialize AudioPlayer
   esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
 
-  skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits, sdCardManager);
-  skullAudioAnimator->begin();
   audioPlayer = new AudioPlayer(sdCardManager);
   audioPlayer->begin();
 
@@ -267,6 +264,19 @@ void setup()
     // This callback is called when a PLAY_FILE_ACK is received and it's time to play audio
     audioPlayer->playNext(filename);
   });
+
+  // After creating the AudioPlayer instance
+  audioPlayer->setPlaybackStartCallback([](const String& filePath) {
+    Serial.printf("Started playing: %s\n", filePath.c_str());
+  });
+
+  audioPlayer->setPlaybackEndCallback([](const String& filePath) {
+    Serial.printf("Finished playing: %s\n", filePath.c_str());
+  });
+
+  audioPlayer->setAudioFramesProvidedCallback([](const String& filePath, const Frame* frames, int32_t frameCount) {
+    //CAMKILL: Serial.printf("Provided %d frames for %s\n", frameCount, filePath.c_str());
+  });
 }
 
 void loop()
@@ -304,9 +314,6 @@ void loop()
 
         lastMillis = currentMillis;
     }
-
-    // Update SkullAudioAnimator
-    skullAudioAnimator->update();
 
     // Update SkullCommunication
     if (skullCommunication)

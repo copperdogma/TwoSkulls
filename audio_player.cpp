@@ -25,7 +25,8 @@
 AudioPlayer::AudioPlayer(SDCardManager* sdCardManager)
     : m_totalBytesRead(0), m_writePos(0), m_readPos(0), m_bufferFilled(0),
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
-      m_currentPlaybackTime(0), m_lastFrameTime(0), m_sdCardManager(sdCardManager)
+      m_currentPlaybackTime(0), m_lastFrameTime(0), m_sdCardManager(sdCardManager),
+      m_playbackStartCallback(nullptr), m_playbackEndCallback(nullptr), m_audioFramesProvidedCallback(nullptr)
 {
 }
 
@@ -114,6 +115,12 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     else
     {
         m_lastFrameTime = now;
+    }
+
+    // Call the frames provided callback if set
+    if (m_audioFramesProvidedCallback)
+    {
+        m_audioFramesProvidedCallback(m_currentFilePath, frame, frame_count);
     }
 
     return frame_count;
@@ -245,6 +252,12 @@ bool AudioPlayer::startNextFile()
     if (audioFile)
     {
         audioFile.close();
+        
+        // Call the playback end callback if set
+        if (m_playbackEndCallback)
+        {
+            m_playbackEndCallback(m_currentFilePath);
+        }
     }
 
     if (audioQueue.empty())
@@ -273,6 +286,12 @@ bool AudioPlayer::startNextFile()
     // Reset playback time since we're starting a new file
     m_currentPlaybackTime = 0;
     m_lastFrameTime = millis();
+
+    // Call the playback start callback if set
+    if (m_playbackStartCallback)
+    {
+        m_playbackStartCallback(m_currentFilePath);
+    }
 
     return true;
 }

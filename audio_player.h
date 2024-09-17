@@ -4,8 +4,11 @@
 #include <queue>
 #include <mutex>
 #include <string>
+#include <functional>
 #include "BluetoothA2DPSource.h"
 #include "SD.h"
+#include "sd_card_manager.h"
+#include "SoundData.h" // For Frame definition
 
 #define AUDIO_BUFFER_SIZE 32768
 
@@ -26,6 +29,16 @@ public:
     String getCurrentlyPlayingFilePath() const;
     int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
 
+    // New callback types
+    using PlaybackStartCallback = std::function<void(const String&)>;
+    using PlaybackEndCallback = std::function<void(const String&)>;
+    using AudioFramesProvidedCallback = std::function<void(const String&, const Frame*, int32_t)>;
+
+    // New methods to set callbacks
+    void setPlaybackStartCallback(PlaybackStartCallback callback) { m_playbackStartCallback = callback; }
+    void setPlaybackEndCallback(PlaybackEndCallback callback) { m_playbackEndCallback = callback; }
+    void setAudioFramesProvidedCallback(AudioFramesProvidedCallback callback) { m_audioFramesProvidedCallback = callback; }
+
 private:
     File audioFile;
     uint8_t m_audioBuffer[AUDIO_BUFFER_SIZE];
@@ -41,6 +54,11 @@ private:
     unsigned long m_currentPlaybackTime;
     unsigned long m_lastFrameTime;
     SDCardManager *m_sdCardManager;
+
+    // New callback members
+    PlaybackStartCallback m_playbackStartCallback;
+    PlaybackEndCallback m_playbackEndCallback;
+    AudioFramesProvidedCallback m_audioFramesProvidedCallback;
 
     void fillBuffer();
     bool startNextFile();
