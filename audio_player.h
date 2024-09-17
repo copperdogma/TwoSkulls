@@ -12,15 +12,16 @@
 // Forward declaration
 class SDCardManager;
 
-class AudioPlayer {
+class AudioPlayer
+{
 public:
-    AudioPlayer(SDCardManager* sdCardManager);
+    AudioPlayer(SDCardManager *sdCardManager);
     void begin();
-    void playNext(const char* filePath);
+    void playNext(const char *filePath);
     bool hasRemainingAudioData();
     bool isAudioPlaying() const;
     void setMuted(bool muted);
-    size_t readAudioDataFromFile(uint8_t* buffer, size_t bytesToRead);
+    size_t readAudioDataFromFile(uint8_t *buffer, size_t bytesToRead);
     unsigned long getPlaybackTime() const;
     String getCurrentlyPlayingFilePath() const;
     int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
@@ -39,7 +40,7 @@ private:
     String m_currentFilePath;
     unsigned long m_currentPlaybackTime;
     unsigned long m_lastFrameTime;
-    SDCardManager* m_sdCardManager;
+    SDCardManager *m_sdCardManager;
 
     void fillBuffer();
     bool startNextFile();

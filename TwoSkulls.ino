@@ -4,6 +4,7 @@
   Main file.
 
 */
+#include <Arduino.h>
 #include "bluetooth_audio.h"
 #include "FS.h"     // Ensure ESP32 board package is installed
 #include "SD.h"     // Ensure ESP32 board package is installed
@@ -12,10 +13,7 @@
 #include "servo_controller.h"
 #include "sd_card_manager.h"
 #include "skull_audio_animator.h"
-#include <Servo.h> // Use ESP32-specific Servo library
-#include "esp_system.h"
-#include "esp_task_wdt.h"
-#include "esp32-hal-log.h"
+#include "audio_player.h"
 #include "config_manager.h"
 #include "esp_bt.h"
 #include "esp_bt_main.h"
@@ -43,6 +41,7 @@ bool isPrimary = false;
 ServoController servoController;
 bluetooth_audio bluetoothAudio;
 SkullAudioAnimator *skullAudioAnimator = nullptr;
+AudioPlayer *audioPlayer = nullptr;
 SkullCommunication *skullCommunication = nullptr;
 
 // Exponential smoothing
@@ -101,21 +100,21 @@ void onMessageSent(const struct_message &msg)
     if (isPrimary && msg.message == Message::CONNECTION_REQUEST)
     {
         lightController.blinkEyes(1); // 1 blink for wifi connection request
-        if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())
+        if (bluetoothAudio.is_connected() && !audioPlayer->isAudioPlaying())
         {
-            skullAudioAnimator->playNext("/audio/Marco.wav");
+            audioPlayer->playNext("/audio/Marco.wav");
         }
     }
 
     if (!isPrimary && msg.message == Message::CONNECTION_ACK)
     {
         lightController.blinkEyes(1); // 1 blink for wifi connection received
-        if (bluetoothAudio.is_connected() && !skullAudioAnimator->isCurrentlySpeaking())
+        if (bluetoothAudio.is_connected() && !audioPlayer->isAudioPlaying())
         {
             // The CONNECTION_REQUEST/CONNECTION_ACK is so fast that the Polo will play while Marco is still playing.
             // Wait 1000ms before playing Polo.
             delay(1500); 
-            skullAudioAnimator->playNext("/audio/Polo.wav");
+            audioPlayer->playNext("/audio/Polo.wav");
         }
     }
 }
@@ -200,23 +199,24 @@ void setup()
     isPrimary = false;
   }
 
-  // Initialize SkullAudioAnimator
+  // Initialize AudioPlayer
   esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
 
   skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits, sdCardManager);
   skullAudioAnimator->begin();
+  audioPlayer = new AudioPlayer(sdCardManager);
+  audioPlayer->begin();
 
   // Announce "System initialized" and role
   String initAudioFilePath = isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav";
   Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
-  skullAudioAnimator->playNext(initAudioFilePath.c_str());
+  audioPlayer->playNext(initAudioFilePath.c_str());
   Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
-  // CAMKILL: put back
-  //  Queue the "Skit - names" skit to play next
-   ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
-   skullAudioAnimator->playSkitNext(namesSkit);
-   Serial.printf("'Skit - names' found; queueing audio: %s\n", namesSkit.audioFile.c_str());
+  // Queue the "Skit - names" skit to play next
+  ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
+  audioPlayer->playNext(namesSkit.audioFile.c_str());
+  Serial.printf("'Skit - names' found; queueing audio: %s\n", namesSkit.audioFile.c_str());
 
   // Initialize ultrasonic sensor (for both primary and secondary)
   distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
@@ -241,11 +241,11 @@ void setup()
   skullCommunication->registerReceiveCallback(onMessageReceived);
   skullCommunication->begin();
 
-  // Initialize Bluetooth after SkullAudioAnimator.
-  // Include the callback so that the bluetooth_audio library can call the SkullAudioAnimator's
+  // Initialize Bluetooth after AudioPlayer.
+  // Include the callback so that the bluetooth_audio library can call the AudioPlayer's
   // provideAudioFrames method to get more audio data when the bluetooth speaker needs it.
   bluetoothAudio.begin(bluetoothSpeakerName.c_str(), [](Frame *frame, int32_t frame_count)
-                       { return skullAudioAnimator->provideAudioFrames(frame, frame_count); });
+                       { return audioPlayer->provideAudioFrames(frame, frame_count); });
   bluetoothAudio.set_volume(speakerVolume);
 
   // Set the initial state of the eyes to dim
@@ -265,7 +265,7 @@ void setup()
   // Set play file callback for skull_communication
   skullCommunication->setPlayFileCallback([](const char* filename) {
     // This callback is called when a PLAY_FILE_ACK is received and it's time to play audio
-    skullAudioAnimator->playNext(filename);
+    audioPlayer->playNext(filename);
   });
 }
 
@@ -278,7 +278,7 @@ void loop()
     esp_task_wdt_reset();
 
     // Update the audio player's state
-    bool isAudioPlaying = skullAudioAnimator->isCurrentlySpeaking();
+    bool isAudioPlaying = audioPlayer->isAudioPlaying();
 
     // Every 5000ms output "loop() running" and check memory, reset reason, and power info
     if (currentMillis - lastMillis >= 5000)
