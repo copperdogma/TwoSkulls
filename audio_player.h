@@ -9,6 +9,7 @@
 #include "SD.h"
 #include "sd_card_manager.h"
 #include "SoundData.h" // For Frame definition
+#include <vector>
 
 #define AUDIO_BUFFER_SIZE 32768
 
@@ -30,9 +31,9 @@ public:
     int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
 
     // New callback types
-    using PlaybackStartCallback = std::function<void(const String&)>;
-    using PlaybackEndCallback = std::function<void(const String&)>;
-    using AudioFramesProvidedCallback = std::function<void(const String&, const Frame*, int32_t)>;
+    using PlaybackStartCallback = std::function<void(const String &)>;
+    using PlaybackEndCallback = std::function<void(const String &)>;
+    using AudioFramesProvidedCallback = std::function<void(const String &, const Frame *, int32_t)>;
 
     // New methods to set callbacks
     void setPlaybackStartCallback(PlaybackStartCallback callback) { m_playbackStartCallback = callback; }
@@ -54,6 +55,13 @@ private:
     unsigned long m_currentPlaybackTime;
     unsigned long m_lastFrameTime;
     SDCardManager *m_sdCardManager;
+
+    // Freame/file sync tracking
+    std::vector<String> m_fileList;
+    uint16_t getFileIndex(const String &filePath);
+    String getFilePath(uint16_t fileIndex);
+    bool m_expectFileIndex = true;
+    uint16_t m_currentFileIndex = 0;
 
     // New callback members
     PlaybackStartCallback m_playbackStartCallback;
