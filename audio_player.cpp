@@ -41,8 +41,9 @@ void AudioPlayer::playNext(const char *filePath)
     if (filePath)
     {
         String path(filePath);
-        addFileToList(path);  // Add the file to the list
+        uint16_t newFileIndex = addFileToList(path);  // Add the file to the list and get the index
         audioQueue.push(std::string(filePath));
+        Serial.printf("AudioPlayer: Added file (index: %d) to queue: %s\n", newFileIndex, filePath);
     }
 }
 
@@ -74,17 +75,19 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
                 {
                     m_playbackEndCallback(m_currentFilePath);
                 }
+                Serial.printf("AudioPlayer: Playback ended for file: %s\n", m_currentFilePath);
             }
             else
             {
                 // New file started
                 m_currentFileIndex = fileIndex;
                 m_currentFilePath = getFilePath(fileIndex);
-                // Call playback start callback
-                if (m_playbackStartCallback)
+                // Call playback start callback only if we have a valid file path
+                if (m_playbackStartCallback && !m_currentFilePath.isEmpty())
                 {
                     m_playbackStartCallback(m_currentFilePath);
                 }
+                //Serial.printf("AudioPlayer: Playback started for file: %s\n", m_currentFilePath);
             }
         }
 
@@ -101,7 +104,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         if (firstChunkSize < chunkSize)
         {
             size_t secondChunkSize = chunkSize - firstChunkSize;
-            memcpy((uint8_t *)frame + bytesRead, m_audioBuffer, secondChunkSize);
+            memcpy((uint8_t *)frame + bytesRead, m_audioBuffer + m_readPos, secondChunkSize);
 
             m_readPos = secondChunkSize;
             m_bufferFilled -= secondChunkSize;
@@ -173,7 +176,6 @@ void AudioPlayer::fillBuffer()
 {
     while (m_bufferFilled < AUDIO_BUFFER_SIZE)
     {
-        // Always write the file index at the start of the buffer
         uint16_t fileIndex = SAME_FILE;
         
         if (!audioFile || !audioFile.available())
@@ -182,6 +184,7 @@ void AudioPlayer::fillBuffer()
             {
                 if (!startNextFile())
                 {
+                    fileIndex = END_OF_FILE;
                     break; // No more files to play
                 }
                 fileIndex = m_currentFileIndex; // Use the current file index directly
@@ -284,7 +287,7 @@ bool AudioPlayer::startNextFile()
     if (audioQueue.empty())
     {
         m_isAudioPlaying = false;
-        // Do not reset m_currentFilePath here; keep it for logging purposes
+        m_currentFilePath = "";
         return false;
     }
 
@@ -309,8 +312,8 @@ bool AudioPlayer::startNextFile()
     m_currentPlaybackTime = 0;
     m_lastFrameTime = millis();
 
-    // Call the playback start callback if set
-    if (m_playbackStartCallback)
+    // Call the playback start callback if set and we have a valid file path
+    if (m_playbackStartCallback && !m_currentFilePath.isEmpty())
     {
         m_playbackStartCallback(m_currentFilePath);
     }
@@ -348,5 +351,7 @@ uint16_t AudioPlayer::addFileToList(const String &filePath)
         m_fileList.push_back(filePath);
         return m_fileList.size() - 1;
     }
+
+    // Return the index of the file
     return std::distance(m_fileList.begin(), it);
 }
