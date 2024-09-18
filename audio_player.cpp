@@ -157,27 +157,6 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     return frame_count;
 }
 
-size_t AudioPlayer::readAudioDataFromFile(uint8_t *buffer, size_t bytesToRead)
-{
-    if (!audioFile || !audioFile.available())
-    {
-        String currentFilePath = audioFile.name();
-        audioFile = m_sdCardManager->openFile(currentFilePath.c_str());
-        if (!audioFile)
-        {
-            return 0;
-        }
-    }
-
-    if (audioFile && audioFile.available())
-    {
-        size_t bytesRead = audioFile.read(buffer, bytesToRead);
-        return bytesRead;
-    }
-
-    return 0;
-}
-
 void AudioPlayer::fillBuffer()
 {
     while (m_bufferFilled < AUDIO_BUFFER_SIZE)
@@ -202,12 +181,13 @@ void AudioPlayer::fillBuffer()
             }
         }
 
-    // Debugging:
-        // switch (fileIndex) {
-        //     case SAME_FILE: Serial.println("AudioPlayer:fillBuffer(): writing fileIndex SAME_FILE"); break;
-        //     case END_OF_FILE: Serial.println("AudioPlayer:fillBuffer(): writing fileIndex END_OF_FILE"); break;
-        //     default: Serial.printf("AudioPlayer:fillBuffer(): writing actively playing file index %d\n", fileIndex); break;
-        // }
+        // Debugging:
+        switch (fileIndex) {
+            //case SAME_FILE: Serial.println("AudioPlayer:fillBuffer(): writing fileIndex SAME_FILE"); break;
+            case SAME_FILE: break;
+            case END_OF_FILE: Serial.println("AudioPlayer:fillBuffer(): writing fileIndex END_OF_FILE"); break;
+            default: Serial.printf("AudioPlayer:fillBuffer(): starting new file: setting fileIndex to actively playing file index: %d\n", fileIndex); break;
+        }
 
         if (audioFile && audioFile.available())
         {

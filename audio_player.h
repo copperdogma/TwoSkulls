@@ -25,7 +25,6 @@ public:
     bool hasRemainingAudioData();
     bool isAudioPlaying() const;
     void setMuted(bool muted);
-    size_t readAudioDataFromFile(uint8_t *buffer, size_t bytesToRead);
     unsigned long getPlaybackTime() const;
     String getCurrentlyPlayingFilePath() const;
     int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
