@@ -90,7 +90,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
                 {
                     m_playbackEndCallback(m_currentFilePath);
                 }
-                Serial.printf("AudioPlayer: Playback ended for file: %s\n", m_currentFilePath.c_str());
+                //Serial.printf("AudioPlayer: Playback ended for file: %s\n", m_currentFilePath.c_str());
                 m_currentFilePath = "";
             }
             else
@@ -154,99 +154,73 @@ void AudioPlayer::fillBuffer()
 {
     while (m_bufferFilled < AUDIO_BUFFER_SIZE)
     {
-        uint16_t fileIndex = SAME_FILE;
-
         if (!audioFile || !audioFile.available())
         {
             if (audioFile)
             {
-                // End of current file
-                audioFile.close();
-                audioFile = File();
-
-                // Write END_OF_FILE to buffer
                 writeToBuffer(END_OF_FILE, nullptr, 0);
+                Serial.println("AudioPlayer::fillBuffer() writing END_OF_FILE (1)");
+                audioFile.close();
             }
-
-            // Start the next file
             if (!startNextFile())
             {
-                // No more files to play
                 break;
             }
-            else
-            {
-                // New file started
-                fileIndex = m_currentFileIndex;
-            }
-        }
 
-        // Debugging:
-        switch (fileIndex) {
-            //case SAME_FILE: Serial.println("AudioPlayer:fillBuffer(): writing fileIndex SAME_FILE"); break;
-            case SAME_FILE: break;
-            case END_OF_FILE: Serial.println("AudioPlayer:fillBuffer(): writing fileIndex END_OF_FILE"); break;
-            default: Serial.printf("AudioPlayer:fillBuffer(): starting new file: setting fileIndex to actively playing file index: %d\n", fileIndex); break;
-        }
-
-        if (audioFile && audioFile.available())
-        {
-            size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
-            const size_t MAX_READ_SIZE = 512; // Define a reasonable maximum read size
-            size_t bytesToRead = std::min({spaceAvailable - sizeof(uint16_t), (size_t)audioFile.available(), MAX_READ_SIZE});
-
-            uint8_t audioData[MAX_READ_SIZE]; // Fixed-size buffer
-            size_t bytesRead = audioFile.read(audioData, bytesToRead);
-
-            if (bytesRead > 0)
-            {
-                writeToBuffer(fileIndex, audioData, bytesRead);
-                fileIndex = SAME_FILE; // Subsequent data is from the same file
-            }
-            else
-            {
-                // No data read; close the file
-                audioFile.close();
-                audioFile = File();
-
-                // Write END_OF_FILE to buffer
-                writeToBuffer(END_OF_FILE, nullptr, 0);
-            }
+            writeToBuffer(m_currentFileIndex, nullptr, 0);
+            Serial.printf("AudioPlayer::fillBuffer() new file: writing m_currentFileIndex: %d\n", m_currentFileIndex);
         }
         else
         {
-            break;
+            uint8_t audioData[512];
+            size_t bytesRead = audioFile.read(audioData, sizeof(audioData));
+            if (bytesRead > 0) {
+                writeToBuffer(SAME_FILE, audioData, bytesRead);
+                //Serial.println("AudioPlayer::fillBuffer() writing SAME_FILE");
+            }
+            else
+            {
+                writeToBuffer(END_OF_FILE, nullptr, 0);
+                Serial.println("AudioPlayer::fillBuffer() writing END_OF_FILE (2)");
+                audioFile.close();
+            }
         }
     }
 }
 
 void AudioPlayer::writeToBuffer(uint16_t fileIndex, const uint8_t *audioData, size_t dataSize)
 {
-    // Create a combined buffer with fileIndex and audioData
-    size_t totalSize = sizeof(uint16_t) + dataSize;
-    uint8_t tempBuffer[sizeof(uint16_t) + dataSize];
+    size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
 
-    // Copy the file index
-    memcpy(tempBuffer, &fileIndex, sizeof(uint16_t));
-
-    // Copy the audio data if available
-    if (audioData && dataSize > 0)
+    // Always try to write file index
+    if (spaceAvailable >= sizeof(uint16_t))
     {
-        memcpy(tempBuffer + sizeof(uint16_t), audioData, dataSize);
+        memcpy(m_audioBuffer + m_writePos, &fileIndex, sizeof(uint16_t));
+        m_writePos = (m_writePos + sizeof(uint16_t)) % AUDIO_BUFFER_SIZE;
+        m_bufferFilled += sizeof(uint16_t);
+        spaceAvailable -= sizeof(uint16_t);
+    }
+    else
+    {
+        return; // Not enough space even for file index
     }
 
-    // Write the combined buffer to m_audioBuffer with wrap-around handling
-    size_t firstChunkSize = std::min(totalSize, AUDIO_BUFFER_SIZE - m_writePos);
-    memcpy(m_audioBuffer + m_writePos, tempBuffer, firstChunkSize);
-    m_writePos = (m_writePos + firstChunkSize) % AUDIO_BUFFER_SIZE;
-    m_bufferFilled += firstChunkSize;
-
-    if (firstChunkSize < totalSize)
+    // Write audio data if available
+    if (audioData && dataSize > 0 && spaceAvailable > 0)
     {
-        size_t secondChunkSize = totalSize - firstChunkSize;
-        memcpy(m_audioBuffer, tempBuffer + firstChunkSize, secondChunkSize);
-        m_writePos = secondChunkSize;
-        m_bufferFilled += secondChunkSize;
+        size_t bytesToWrite = std::min(dataSize, spaceAvailable);
+        size_t firstChunkSize = std::min(bytesToWrite, AUDIO_BUFFER_SIZE - m_writePos);
+        memcpy(m_audioBuffer + m_writePos, audioData, firstChunkSize);
+        m_writePos = (m_writePos + firstChunkSize) % AUDIO_BUFFER_SIZE;
+        m_bufferFilled += firstChunkSize;
+
+        if (firstChunkSize < bytesToWrite)
+        {
+            size_t secondChunkSize = bytesToWrite - firstChunkSize;
+            memcpy(m_audioBuffer, audioData + firstChunkSize, secondChunkSize);
+            m_writePos = secondChunkSize;
+            m_bufferFilled += secondChunkSize;
+        }
     }
 }
 
