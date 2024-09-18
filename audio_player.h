@@ -56,6 +56,8 @@ private:
     unsigned long m_lastFrameTime;
     SDCardManager *m_sdCardManager;
 
+    void writeToBuffer(uint16_t fileIndex, const uint8_t* audioData, size_t dataSize);
+
     // Freame/file sync tracking
     std::vector<String> m_fileList;
     uint16_t getFileIndex(const String &filePath);

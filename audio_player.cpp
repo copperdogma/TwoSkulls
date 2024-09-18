@@ -41,7 +41,7 @@ void AudioPlayer::playNext(const char *filePath)
     if (filePath)
     {
         String path(filePath);
-        uint16_t newFileIndex = addFileToList(path);  // Add the file to the list and get the index
+        uint16_t newFileIndex = addFileToList(path); // Add the file to the list and get the index
         audioQueue.push(std::string(filePath));
         Serial.printf("AudioPlayer: Added file (index: %d) to queue: %s\n", newFileIndex, filePath);
     }
@@ -56,14 +56,22 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
 
     size_t bytesToRead = frame_count * sizeof(Frame);
     size_t bytesRead = 0;
-    size_t totalBytesRead = 0;
 
     while (bytesRead < bytesToRead && m_bufferFilled > 0)
     {
-        // Always read the file index first
+        // Read the file index with buffer wrap-around handling
         uint16_t fileIndex;
-        memcpy(&fileIndex, m_audioBuffer, sizeof(uint16_t));
-        m_readPos = sizeof(uint16_t);
+        if (m_readPos + sizeof(uint16_t) <= AUDIO_BUFFER_SIZE)
+        {
+            memcpy(&fileIndex, m_audioBuffer + m_readPos, sizeof(uint16_t));
+        }
+        else
+        {
+            size_t firstPartSize = AUDIO_BUFFER_SIZE - m_readPos;
+            memcpy(&fileIndex, m_audioBuffer + m_readPos, firstPartSize);
+            memcpy(((uint8_t *)&fileIndex) + firstPartSize, m_audioBuffer, sizeof(uint16_t) - firstPartSize);
+        }
+        m_readPos = (m_readPos + sizeof(uint16_t)) % AUDIO_BUFFER_SIZE;
         m_bufferFilled -= sizeof(uint16_t);
 
         if (fileIndex != SAME_FILE)
@@ -87,11 +95,11 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
                 {
                     m_playbackStartCallback(m_currentFilePath);
                 }
-                //Serial.printf("AudioPlayer: Playback started for file: %s\n", m_currentFilePath);
+                // Serial.printf("AudioPlayer: Playback started for file: %s\n", m_currentFilePath);
             }
         }
 
-        // Read audio data
+        // Read audio data with buffer wrap-around handling
         size_t chunkSize = std::min(bytesToRead - bytesRead, m_bufferFilled);
         size_t firstChunkSize = std::min(chunkSize, AUDIO_BUFFER_SIZE - m_readPos);
         memcpy((uint8_t *)frame + bytesRead, m_audioBuffer + m_readPos, firstChunkSize);
@@ -99,17 +107,15 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         m_readPos = (m_readPos + firstChunkSize) % AUDIO_BUFFER_SIZE;
         m_bufferFilled -= firstChunkSize;
         bytesRead += firstChunkSize;
-        totalBytesRead += firstChunkSize;
 
         if (firstChunkSize < chunkSize)
         {
             size_t secondChunkSize = chunkSize - firstChunkSize;
             memcpy((uint8_t *)frame + bytesRead, m_audioBuffer + m_readPos, secondChunkSize);
 
-            m_readPos = secondChunkSize;
+            m_readPos = (m_readPos + secondChunkSize) % AUDIO_BUFFER_SIZE;
             m_bufferFilled -= secondChunkSize;
             bytesRead += secondChunkSize;
-            totalBytesRead += secondChunkSize;
         }
     }
 
@@ -119,7 +125,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         memset((uint8_t *)frame + bytesRead, 0, bytesToRead - bytesRead);
     }
 
-    m_totalBytesRead += totalBytesRead;
+    m_totalBytesRead += bytesRead;
     fillBuffer();
 
     // Update playback status and time
@@ -177,7 +183,7 @@ void AudioPlayer::fillBuffer()
     while (m_bufferFilled < AUDIO_BUFFER_SIZE)
     {
         uint16_t fileIndex = SAME_FILE;
-        
+
         if (!audioFile || !audioFile.available())
         {
             if (m_bufferFilled == 0)
@@ -185,6 +191,7 @@ void AudioPlayer::fillBuffer()
                 if (!startNextFile())
                 {
                     fileIndex = END_OF_FILE;
+                    writeToBuffer(fileIndex, nullptr, 0);
                     break; // No more files to play
                 }
                 fileIndex = m_currentFileIndex; // Use the current file index directly
@@ -195,42 +202,25 @@ void AudioPlayer::fillBuffer()
             }
         }
 
-        // Write the file index
-        memcpy(m_audioBuffer + m_writePos, &fileIndex, sizeof(uint16_t));
-        m_bufferFilled += sizeof(uint16_t);
-        m_writePos = (m_writePos + sizeof(uint16_t)) % AUDIO_BUFFER_SIZE;
+    // Debugging:
+        // switch (fileIndex) {
+        //     case SAME_FILE: Serial.println("AudioPlayer:fillBuffer(): writing fileIndex SAME_FILE"); break;
+        //     case END_OF_FILE: Serial.println("AudioPlayer:fillBuffer(): writing fileIndex END_OF_FILE"); break;
+        //     default: Serial.printf("AudioPlayer:fillBuffer(): writing actively playing file index %d\n", fileIndex); break;
+        // }
 
-        // Fill the rest of the buffer with audio data
         if (audioFile && audioFile.available())
         {
             size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
-            size_t writePos = (m_readPos + m_bufferFilled) % AUDIO_BUFFER_SIZE;
+            const size_t MAX_READ_SIZE = 512; // Define a reasonable maximum read size
+            size_t bytesToRead = std::min({spaceAvailable, (size_t)audioFile.available(), MAX_READ_SIZE});
 
-            // Determine how much data to read
-            size_t bytesToRead = std::min(spaceAvailable, (size_t)audioFile.available());
-
-            // Handle buffer wrap-around
-            size_t firstChunkSize = std::min(bytesToRead, AUDIO_BUFFER_SIZE - writePos);
-            size_t bytesRead = audioFile.read(m_audioBuffer + writePos, firstChunkSize);
+            uint8_t audioData[MAX_READ_SIZE]; // Fixed-size buffer
+            size_t bytesRead = audioFile.read(audioData, bytesToRead);
 
             if (bytesRead > 0)
             {
-                m_bufferFilled += bytesRead;
-                m_writePos = (writePos + bytesRead) % AUDIO_BUFFER_SIZE;
-
-                // If there is more data to read and the buffer wraps around
-                if (bytesRead < bytesToRead)
-                {
-                    size_t secondChunkSize = bytesToRead - bytesRead;
-                    size_t additionalBytesRead = audioFile.read(m_audioBuffer, secondChunkSize);
-
-                    if (additionalBytesRead > 0)
-                    {
-                        m_bufferFilled += additionalBytesRead;
-                        m_writePos = additionalBytesRead;
-                        bytesRead += additionalBytesRead;
-                    }
-                }
+                writeToBuffer(fileIndex, audioData, bytesRead);
             }
 
             if (!audioFile.available())
@@ -241,6 +231,41 @@ void AudioPlayer::fillBuffer()
         else
         {
             break;
+        }
+    }
+}
+
+void AudioPlayer::writeToBuffer(uint16_t fileIndex, const uint8_t *audioData, size_t dataSize)
+{
+    // Write the file index with buffer wrap-around handling
+    if (m_writePos + sizeof(uint16_t) <= AUDIO_BUFFER_SIZE)
+    {
+        memcpy(m_audioBuffer + m_writePos, &fileIndex, sizeof(uint16_t));
+    }
+    else
+    {
+        // FileIndex will wrap around the buffer
+        size_t firstPartSize = AUDIO_BUFFER_SIZE - m_writePos;
+        memcpy(m_audioBuffer + m_writePos, &fileIndex, firstPartSize);
+        memcpy(m_audioBuffer, ((uint8_t *)&fileIndex) + firstPartSize, sizeof(uint16_t) - firstPartSize);
+    }
+    m_writePos = (m_writePos + sizeof(uint16_t)) % AUDIO_BUFFER_SIZE;
+    m_bufferFilled += sizeof(uint16_t);
+
+    if (audioData && dataSize > 0)
+    {
+        // Handle buffer wrap-around for audio data
+        size_t firstChunkSize = std::min(dataSize, AUDIO_BUFFER_SIZE - m_writePos);
+        memcpy(m_audioBuffer + m_writePos, audioData, firstChunkSize);
+        m_writePos = (m_writePos + firstChunkSize) % AUDIO_BUFFER_SIZE;
+        m_bufferFilled += firstChunkSize;
+
+        if (firstChunkSize < dataSize)
+        {
+            size_t secondChunkSize = dataSize - firstChunkSize;
+            memcpy(m_audioBuffer, audioData + firstChunkSize, secondChunkSize);
+            m_writePos = secondChunkSize;
+            m_bufferFilled += secondChunkSize;
         }
     }
 }
@@ -328,7 +353,7 @@ void AudioPlayer::setMuted(bool muted)
 
 uint16_t AudioPlayer::getFileIndex(const String &filePath)
 {
-    return addFileToList(filePath);  // This now both adds (if new) and returns the index
+    return addFileToList(filePath); // This now both adds (if new) and returns the index
 }
 
 String AudioPlayer::getFilePath(uint16_t fileIndex)
