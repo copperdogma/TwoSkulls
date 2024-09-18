@@ -73,7 +73,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         }
     }
 
-    // Process the data read to handle file indices
+    // Process the fileIndex (the first two bytes of the frame).
     size_t processedBytes = 0;
     while (processedBytes < bytesRead)
     {
@@ -81,33 +81,41 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         memcpy(&fileIndex, (uint8_t *)frame + processedBytes, sizeof(uint16_t));
         processedBytes += sizeof(uint16_t);
 
-        if (fileIndex != SAME_FILE)
+        switch (fileIndex)
         {
-            if (fileIndex == END_OF_FILE)
+        case SAME_FILE:
+            break;
+
+        case END_OF_FILE:
+        {
+            if (m_playbackEndCallback)
             {
-                if (m_playbackEndCallback)
-                {
-                    m_playbackEndCallback(m_currentFilePath);
-                }
-                m_currentFilePath = "";
-                m_currentPlaybackFileIndex = 0;
-                m_currentPlaybackTime = 0;
-                m_lastFrameTime = 0;
+                m_playbackEndCallback(m_currentFilePath);
             }
-            else
-            {
-                m_currentPlaybackFileIndex = fileIndex;
-                m_currentFilePath = getFilePath(m_currentPlaybackFileIndex);
-                if (m_playbackStartCallback && !m_currentFilePath.isEmpty())
-                {
-                    m_playbackStartCallback(m_currentFilePath);
-                }
-                m_currentPlaybackTime = 0;
-                m_lastFrameTime = millis();
-            }
+            m_currentPlaybackFileIndex = 0;
+            m_currentFilePath = "";
+            m_currentPlaybackTime = 0;
+            m_lastFrameTime = 0;
+            break;
         }
 
-        // Move the frame pointer past the file index
+        // New file
+        default:
+        {
+            m_currentPlaybackFileIndex = fileIndex;
+            m_currentFilePath = getFilePath(m_currentPlaybackFileIndex);
+            if (m_playbackStartCallback && !m_currentFilePath.isEmpty())
+            {
+                m_playbackStartCallback(m_currentFilePath);
+            }
+            m_currentPlaybackTime = 0;
+            // CAMKILL: is this used?
+            m_lastFrameTime = millis();
+            break;
+        }
+        }
+
+        // Move the frame pointer past the file index to get to the audio data
         size_t audioDataSize = sizeof(Frame) - sizeof(uint16_t);
         processedBytes += audioDataSize;
     }
@@ -119,6 +127,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     }
 
     m_totalBytesRead += bytesRead;
+
     fillBuffer();
 
     // Update playback status and time
@@ -129,6 +138,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         memset(frame, 0, frame_count * sizeof(Frame));
     }
 
+    // CAMKILL: is this used?
     unsigned long now = millis();
     if (m_lastFrameTime != 0)
     {
