@@ -60,7 +60,6 @@ private:
     std::vector<String> m_fileList;
     uint16_t getFileIndex(const String &filePath);
     String getFilePath(uint16_t fileIndex);
-    bool m_expectFileIndex = true;
     uint16_t m_currentFileIndex = 0;
 
     // New callback members
@@ -68,8 +67,13 @@ private:
     PlaybackEndCallback m_playbackEndCallback;
     AudioFramesProvidedCallback m_audioFramesProvidedCallback;
 
+    static const uint16_t SAME_FILE = 0;
+    static const uint16_t END_OF_FILE = UINT16_MAX;
+
     void fillBuffer();
     bool startNextFile();
+
+    uint16_t addFileToList(const String &filePath);
 };
 
 #endif // AUDIO_PLAYER_H

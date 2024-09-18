@@ -26,7 +26,8 @@ AudioPlayer::AudioPlayer(SDCardManager *sdCardManager)
     : m_totalBytesRead(0), m_writePos(0), m_readPos(0), m_bufferFilled(0),
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
       m_currentPlaybackTime(0), m_lastFrameTime(0), m_sdCardManager(sdCardManager),
-      m_playbackStartCallback(nullptr), m_playbackEndCallback(nullptr), m_audioFramesProvidedCallback(nullptr)
+      m_playbackStartCallback(nullptr), m_playbackEndCallback(nullptr), m_audioFramesProvidedCallback(nullptr),
+      m_currentFileIndex(0)
 {
 }
 
@@ -39,6 +40,8 @@ void AudioPlayer::playNext(const char *filePath)
     std::lock_guard<std::mutex> lock(m_mutex);
     if (filePath)
     {
+        String path(filePath);
+        addFileToList(path);  // Add the file to the list
         audioQueue.push(std::string(filePath));
     }
 }
@@ -56,83 +59,54 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
 
     while (bytesRead < bytesToRead && m_bufferFilled > 0)
     {
-        size_t readPos = m_readPos % AUDIO_BUFFER_SIZE;
+        // Always read the file index first
+        uint16_t fileIndex;
+        memcpy(&fileIndex, m_audioBuffer, sizeof(uint16_t));
+        m_readPos = sizeof(uint16_t);
+        m_bufferFilled -= sizeof(uint16_t);
 
-        if (m_expectFileIndex)
+        if (fileIndex != SAME_FILE)
         {
-            uint16_t fileIndex;
-            if (m_bufferFilled >= sizeof(uint16_t))
-            {
-                if ((AUDIO_BUFFER_SIZE - readPos) >= sizeof(uint16_t))
-                {
-                    // Enough data to read file index without wrap-around
-                    memcpy(&fileIndex, m_audioBuffer + readPos, sizeof(uint16_t));
-                    m_readPos = (readPos + sizeof(uint16_t)) % AUDIO_BUFFER_SIZE;
-                }
-                else
-                {
-                    // Data wraps around
-                    uint8_t temp[sizeof(uint16_t)];
-                    size_t firstChunkSize = AUDIO_BUFFER_SIZE - readPos;
-                    memcpy(temp, m_audioBuffer + readPos, firstChunkSize);
-                    size_t secondChunkSize = sizeof(uint16_t) - firstChunkSize;
-                    memcpy(temp + firstChunkSize, m_audioBuffer, secondChunkSize);
-                    m_readPos = secondChunkSize;
-                    memcpy(&fileIndex, temp, sizeof(uint16_t));
-                }
-                m_bufferFilled -= sizeof(uint16_t);
-
-                // Update current file index and path
-                m_currentFileIndex = fileIndex;
-                m_currentFilePath = getFilePath(fileIndex);
-
-                // Call playback start callback
-                if (m_playbackStartCallback)
-                {
-                    m_playbackStartCallback(m_currentFilePath);
-                }
-
-                m_expectFileIndex = false;
-            }
-            else
-            {
-                // Not enough data to read the file index yet
-                break;
-            }
-        }
-        else
-        {
-            // Read audio data
-            size_t chunkSize = std::min(bytesToRead - bytesRead, m_bufferFilled);
-            size_t firstChunkSize = std::min(chunkSize, AUDIO_BUFFER_SIZE - readPos);
-            memcpy((uint8_t *)frame + bytesRead, m_audioBuffer + readPos, firstChunkSize);
-
-            m_readPos = (readPos + firstChunkSize) % AUDIO_BUFFER_SIZE;
-            m_bufferFilled -= firstChunkSize;
-            bytesRead += firstChunkSize;
-            totalBytesRead += firstChunkSize;
-
-            if (firstChunkSize < chunkSize)
-            {
-                size_t secondChunkSize = chunkSize - firstChunkSize;
-                memcpy((uint8_t *)frame + bytesRead, m_audioBuffer, secondChunkSize);
-
-                m_readPos = secondChunkSize;
-                m_bufferFilled -= secondChunkSize;
-                bytesRead += secondChunkSize;
-                totalBytesRead += secondChunkSize;
-            }
-
-            // If buffer is empty, expect a new file index next time
-            if (m_bufferFilled == 0 && (!audioFile || !audioFile.available()) && audioQueue.empty())
+            if (fileIndex == END_OF_FILE)
             {
                 // Call playback end callback
                 if (m_playbackEndCallback)
                 {
                     m_playbackEndCallback(m_currentFilePath);
                 }
-                m_expectFileIndex = true;
             }
+            else
+            {
+                // New file started
+                m_currentFileIndex = fileIndex;
+                m_currentFilePath = getFilePath(fileIndex);
+                // Call playback start callback
+                if (m_playbackStartCallback)
+                {
+                    m_playbackStartCallback(m_currentFilePath);
+                }
+            }
+        }
+
+        // Read audio data
+        size_t chunkSize = std::min(bytesToRead - bytesRead, m_bufferFilled);
+        size_t firstChunkSize = std::min(chunkSize, AUDIO_BUFFER_SIZE - m_readPos);
+        memcpy((uint8_t *)frame + bytesRead, m_audioBuffer + m_readPos, firstChunkSize);
+
+        m_readPos = (m_readPos + firstChunkSize) % AUDIO_BUFFER_SIZE;
+        m_bufferFilled -= firstChunkSize;
+        bytesRead += firstChunkSize;
+        totalBytesRead += firstChunkSize;
+
+        if (firstChunkSize < chunkSize)
+        {
+            size_t secondChunkSize = chunkSize - firstChunkSize;
+            memcpy((uint8_t *)frame + bytesRead, m_audioBuffer, secondChunkSize);
+
+            m_readPos = secondChunkSize;
+            m_bufferFilled -= secondChunkSize;
+            bytesRead += secondChunkSize;
+            totalBytesRead += secondChunkSize;
         }
     }
 
@@ -199,6 +173,9 @@ void AudioPlayer::fillBuffer()
 {
     while (m_bufferFilled < AUDIO_BUFFER_SIZE)
     {
+        // Always write the file index at the start of the buffer
+        uint16_t fileIndex = SAME_FILE;
+        
         if (!audioFile || !audioFile.available())
         {
             if (m_bufferFilled == 0)
@@ -207,46 +184,20 @@ void AudioPlayer::fillBuffer()
                 {
                     break; // No more files to play
                 }
-                else
-                {
-                    // Reset playback time since we're starting a new file
-                    m_currentPlaybackTime = 0;
-                    m_lastFrameTime = millis();
-
-                    // Get the file index for the current file
-                    uint16_t fileIndex = getFileIndex(m_currentFilePath);
-
-                    // Write the file index into the buffer
-                    size_t writePos = (m_readPos + m_bufferFilled) % AUDIO_BUFFER_SIZE;
-
-                    if ((AUDIO_BUFFER_SIZE - m_bufferFilled) >= sizeof(uint16_t))
-                    {
-                        // Enough space to write the file index
-                        memcpy(m_audioBuffer + writePos, &fileIndex, sizeof(uint16_t));
-                        m_bufferFilled += sizeof(uint16_t);
-                        m_writePos = (writePos + sizeof(uint16_t)) % AUDIO_BUFFER_SIZE;
-                    }
-                    else
-                    {
-                        // Buffer is full or wraps around, handle wrap-around
-                        // First part
-                        size_t firstPart = AUDIO_BUFFER_SIZE - writePos;
-                        memcpy(m_audioBuffer + writePos, &fileIndex, firstPart);
-                        // Second part
-                        size_t secondPart = sizeof(uint16_t) - firstPart;
-                        memcpy(m_audioBuffer, ((uint8_t*)&fileIndex) + firstPart, secondPart);
-                        m_bufferFilled += sizeof(uint16_t);
-                        m_writePos = secondPart;
-                    }
-                }
+                fileIndex = m_currentFileIndex; // Use the current file index directly
             }
             else
             {
-                break;
+                fileIndex = END_OF_FILE;
             }
         }
 
-        // Proceed to fill the buffer with audio data
+        // Write the file index
+        memcpy(m_audioBuffer + m_writePos, &fileIndex, sizeof(uint16_t));
+        m_bufferFilled += sizeof(uint16_t);
+        m_writePos = (m_writePos + sizeof(uint16_t)) % AUDIO_BUFFER_SIZE;
+
+        // Fill the rest of the buffer with audio data
         if (audioFile && audioFile.available())
         {
             size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
@@ -351,6 +302,7 @@ bool AudioPlayer::startNextFile()
     audioFile.seek(44);
 
     m_currentFilePath = String(nextFile.c_str());
+    m_currentFileIndex = getFileIndex(m_currentFilePath);
     m_isAudioPlaying = true;
 
     // Reset playback time since we're starting a new file
@@ -373,16 +325,7 @@ void AudioPlayer::setMuted(bool muted)
 
 uint16_t AudioPlayer::getFileIndex(const String &filePath)
 {
-    auto it = std::find(m_fileList.begin(), m_fileList.end(), filePath);
-    if (it != m_fileList.end())
-    {
-        return std::distance(m_fileList.begin(), it);
-    }
-    else
-    {
-        m_fileList.push_back(filePath);
-        return m_fileList.size() - 1;
-    }
+    return addFileToList(filePath);  // This now both adds (if new) and returns the index
 }
 
 String AudioPlayer::getFilePath(uint16_t fileIndex)
@@ -395,4 +338,15 @@ String AudioPlayer::getFilePath(uint16_t fileIndex)
     {
         return "";
     }
+}
+
+uint16_t AudioPlayer::addFileToList(const String &filePath)
+{
+    auto it = std::find(m_fileList.begin(), m_fileList.end(), filePath);
+    if (it == m_fileList.end())
+    {
+        m_fileList.push_back(filePath);
+        return m_fileList.size() - 1;
+    }
+    return std::distance(m_fileList.begin(), it);
 }
