@@ -23,7 +23,8 @@ AudioPlayer::AudioPlayer(SDCardManager *sdCardManager)
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
       m_currentPlaybackTime(0), m_lastFrameTime(0), m_sdCardManager(sdCardManager),
       m_playbackStartCallback(nullptr), m_playbackEndCallback(nullptr), m_audioFramesProvidedCallback(nullptr),
-      m_currentFileIndex(0)
+      m_currentBufferFileIndex(0),
+      m_currentPlaybackFileIndex(0)
 {
 }
 
@@ -76,7 +77,6 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     size_t processedBytes = 0;
     while (processedBytes < bytesRead)
     {
-        // Read the file index
         uint16_t fileIndex;
         memcpy(&fileIndex, (uint8_t *)frame + processedBytes, sizeof(uint16_t));
         processedBytes += sizeof(uint16_t);
@@ -85,25 +85,25 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         {
             if (fileIndex == END_OF_FILE)
             {
-                // Call playback end callback
                 if (m_playbackEndCallback)
                 {
                     m_playbackEndCallback(m_currentFilePath);
                 }
-                //Serial.printf("AudioPlayer: Playback ended for file: %s\n", m_currentFilePath.c_str());
                 m_currentFilePath = "";
+                m_currentPlaybackFileIndex = 0;
+                m_currentPlaybackTime = 0;
+                m_lastFrameTime = 0;
             }
             else
             {
-                // New file started
-                m_currentFileIndex = fileIndex;
-                m_currentFilePath = getFilePath(fileIndex);
-                // Call playback start callback only if we have a valid file path
+                m_currentPlaybackFileIndex = fileIndex;
+                m_currentFilePath = getFilePath(m_currentPlaybackFileIndex);
                 if (m_playbackStartCallback && !m_currentFilePath.isEmpty())
                 {
                     m_playbackStartCallback(m_currentFilePath);
                 }
-                // Serial.printf("AudioPlayer: Playback started for file: %s\n", m_currentFilePath.c_str());
+                m_currentPlaybackTime = 0;
+                m_lastFrameTime = millis();
             }
         }
 
@@ -122,7 +122,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     fillBuffer();
 
     // Update playback status and time
-    m_isAudioPlaying = (bytesRead > 0 || m_bufferFilled > 0 || (audioFile && audioFile.available()) || !audioQueue.empty());
+    m_isAudioPlaying = (bytesRead > 0 || m_bufferFilled > 0);
 
     if (m_muted)
     {
@@ -159,29 +159,31 @@ void AudioPlayer::fillBuffer()
             if (audioFile)
             {
                 writeToBuffer(END_OF_FILE, nullptr, 0);
-                Serial.println("AudioPlayer::fillBuffer() writing END_OF_FILE (1)");
+                String currentFilePath = getFilePath(m_currentBufferFileIndex);
+                Serial.printf("AudioPlayer::fillBuffer() writing END_OF_FILE for fileIndex: %d, filePath: %s\n", m_currentBufferFileIndex, currentFilePath.c_str());
                 audioFile.close();
             }
             if (!startNextFile())
             {
                 break;
             }
-
-            writeToBuffer(m_currentFileIndex, nullptr, 0);
-            Serial.printf("AudioPlayer::fillBuffer() new file: writing m_currentFileIndex: %d\n", m_currentFileIndex);
+            writeToBuffer(m_currentBufferFileIndex, nullptr, 0);
+            String currentFilePath = getFilePath(m_currentBufferFileIndex);
+            Serial.printf("AudioPlayer::fillBuffer() new file: writing m_currentBufferFileIndex: %d, filePath: %s\n", m_currentBufferFileIndex, currentFilePath.c_str());
         }
         else
         {
             uint8_t audioData[512];
             size_t bytesRead = audioFile.read(audioData, sizeof(audioData));
-            if (bytesRead > 0) {
+            if (bytesRead > 0)
+            {
                 writeToBuffer(SAME_FILE, audioData, bytesRead);
-                //Serial.println("AudioPlayer::fillBuffer() writing SAME_FILE");
             }
             else
             {
                 writeToBuffer(END_OF_FILE, nullptr, 0);
-                Serial.println("AudioPlayer::fillBuffer() writing END_OF_FILE (2)");
+                String currentFilePath = getFilePath(m_currentBufferFileIndex);
+                Serial.printf("AudioPlayer::fillBuffer() writing END_OF_FILE for m_currentBufferFileIndex: %d, filePath: %s\n", m_currentBufferFileIndex, currentFilePath.c_str());
                 audioFile.close();
             }
         }
@@ -229,17 +231,10 @@ bool AudioPlayer::startNextFile()
     if (audioFile)
     {
         audioFile.close();
-
-        // Call the playback end callback if set
-        if (m_playbackEndCallback)
-        {
-            m_playbackEndCallback(m_currentFilePath);
-        }
     }
 
     if (audioQueue.empty())
     {
-        m_isAudioPlaying = false;
         m_currentFilePath = "";
         return false;
     }
@@ -258,18 +253,9 @@ bool AudioPlayer::startNextFile()
     audioFile.seek(44);
 
     m_currentFilePath = String(nextFile.c_str());
-    m_currentFileIndex = getFileIndex(m_currentFilePath);
-    m_isAudioPlaying = true;
+    m_currentBufferFileIndex = getFileIndex(m_currentFilePath);
 
-    // Reset playback time since we're starting a new file
-    m_currentPlaybackTime = 0;
-    m_lastFrameTime = millis();
-
-    // Call the playback start callback if set and we have a valid file path
-    if (m_playbackStartCallback && !m_currentFilePath.isEmpty())
-    {
-        m_playbackStartCallback(m_currentFilePath);
-    }
+    Serial.printf("AudioPlayer: Started buffering new file: %s (index: %d)\n", m_currentFilePath.c_str(), m_currentBufferFileIndex);
 
     return true;
 }

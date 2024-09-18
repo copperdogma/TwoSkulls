@@ -56,7 +56,8 @@ private:
     // Playback state
     File audioFile;
     String m_currentFilePath;
-    uint16_t m_currentFileIndex;
+    uint16_t m_currentBufferFileIndex;
+    uint16_t m_currentPlaybackFileIndex;
     bool m_isAudioPlaying;
     bool m_muted;
 
