@@ -1,20 +1,19 @@
 #ifndef AUDIO_PLAYER_H
 #define AUDIO_PLAYER_H
 
-#include <queue>
-#include <mutex>
-#include <string>
-#include <functional>
-#include "BluetoothA2DPSource.h"
 #include "SD.h"
 #include "sd_card_manager.h"
 #include "SoundData.h" // For Frame definition
 #include <vector>
+#include <queue>
+#include <string>
+#include <mutex>
+#include <stdint.h>
+#include <Arduino.h>
 
-#define AUDIO_BUFFER_SIZE 32768
-
-// Forward declaration
-class SDCardManager;
+// Constants for file index markers
+const uint16_t SAME_FILE = 0xFFFF;
+const uint16_t END_OF_FILE = 0xFFFE;
 
 class AudioPlayer
 {
@@ -22,59 +21,68 @@ public:
     AudioPlayer(SDCardManager *sdCardManager);
     void begin();
     void playNext(const char *filePath);
-    bool hasRemainingAudioData();
+    int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
     bool isAudioPlaying() const;
     void setMuted(bool muted);
     unsigned long getPlaybackTime() const;
     String getCurrentlyPlayingFilePath() const;
-    int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
+    bool hasRemainingAudioData();
 
-    // New callback types
-    using PlaybackStartCallback = std::function<void(const String &)>;
-    using PlaybackEndCallback = std::function<void(const String &)>;
-    using AudioFramesProvidedCallback = std::function<void(const String &, const Frame *, int32_t)>;
+    // Callback types
+    typedef void (*PlaybackCallback)(const String &filePath);
+    typedef void (*AudioFramesProvidedCallback)(const String&, const Frame*, int32_t);
 
-    // New methods to set callbacks
-    void setPlaybackStartCallback(PlaybackStartCallback callback) { m_playbackStartCallback = callback; }
-    void setPlaybackEndCallback(PlaybackEndCallback callback) { m_playbackEndCallback = callback; }
+    // Setters for callbacks
+    void setPlaybackStartCallback(PlaybackCallback callback) { m_playbackStartCallback = callback; }
+    void setPlaybackEndCallback(PlaybackCallback callback) { m_playbackEndCallback = callback; }
     void setAudioFramesProvidedCallback(AudioFramesProvidedCallback callback) { m_audioFramesProvidedCallback = callback; }
 
 private:
-    File audioFile;
+    void fillBuffer();
+    bool startNextFile();
+    uint16_t getFileIndex(const String &filePath);
+    String getFilePath(uint16_t fileIndex);
+    uint16_t addFileToList(const String &filePath);
+
+    void writeToBuffer(uint16_t fileIndex, const uint8_t *audioData, size_t dataSize);
+
+    // Buffer management
+    static const size_t AUDIO_BUFFER_SIZE = 8192; // Adjust as needed
     uint8_t m_audioBuffer[AUDIO_BUFFER_SIZE];
-    size_t m_totalBytesRead;
     size_t m_writePos;
     size_t m_readPos;
     size_t m_bufferFilled;
+
+    // Playback state
+    File audioFile;
+    String m_currentFilePath;
+    uint16_t m_currentFileIndex;
     bool m_isAudioPlaying;
     bool m_muted;
-    std::mutex m_mutex;
-    std::queue<std::string> audioQueue;
-    String m_currentFilePath;
+
+    // Timing
     unsigned long m_currentPlaybackTime;
     unsigned long m_lastFrameTime;
+
+    // Total bytes read (for debugging)
+    size_t m_totalBytesRead;
+
+    // File list management
+    std::vector<String> m_fileList;
+
+    // Audio queue
+    std::queue<std::string> audioQueue;
+
+    // SD card manager
     SDCardManager *m_sdCardManager;
 
-    void writeToBuffer(uint16_t fileIndex, const uint8_t* audioData, size_t dataSize);
+    // Thread safety
+    std::mutex m_mutex;
 
-    // Freame/file sync tracking
-    std::vector<String> m_fileList;
-    uint16_t getFileIndex(const String &filePath);
-    String getFilePath(uint16_t fileIndex);
-    uint16_t m_currentFileIndex = 0;
-
-    // New callback members
-    PlaybackStartCallback m_playbackStartCallback;
-    PlaybackEndCallback m_playbackEndCallback;
+    // Callbacks
+    PlaybackCallback m_playbackStartCallback;
+    PlaybackCallback m_playbackEndCallback;
     AudioFramesProvidedCallback m_audioFramesProvidedCallback;
-
-    static const uint16_t SAME_FILE = 0;
-    static const uint16_t END_OF_FILE = UINT16_MAX;
-
-    void fillBuffer();
-    bool startNextFile();
-
-    uint16_t addFileToList(const String &filePath);
 };
 
 #endif // AUDIO_PLAYER_H
