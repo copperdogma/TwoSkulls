@@ -83,6 +83,8 @@ SD CARD CONTENTS
 /audio/Skit - example name.wav
 /audio/Skit - example name.txt - for every skit you want the skulls to randomly say, you should have a wav and txt, with the txt identifying which skulls is speaking which parts. See here:
 
+All audio files should be PCM (wav) formatted as 44.1kHz sampling rate, two-channel 16-bit sample data.
+
 Skull Animation File Format (txt file):
 NOTES:
 A=Primary skull, B=Secondary skull

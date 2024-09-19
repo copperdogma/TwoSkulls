@@ -3,10 +3,19 @@
 
     Note: Frame is defined in SoundData.h in https://github.com/pschatzmann/ESP32-A2DP like so:
 
-      Frame(int ch1, int ch2){
-        channel1 = ch1;
-        channel2 = ch2;
-      }
+    struct __attribute__((packed)) Frame {
+        int16_t channel1;
+        int16_t channel2;
+
+        Frame(int v=0){
+            channel1 = channel2 = v;
+        }
+        
+        Frame(int ch1, int ch2){
+            channel1 = ch1;
+            channel2 = ch2;
+        }
+    };
 */
 
 #include "audio_player.h"
