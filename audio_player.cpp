@@ -10,7 +10,7 @@
         Frame(int v=0){
             channel1 = channel2 = v;
         }
-        
+
         Frame(int ch1, int ch2){
             channel1 = ch1;
             channel2 = ch2;
@@ -43,13 +43,11 @@ void AudioPlayer::begin()
 
 void AudioPlayer::playNext(const char *filePath)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
     if (filePath)
     {
         String path(filePath);
         uint16_t newFileIndex = addFileToList(path); // Add the file to the list and get the index
         audioQueue.push(std::string(filePath));
-        Serial.printf("AudioPlayer: Added file (index: %d) to queue: %s\n", newFileIndex, filePath);
     }
 }
 
@@ -81,14 +79,14 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         }
     }
 
-//CAMILL: out for now
-    // // Process the frames and handle fileIndex
-    // size_t processedBytes = 0;
-    // int32_t framesProcessed = 0;
-    // while (processedBytes < bytesRead && framesProcessed < frame_count)
-    // {
-    //     uint16_t fileIndex;
-    //     memcpy(&fileIndex, (uint8_t *)frame + processedBytes, sizeof(uint16_t));
+    // CAMILL: out for now
+    //  // Process the frames and handle fileIndex
+    //  size_t processedBytes = 0;
+    //  int32_t framesProcessed = 0;
+    //  while (processedBytes < bytesRead && framesProcessed < frame_count)
+    //  {
+    //      uint16_t fileIndex;
+    //      memcpy(&fileIndex, (uint8_t *)frame + processedBytes, sizeof(uint16_t));
 
     //     switch (fileIndex)
     //     {
@@ -167,18 +165,24 @@ void AudioPlayer::fillBuffer()
         {
             if (audioFile)
             {
-                writeToBuffer(END_OF_FILE, nullptr, 0);
+                writeToBuffer(nullptr, 0);
                 String currentFilePath = getFilePath(m_currentBufferFileIndex);
-                Serial.printf("AudioPlayer::fillBuffer() writing END_OF_FILE for fileIndex: %d, filePath: %s\n", m_currentBufferFileIndex, currentFilePath.c_str());
+                Serial.printf("AudioPlayer::fillBuffer() writing END_OF_FILE for fileIndex: %d, filePath: %s\n",
+                              m_currentBufferFileIndex, currentFilePath.c_str());
+
+                // Update bufferEndPos for the current file
+                m_fileList[m_currentBufferFileIndex].bufferEndPos = m_writePos;
+
                 audioFile.close();
             }
             if (!startNextFile())
             {
                 break;
             }
-            writeToBuffer(m_currentBufferFileIndex, nullptr, 0);
+            writeToBuffer(nullptr, 0);
             String currentFilePath = getFilePath(m_currentBufferFileIndex);
-            Serial.printf("AudioPlayer::fillBuffer() new file: writing m_currentBufferFileIndex: %d, filePath: %s\n", m_currentBufferFileIndex, currentFilePath.c_str());
+            Serial.printf("AudioPlayer::fillBuffer() new file: writing m_currentBufferFileIndex: %d, filePath: %s\n",
+                          m_currentBufferFileIndex, currentFilePath.c_str());
         }
         else
         {
@@ -186,21 +190,25 @@ void AudioPlayer::fillBuffer()
             size_t bytesRead = audioFile.read(audioData, sizeof(audioData));
             if (bytesRead > 0)
             {
-                writeToBuffer(SAME_FILE, audioData, bytesRead);
+                writeToBuffer(audioData, bytesRead);
             }
             else
             {
-                writeToBuffer(END_OF_FILE, nullptr, 0);
+                writeToBuffer(nullptr, 0);
                 String currentFilePath = getFilePath(m_currentBufferFileIndex);
-                Serial.printf("AudioPlayer::fillBuffer() writing END_OF_FILE for m_currentBufferFileIndex: %d, filePath: %s\n", m_currentBufferFileIndex, currentFilePath.c_str());
+                Serial.printf("AudioPlayer::fillBuffer() writing END_OF_FILE for m_currentBufferFileIndex: %d, filePath: %s\n",
+                              m_currentBufferFileIndex, currentFilePath.c_str());
+
+                // Update bufferEndPos for the current file
+                m_fileList[m_currentBufferFileIndex].bufferEndPos = m_writePos;
+
                 audioFile.close();
             }
         }
     }
 }
 
-//CAMKILL: fileIndex is still in method signature but is no longer used
-void AudioPlayer::writeToBuffer(uint16_t fileIndex, const uint8_t *audioData, size_t dataSize)
+void AudioPlayer::writeToBuffer(const uint8_t *audioData, size_t dataSize)
 {
     size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
 
@@ -246,6 +254,7 @@ bool AudioPlayer::startNextFile()
         return startNextFile(); // Try the next file in the queue
     }
 
+    // TODO: try putting this to 128 to skipp the full header.
     // Skip WAV header (44 bytes)
     audioFile.seek(44);
 
@@ -271,7 +280,7 @@ String AudioPlayer::getFilePath(uint16_t fileIndex)
 {
     if (fileIndex < m_fileList.size())
     {
-        return m_fileList[fileIndex];
+        return m_fileList[fileIndex].filePath;
     }
     else
     {
@@ -281,10 +290,12 @@ String AudioPlayer::getFilePath(uint16_t fileIndex)
 
 uint16_t AudioPlayer::addFileToList(const String &filePath)
 {
-    auto it = std::find(m_fileList.begin(), m_fileList.end(), filePath);
+    auto it = std::find_if(m_fileList.begin(), m_fileList.end(),
+                           [&filePath](const FileEntry &entry)
+                           { return entry.filePath == filePath; });
     if (it == m_fileList.end())
     {
-        m_fileList.push_back(filePath);
+        m_fileList.emplace_back(filePath, 0); // Initialize bufferEndPos to 0
         return m_fileList.size() - 1;
     }
 

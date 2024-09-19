@@ -15,6 +15,15 @@
 const uint16_t SAME_FILE = 0xFFFF;
 const uint16_t END_OF_FILE = 0xFFFE;
 
+// Define FileEntry struct
+struct FileEntry {
+    String filePath;
+    size_t bufferEndPos;
+
+    FileEntry(const String &path = "", size_t end = 0)
+        : filePath(path), bufferEndPos(end) {}
+};
+
 class AudioPlayer
 {
 public:
@@ -44,7 +53,8 @@ private:
     String getFilePath(uint16_t fileIndex);
     uint16_t addFileToList(const String &filePath);
 
-    void writeToBuffer(uint16_t fileIndex, const uint8_t *audioData, size_t dataSize);
+    // Updated writeToBuffer signature
+    void writeToBuffer(const uint8_t *audioData, size_t dataSize);
 
     // Buffer management
     static const size_t AUDIO_BUFFER_SIZE = 8192; // Adjust as needed
@@ -69,7 +79,7 @@ private:
     size_t m_totalBytesRead;
 
     // File list management
-    std::vector<String> m_fileList;
+    std::vector<FileEntry> m_fileList;
 
     // Audio queue
     std::queue<std::string> audioQueue;
