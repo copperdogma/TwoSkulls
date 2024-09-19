@@ -45,9 +45,11 @@ void AudioPlayer::playNext(const char *filePath)
 {
     if (filePath)
     {
+        std::lock_guard<std::mutex> lock(m_mutex); // Acquire mutex lock
         String path(filePath);
         uint16_t newFileIndex = addFileToList(path); // Add the file to the list and get the index
         audioQueue.push(std::string(filePath));
+        Serial.printf("AudioPlayer: Added file (index: %d) to queue: %s\n", newFileIndex, filePath);
     }
 }
 
@@ -79,50 +81,38 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         }
     }
 
-    // CAMILL: out for now
-    //  // Process the frames and handle fileIndex
-    //  size_t processedBytes = 0;
-    //  int32_t framesProcessed = 0;
-    //  while (processedBytes < bytesRead && framesProcessed < frame_count)
-    //  {
-    //      uint16_t fileIndex;
-    //      memcpy(&fileIndex, (uint8_t *)frame + processedBytes, sizeof(uint16_t));
+    // Handle FileEntry tracking
+    if (!m_fileList.empty())
+    {
+        FileEntry &currentEntry = m_fileList[m_currentPlaybackFileIndex];
 
-    //     switch (fileIndex)
-    //     {
-    //     case SAME_FILE:
-    //         break;
-    //     case END_OF_FILE:
-    //     {
-    //         if (m_playbackEndCallback)
-    //         {
-    //             m_playbackEndCallback(m_currentFilePath);
-    //         }
-    //         m_currentPlaybackFileIndex = 0;
-    //         m_currentFilePath = "";
-    //         m_currentPlaybackTime = 0;
-    //         m_lastFrameTime = 0;
-    //         break;
-    //     }
+        // Check if the read position has reached the bufferEndPos
+        if (m_readPos == currentEntry.bufferEndPos)
+        {
+            // Trigger playbackEndCallback for the current file
+            if (m_playbackEndCallback)
+            {
+                m_playbackEndCallback(currentEntry.filePath);
+            }
 
-    //     // New file
-    //     default:
-    //     {
-    //         m_currentPlaybackFileIndex = fileIndex;
-    //         m_currentFilePath = getFilePath(m_currentPlaybackFileIndex);
-    //         if (m_playbackStartCallback && !m_currentFilePath.isEmpty())
-    //         {
-    //             m_playbackStartCallback(m_currentFilePath);
-    //         }
-    //         m_currentPlaybackTime = 0;
-    //         m_lastFrameTime = millis();
-    //         break;
-    //     }
-    //     }
-
-    //     processedBytes += sizeof(Frame);
-    //     framesProcessed++;
-    // }
+            // Move to the next file in the list
+            m_currentPlaybackFileIndex++;
+            if (m_currentPlaybackFileIndex < m_fileList.size())
+            {
+                // Trigger playbackStartCallback for the next file
+                if (m_playbackStartCallback)
+                {
+                    m_playbackStartCallback(m_fileList[m_currentPlaybackFileIndex].filePath);
+                }
+            }
+            else
+            {
+                // No more files to play
+                m_isAudioPlaying = false;
+                m_currentFilePath = "";
+            }
+        }
+    }
 
     m_totalBytesRead += bytesRead;
 
@@ -254,7 +244,7 @@ bool AudioPlayer::startNextFile()
         return startNextFile(); // Try the next file in the queue
     }
 
-    // TODO: try putting this to 128 to skipp the full header.
+    // TODO: try putting this to 128 to skip the full header.
     // Skip WAV header (44 bytes)
     audioFile.seek(44);
 
@@ -262,7 +252,6 @@ bool AudioPlayer::startNextFile()
     m_currentBufferFileIndex = getFileIndex(m_currentFilePath);
 
     Serial.printf("AudioPlayer: Started buffering new file: %s (index: %d)\n", m_currentFilePath.c_str(), m_currentBufferFileIndex);
-
     return true;
 }
 

@@ -266,11 +266,11 @@ void setup()
   });
 
   audioPlayer->setPlaybackStartCallback([](const String& filePath) {
-    //Serial.printf("MAIN: Started playing: %s\n", filePath.c_str());
+    Serial.printf("MAIN: Started playing: %s\n", filePath.c_str());
   });
 
   audioPlayer->setPlaybackEndCallback([](const String& filePath) {
-    //Serial.printf("MAIN: Finished playing: %s\n", filePath.c_str());
+    Serial.printf("MAIN: Finished playing: %s\n", filePath.c_str());
   });
 
   audioPlayer->setAudioFramesProvidedCallback([](const String& filePath, const Frame* frames, int32_t frameCount) {
