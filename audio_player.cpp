@@ -62,7 +62,6 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
 
     while (bytesRead < bytesToRead && m_bufferFilled > 0)
     {
-        // Read data from buffer with wrap-around handling
         size_t chunkSize = std::min(bytesToRead - bytesRead, m_bufferFilled);
         size_t firstChunkSize = std::min(chunkSize, AUDIO_BUFFER_SIZE - m_readPos);
         memcpy((uint8_t *)frame + bytesRead, m_audioBuffer + m_readPos, firstChunkSize);
@@ -82,49 +81,50 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         }
     }
 
-    // Process the frames and handle fileIndex
-    size_t processedBytes = 0;
-    int32_t framesProcessed = 0;
-    while (processedBytes < bytesRead && framesProcessed < frame_count)
-    {
-        uint16_t fileIndex;
-        memcpy(&fileIndex, (uint8_t *)frame + processedBytes, sizeof(uint16_t));
+//CAMILL: out for now
+    // // Process the frames and handle fileIndex
+    // size_t processedBytes = 0;
+    // int32_t framesProcessed = 0;
+    // while (processedBytes < bytesRead && framesProcessed < frame_count)
+    // {
+    //     uint16_t fileIndex;
+    //     memcpy(&fileIndex, (uint8_t *)frame + processedBytes, sizeof(uint16_t));
 
-        switch (fileIndex)
-        {
-        case SAME_FILE:
-            break;
-        case END_OF_FILE:
-        {
-            if (m_playbackEndCallback)
-            {
-                m_playbackEndCallback(m_currentFilePath);
-            }
-            m_currentPlaybackFileIndex = 0;
-            m_currentFilePath = "";
-            m_currentPlaybackTime = 0;
-            m_lastFrameTime = 0;
-            break;
-        }
+    //     switch (fileIndex)
+    //     {
+    //     case SAME_FILE:
+    //         break;
+    //     case END_OF_FILE:
+    //     {
+    //         if (m_playbackEndCallback)
+    //         {
+    //             m_playbackEndCallback(m_currentFilePath);
+    //         }
+    //         m_currentPlaybackFileIndex = 0;
+    //         m_currentFilePath = "";
+    //         m_currentPlaybackTime = 0;
+    //         m_lastFrameTime = 0;
+    //         break;
+    //     }
 
-        // New file
-        default:
-        {
-            m_currentPlaybackFileIndex = fileIndex;
-            m_currentFilePath = getFilePath(m_currentPlaybackFileIndex);
-            if (m_playbackStartCallback && !m_currentFilePath.isEmpty())
-            {
-                m_playbackStartCallback(m_currentFilePath);
-            }
-            m_currentPlaybackTime = 0;
-            m_lastFrameTime = millis();
-            break;
-        }
-        }
+    //     // New file
+    //     default:
+    //     {
+    //         m_currentPlaybackFileIndex = fileIndex;
+    //         m_currentFilePath = getFilePath(m_currentPlaybackFileIndex);
+    //         if (m_playbackStartCallback && !m_currentFilePath.isEmpty())
+    //         {
+    //             m_playbackStartCallback(m_currentFilePath);
+    //         }
+    //         m_currentPlaybackTime = 0;
+    //         m_lastFrameTime = millis();
+    //         break;
+    //     }
+    //     }
 
-        processedBytes += sizeof(Frame);
-        framesProcessed++;
-    }
+    //     processedBytes += sizeof(Frame);
+    //     framesProcessed++;
+    // }
 
     m_totalBytesRead += bytesRead;
 
@@ -153,10 +153,10 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     // Call the frames provided callback if set
     if (m_audioFramesProvidedCallback)
     {
-        m_audioFramesProvidedCallback(m_currentFilePath, frame, framesProcessed);
+        m_audioFramesProvidedCallback(m_currentFilePath, frame, frame_count);
     }
 
-    return framesProcessed;
+    return frame_count;
 }
 
 void AudioPlayer::fillBuffer()
@@ -199,22 +199,10 @@ void AudioPlayer::fillBuffer()
     }
 }
 
+//CAMKILL: fileIndex is still in method signature but is no longer used
 void AudioPlayer::writeToBuffer(uint16_t fileIndex, const uint8_t *audioData, size_t dataSize)
 {
     size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
-
-    // Always try to write file index
-    if (spaceAvailable >= sizeof(uint16_t))
-    {
-        memcpy(m_audioBuffer + m_writePos, &fileIndex, sizeof(uint16_t));
-        m_writePos = (m_writePos + sizeof(uint16_t)) % AUDIO_BUFFER_SIZE;
-        m_bufferFilled += sizeof(uint16_t);
-        spaceAvailable -= sizeof(uint16_t);
-    }
-    else
-    {
-        return; // Not enough space even for file index
-    }
 
     // Write audio data if available
     if (audioData && dataSize > 0 && spaceAvailable > 0)

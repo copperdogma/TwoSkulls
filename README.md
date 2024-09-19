@@ -163,6 +163,13 @@ ISSUES
       ** fileIndex issues: fillBuffer() seems to be working perfectly, but provideAudioFrames() isn't always taking fileIndex into account.
          yet somehow it's playing audio perfectly... But it's not properly raising the events because I think fileIndex is looking
          at data in the wrong place
+      ** potential fillBuffer()/provideAudioFrames() issue solutions:
+        - FileList Tracker: update the "std::vector<String> m_fileList" to contain a struct with string:filePath, size_t:bufferStartPos, size_t:bufferEndPos. When a file is queued we add it to fileList as we do today, with nothing in bufferStartPos/bufferEndPos. When we call fillBuffer() it fills the buffer as normal, but when it starts a new file it finds the file in fileLIst and updates the bufferStartPos to the current m_writePos. When it's writing the last frame of the file it finds the file in fileList and updates the bufferEndPos to the current m_writePos. Those locations can't be overwritten until they're read, so they'll be accurate until we read them. When provideAudioFrames() is reading the buffer data, if it has no "current file" it will know it's just starting up so it will get the first record out of fileList. From there it knows the bufferStartPos and bufferEndPos of the current file. From then on it should always know what the current file that's being read is, and it will always know the bufferStartPos and bufferEndPos of the current file. Every time it reads from the buffer and updates the m_readPos it checks it against the bufferEndPos of the current file. If it's past that, we switch to the next file in the list.
+          they'll soon be overwriten and not refer to the correct locations, but they'll be correct when the buffer is read and that's
+          what matters.
+        - double buffering: go back and forth between TWO circular buffers, each one with only a single file's audio. When
+          provideAudioFrames() runs out of data in one buffer it knows it's at the end of the file, calls the callback, and
+          switches to the other buffer.
   
   SD CARD
   - 20240707: Fixed initialization issue. Finally connected the power directly to the board's 3.3v pin to power it. Before I connected the 3.3 pin to the positive bar on the breadboard and it only worked 1/20 times. Bizarre. Took forever to debug.
