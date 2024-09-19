@@ -86,9 +86,12 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     {
         FileEntry &currentEntry = m_fileList[m_currentPlaybackFileIndex];
 
-        // Check if the read position has reached the bufferEndPos
-        if (m_readPos == currentEntry.bufferEndPos)
+        // Check if bufferEndPos is defined and readPos has reached it
+        if (currentEntry.bufferEndPos != BUFFER_END_POS_UNDEFINED && m_readPos >= currentEntry.bufferEndPos)
         {
+            Serial.printf("AudioPlayer::provideAudioFrames() found END OF FILE at m_readPos (%zu) >= currentEntry.bufferEndPos (%zu) for file: %s\n",
+                          m_readPos, currentEntry.bufferEndPos, currentEntry.filePath.c_str());
+
             // Trigger playbackEndCallback for the current file
             if (m_playbackEndCallback)
             {
@@ -110,6 +113,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
                 // No more files to play
                 m_isAudioPlaying = false;
                 m_currentFilePath = "";
+                Serial.println("AudioPlayer::provideAudioFrames() No more files to play");
             }
         }
     }
@@ -153,25 +157,27 @@ void AudioPlayer::fillBuffer()
     {
         if (!audioFile || !audioFile.available())
         {
+            // We're on the last data from the current file
             if (audioFile)
             {
                 writeToBuffer(nullptr, 0);
                 String currentFilePath = getFilePath(m_currentBufferFileIndex);
-                Serial.printf("AudioPlayer::fillBuffer() writing END_OF_FILE for fileIndex: %d, filePath: %s\n",
-                              m_currentBufferFileIndex, currentFilePath.c_str());
+                Serial.printf("AudioPlayer::fillBuffer() found END OF FILE (1) for fileIndex: %d, writePos: %zu, filePath: %s\n",
+                              m_currentBufferFileIndex, m_writePos, currentFilePath.c_str());
 
-                // Update bufferEndPos for the current file
                 m_fileList[m_currentBufferFileIndex].bufferEndPos = m_writePos;
 
                 audioFile.close();
             }
+
+            // Start the next file
             if (!startNextFile())
             {
                 break;
             }
             writeToBuffer(nullptr, 0);
             String currentFilePath = getFilePath(m_currentBufferFileIndex);
-            Serial.printf("AudioPlayer::fillBuffer() new file: writing m_currentBufferFileIndex: %d, filePath: %s\n",
+            Serial.printf("AudioPlayer::fillBuffer() starting from NEW FILE: fileIndex: %d, filePath: %s\n",
                           m_currentBufferFileIndex, currentFilePath.c_str());
         }
         else
@@ -184,12 +190,12 @@ void AudioPlayer::fillBuffer()
             }
             else
             {
+                // What is this section? Another end of file? Why?
                 writeToBuffer(nullptr, 0);
                 String currentFilePath = getFilePath(m_currentBufferFileIndex);
-                Serial.printf("AudioPlayer::fillBuffer() writing END_OF_FILE for m_currentBufferFileIndex: %d, filePath: %s\n",
-                              m_currentBufferFileIndex, currentFilePath.c_str());
+                Serial.printf("AudioPlayer::fillBuffer() found END OF FILE (2) for fileIndex: %d, writePos: %zu, filePath: %s\n",
+                              m_currentBufferFileIndex, m_writePos, currentFilePath.c_str());
 
-                // Update bufferEndPos for the current file
                 m_fileList[m_currentBufferFileIndex].bufferEndPos = m_writePos;
 
                 audioFile.close();
@@ -284,11 +290,10 @@ uint16_t AudioPlayer::addFileToList(const String &filePath)
                            { return entry.filePath == filePath; });
     if (it == m_fileList.end())
     {
-        m_fileList.emplace_back(filePath, 0); // Initialize bufferEndPos to 0
+        m_fileList.emplace_back(filePath, BUFFER_END_POS_UNDEFINED); // Initialize bufferEndPos to undefined
         return m_fileList.size() - 1;
     }
 
-    // Return the index of the file
     return std::distance(m_fileList.begin(), it);
 }
 

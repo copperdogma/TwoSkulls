@@ -15,12 +15,15 @@
 const uint16_t SAME_FILE = 0xFFFF;
 const uint16_t END_OF_FILE = 0xFFFE;
 
+// Define a constant for undefined buffer end position
+const size_t BUFFER_END_POS_UNDEFINED = (size_t)(-1);
+
 // Define FileEntry struct
 struct FileEntry {
     String filePath;
     size_t bufferEndPos;
 
-    FileEntry(const String &path = "", size_t end = 0)
+    FileEntry(const String &path = "", size_t end = BUFFER_END_POS_UNDEFINED)
         : filePath(path), bufferEndPos(end) {}
 };
 
