@@ -60,6 +60,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     size_t bytesToRead = frame_count * sizeof(Frame);
     size_t bytesRead = 0;
 
+    // Read data from buffer
     while (bytesRead < bytesToRead && m_bufferFilled > 0)
     {
         size_t chunkSize = std::min(bytesToRead - bytesRead, m_bufferFilled);
@@ -86,35 +87,10 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     {
         FileEntry &currentEntry = m_fileList[m_currentPlaybackFileIndex];
 
-        // Check if bufferEndPos is defined and readPos has reached it
+        // Check if we've reached the end of the current file
         if (currentEntry.bufferEndPos != BUFFER_END_POS_UNDEFINED && m_readPos >= currentEntry.bufferEndPos)
         {
-            Serial.printf("AudioPlayer::provideAudioFrames() found END OF FILE at m_readPos (%zu) >= currentEntry.bufferEndPos (%zu) for file: %s\n",
-                          m_readPos, currentEntry.bufferEndPos, currentEntry.filePath.c_str());
-
-            // Trigger playbackEndCallback for the current file
-            if (m_playbackEndCallback)
-            {
-                m_playbackEndCallback(currentEntry.filePath);
-            }
-
-            // Move to the next file in the list
-            m_currentPlaybackFileIndex++;
-            if (m_currentPlaybackFileIndex < m_fileList.size())
-            {
-                // Trigger playbackStartCallback for the next file
-                if (m_playbackStartCallback)
-                {
-                    m_playbackStartCallback(m_fileList[m_currentPlaybackFileIndex].filePath);
-                }
-            }
-            else
-            {
-                // No more files to play
-                m_isAudioPlaying = false;
-                m_currentFilePath = "";
-                Serial.println("AudioPlayer::provideAudioFrames() No more files to play");
-            }
+            handleEndOfFile();
         }
     }
 
@@ -130,17 +106,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         memset(frame, 0, frame_count * sizeof(Frame));
     }
 
-    unsigned long now = millis();
-    if (m_lastFrameTime != 0)
-    {
-        unsigned long elapsedTime = now - m_lastFrameTime;
-        m_currentPlaybackTime += elapsedTime;
-        m_lastFrameTime = now;
-    }
-    else
-    {
-        m_lastFrameTime = now;
-    }
+    updatePlaybackTime();
 
     // Call the frames provided callback if set
     if (m_audioFramesProvidedCallback)
@@ -149,6 +115,50 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     }
 
     return frame_count;
+}
+
+// New helper method to handle end of file
+void AudioPlayer::handleEndOfFile()
+{
+    FileEntry &currentEntry = m_fileList[m_currentPlaybackFileIndex];
+    Serial.printf("AudioPlayer::provideAudioFrames() found END OF FILE at m_readPos (%zu) >= currentEntry.bufferEndPos (%zu) for file: %s\n",
+                  m_readPos, currentEntry.bufferEndPos, currentEntry.filePath.c_str());
+
+    // Trigger playbackEndCallback for the current file
+    if (m_playbackEndCallback)
+    {
+        m_playbackEndCallback(currentEntry.filePath);
+    }
+
+    // Move to the next file in the list
+    m_currentPlaybackFileIndex++;
+    if (m_currentPlaybackFileIndex < m_fileList.size())
+    {
+        // Trigger playbackStartCallback for the next file
+        if (m_playbackStartCallback)
+        {
+            m_playbackStartCallback(m_fileList[m_currentPlaybackFileIndex].filePath);
+        }
+    }
+    else
+    {
+        // No more files to play
+        m_isAudioPlaying = false;
+        m_currentFilePath = "";
+        Serial.println("AudioPlayer::provideAudioFrames() No more files to play");
+    }
+}
+
+// New helper method to update playback time
+void AudioPlayer::updatePlaybackTime()
+{
+    unsigned long now = millis();
+    if (m_lastFrameTime != 0)
+    {
+        unsigned long elapsedTime = now - m_lastFrameTime;
+        m_currentPlaybackTime += elapsedTime;
+    }
+    m_lastFrameTime = now;
 }
 
 void AudioPlayer::fillBuffer()

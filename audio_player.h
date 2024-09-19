@@ -97,6 +97,9 @@ private:
     PlaybackCallback m_playbackStartCallback;
     PlaybackCallback m_playbackEndCallback;
     AudioFramesProvidedCallback m_audioFramesProvidedCallback;
+
+    void handleEndOfFile();
+    void updatePlaybackTime();
 };
 
 #endif // AUDIO_PLAYER_H
