@@ -11,10 +11,6 @@
 #include <stdint.h>
 #include <Arduino.h>
 
-// Constants for file index markers
-const uint16_t SAME_FILE = 0xFFFF;
-const uint16_t END_OF_FILE = 0xFFFE;
-
 // Define a constant for undefined buffer end position
 const size_t BUFFER_END_POS_UNDEFINED = (size_t)(-1);
 
@@ -77,9 +73,6 @@ private:
     // Timing
     unsigned long m_currentPlaybackTime;
     unsigned long m_lastFrameTime;
-
-    // Total bytes read (for debugging)
-    size_t m_totalBytesRead;
 
     // File list management
     std::vector<FileEntry> m_fileList;

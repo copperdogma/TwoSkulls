@@ -28,7 +28,7 @@
 #include <thread>
 
 AudioPlayer::AudioPlayer(SDCardManager *sdCardManager)
-    : m_totalBytesRead(0), m_writePos(0), m_readPos(0), m_bufferFilled(0),
+    : m_writePos(0), m_readPos(0), m_bufferFilled(0),
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
       m_currentPlaybackTime(0), m_lastFrameTime(0), m_sdCardManager(sdCardManager),
       m_playbackStartCallback(nullptr), m_playbackEndCallback(nullptr), m_audioFramesProvidedCallback(nullptr),
@@ -93,8 +93,6 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
             handleEndOfFile();
         }
     }
-
-    m_totalBytesRead += bytesRead;
 
     fillBuffer();
 
@@ -260,9 +258,11 @@ bool AudioPlayer::startNextFile()
         return startNextFile(); // Try the next file in the queue
     }
 
-    // TODO: try putting this to 128 to skip the full header.
-    // Skip WAV header (44 bytes)
-    audioFile.seek(44);
+    // Skip WAV header.
+    // 44 bytes is minimum, the skull files have closer to 128 bytes, and skipping a bit more just skips some blank audio at the start.
+    // Not skipping enough header will cause the header to be played, often rewsulting in a click at the start of the audio.
+    // There's a proper way to parse out the header, but it's involved and this is good enough.
+    audioFile.seek(128);
 
     m_currentFilePath = String(nextFile.c_str());
     m_currentBufferFileIndex = getFileIndex(m_currentFilePath);
