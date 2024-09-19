@@ -156,7 +156,11 @@ ISSUES
           AP.playingAudioFrames(audioFrames BT just grabbed)
         - Use existing ESP32 audio libraries/SD reader libraries so I'm not reinventing the wheel: https://chatgpt.com/c/66e9d09e-68c4-800a-a1ce-618cef69b694
       ** fill buffer immediately. We were waiting till play time before becasue fill/play were locked together, but now they're separate.
-      ** try just writing dummy frames that indicate start and end of file... that may be WAY simpler. Just strip them out in provideAudioFrames()
+      ** simplify buffer filling by only filling to a few frames short, which means we never have to handle partial frames. Who cares
+      if the buffer isn't 100% full? It will get read, freeing up space, and we'll fill it back up next call.
+      ** fileIndex issues: fillBuffer() seems to be working perfectly, but provideAudioFrames() isn't always taking fileIndex into account.
+         yet somehow it's playing audio perfectly... But it's not properly raising the events because I think fileIndex is looking
+         at data in the wrong place
   
   SD CARD
   - 20240707: Fixed initialization issue. Finally connected the power directly to the board's 3.3v pin to power it. Before I connected the 3.3 pin to the positive bar on the breadboard and it only worked 1/20 times. Bizarre. Took forever to debug.

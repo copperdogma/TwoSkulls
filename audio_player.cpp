@@ -73,19 +73,18 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         }
     }
 
-    // Process the fileIndex (the first two bytes of the frame).
+    // Process the frames and handle fileIndex
     size_t processedBytes = 0;
-    while (processedBytes < bytesRead)
+    int32_t framesProcessed = 0;
+    while (processedBytes < bytesRead && framesProcessed < frame_count)
     {
         uint16_t fileIndex;
         memcpy(&fileIndex, (uint8_t *)frame + processedBytes, sizeof(uint16_t));
-        processedBytes += sizeof(uint16_t);
 
         switch (fileIndex)
         {
         case SAME_FILE:
             break;
-
         case END_OF_FILE:
         {
             if (m_playbackEndCallback)
@@ -109,21 +108,13 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
                 m_playbackStartCallback(m_currentFilePath);
             }
             m_currentPlaybackTime = 0;
-            // CAMKILL: is this used?
             m_lastFrameTime = millis();
             break;
         }
         }
 
-        // Move the frame pointer past the file index to get to the audio data
-        size_t audioDataSize = sizeof(Frame) - sizeof(uint16_t);
-        processedBytes += audioDataSize;
-    }
-
-    // Zero-fill any remaining frames
-    if (bytesRead < bytesToRead)
-    {
-        memset((uint8_t *)frame + bytesRead, 0, bytesToRead - bytesRead);
+        processedBytes += sizeof(Frame);
+        framesProcessed++;
     }
 
     m_totalBytesRead += bytesRead;
@@ -138,7 +129,6 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         memset(frame, 0, frame_count * sizeof(Frame));
     }
 
-    // CAMKILL: is this used?
     unsigned long now = millis();
     if (m_lastFrameTime != 0)
     {
@@ -154,10 +144,10 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     // Call the frames provided callback if set
     if (m_audioFramesProvidedCallback)
     {
-        m_audioFramesProvidedCallback(m_currentFilePath, frame, frame_count);
+        m_audioFramesProvidedCallback(m_currentFilePath, frame, framesProcessed);
     }
 
-    return frame_count;
+    return framesProcessed;
 }
 
 void AudioPlayer::fillBuffer()
