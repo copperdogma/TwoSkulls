@@ -157,7 +157,6 @@ ISSUES
         - need to give skull_audio_animator AP.isPlaying (better to raise events on start/end with filename), AP.getPlaybackTime(),
           AP.playingAudioFrames(audioFrames BT just grabbed)
         - Use existing ESP32 audio libraries/SD reader libraries so I'm not reinventing the wheel: https://chatgpt.com/c/66e9d09e-68c4-800a-a1ce-618cef69b694
-      ** get all AIs to look for ways to rewrite audio player code for efficiency/elegance
   
   SD CARD
   - 20240707: Fixed initialization issue. Finally connected the power directly to the board's 3.3v pin to power it. Before I connected the 3.3 pin to the positive bar on the breadboard and it only worked 1/20 times. Bizarre. Took forever to debug.

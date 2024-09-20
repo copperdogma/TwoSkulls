@@ -18,7 +18,7 @@ class SkullAudioAnimator
 {
 public:
     SkullAudioAnimator(bool isPrimary, ServoController &servoController, LightController &lightController,
-                       std::vector<ParsedSkit> &skits, SDCardManager *sdCardManager);
+                       std::vector<ParsedSkit> &skits, SDCardManager &sdCardManager, RadioManager &radioManager);
 
     void update();
     ParsedSkit findSkitByName(const std::vector<ParsedSkit> &skits, const String &name);
@@ -30,7 +30,7 @@ private:
     AudioPlayer m_audioPlayer;
     ServoController &m_servoController;
     LightController &m_lightController;
-    SDCardManager *m_sdCardManager;
+    SDCardManager &m_sdCardManager;
     bool m_isPrimary;
     std::vector<ParsedSkit> &m_skits;
     String m_currentAudioFilePath;

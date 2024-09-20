@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <esp_now.h>
 #include <WiFi.h>
+#include "radio_manager.h"
 
 enum class Message : int
 {
@@ -29,7 +30,7 @@ typedef void (*MessageCallback)(const struct_message &msg);
 class SkullCommunication
 {
 public:
-    SkullCommunication(bool isPrimary, const String &macAddress, const String &otherMacAddress);
+    SkullCommunication(bool isPrimary, const String &macAddress, const String &otherMacAddress, RadioManager* radioManager);
 
     void begin();
     void update();
@@ -40,15 +41,7 @@ public:
     void registerSendCallback(MessageCallback callback);
     void registerReceiveCallback(MessageCallback callback);
 
-    void setEnabledCallback(std::function<void(bool)> callback) { enabledCallback = callback; }
     void setPlayFileCallback(std::function<void(const char*)> callback) { playFileCallback = callback; }
-
-    void setEnabled(bool enabled) {
-        if (enabledCallback) {
-            enabledCallback(enabled);
-        }
-        // Additional logic to enable/disable communication if needed
-    }
 
 private:
     bool isPrimary;
@@ -59,6 +52,7 @@ private:
     unsigned long lastHeardTime = 0;
     unsigned long lastSentTime = 0;
     String m_audioFileToPlay;
+    RadioManager* m_radioManager;
 
     void addPeer(const char *successMessage, const char *failureMessage);
     void sendMessage(Message message, const char *successMessage, const char *failureMessage);

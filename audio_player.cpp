@@ -26,14 +26,17 @@
 #include <esp_task_wdt.h>
 #include <mutex>
 #include <thread>
+#include "radio_manager.h"
 
-AudioPlayer::AudioPlayer(SDCardManager *sdCardManager)
+// Add this line at the global scope, outside of any function
+constexpr size_t AudioPlayer::BUFFER_END_POS_UNDEFINED;
+
+AudioPlayer::AudioPlayer(SDCardManager& sdCardManager, RadioManager& radioManager)
     : m_writePos(0), m_readPos(0), m_bufferFilled(0),
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
-      m_currentPlaybackTime(0), m_lastFrameTime(0), m_sdCardManager(sdCardManager),
-      m_playbackStartCallback(nullptr), m_playbackEndCallback(nullptr), m_audioFramesProvidedCallback(nullptr),
-      m_currentBufferFileIndex(0),
-      m_currentPlaybackFileIndex(0)
+      m_currentPlaybackTime(0), m_lastFrameTime(0),
+      m_currentBufferFileIndex(0), m_currentPlaybackFileIndex(0),
+      m_sdCardManager(sdCardManager), m_radioManager(radioManager)
 {
 }
 
@@ -45,7 +48,8 @@ void AudioPlayer::playNext(const char *filePath)
         String path(filePath);
         uint16_t newFileIndex = addFileToList(path); // Add the file to the list and get the index
         audioQueue.push(std::string(filePath));
-        Serial.printf("AudioPlayer: Added file (index: %d) to queue: %s\n", newFileIndex, filePath);
+        Serial.printf("AudioPlayer::playNext() Added file (index: %d) to queue: %s\n", newFileIndex, filePath);
+
     }
 }
 
@@ -111,11 +115,10 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     return frame_count;
 }
 
-// New helper method to handle end of file
 void AudioPlayer::handleEndOfFile()
 {
     FileEntry &currentEntry = m_fileList[m_currentPlaybackFileIndex];
-    Serial.printf("AudioPlayer::provideAudioFrames() found END OF FILE at m_readPos (%zu) >= currentEntry.bufferEndPos (%zu) for file: %s\n",
+    Serial.printf("AudioPlayer::handleEndOfFile() found END OF FILE at m_readPos (%zu) >= currentEntry.bufferEndPos (%zu) for file: %s\n",
                   m_readPos, currentEntry.bufferEndPos, currentEntry.filePath.c_str());
 
     // Trigger playbackEndCallback for the current file
@@ -128,10 +131,26 @@ void AudioPlayer::handleEndOfFile()
     m_currentPlaybackFileIndex++;
     if (m_currentPlaybackFileIndex < m_fileList.size())
     {
-        // Trigger playbackStartCallback for the next file
-        if (m_playbackStartCallback)
+        // Request radio access before starting the next file
+        if (m_radioManager.requestAccess(IDENTIFIER))
         {
-            m_playbackStartCallback(m_fileList[m_currentPlaybackFileIndex].filePath);
+            // Trigger playbackStartCallback for the next file
+            if (m_playbackStartCallback)
+            {
+                m_playbackStartCallback(m_fileList[m_currentPlaybackFileIndex].filePath);
+            }
+            
+            // Start playback of the next file
+            m_isAudioPlaying = true;
+            m_currentFilePath = m_fileList[m_currentPlaybackFileIndex].filePath;
+            Serial.printf("AudioPlayer::handleEndOfFile() Starting playback of next file: %s\n", m_currentFilePath.c_str());
+        }
+        else
+        {
+            // If we couldn't get radio access, stop playback
+            m_isAudioPlaying = false;
+            m_currentFilePath = "";
+            Serial.println("AudioPlayer::handleEndOfFile() Couldn't get radio access, stopping playback");
         }
     }
     else
@@ -139,7 +158,14 @@ void AudioPlayer::handleEndOfFile()
         // No more files to play
         m_isAudioPlaying = false;
         m_currentFilePath = "";
-        Serial.println("AudioPlayer::provideAudioFrames() No more files to play");
+        Serial.println("AudioPlayer::handleEndOfFile() No more files to play");
+    }
+
+    // Release radio access when playback ends
+    if (!m_isAudioPlaying)
+    {
+        m_radioManager.releaseAccess(IDENTIFIER);
+        Serial.println("AudioPlayer::handleEndOfFile() Released radio access");
     }
 }
 
@@ -244,10 +270,10 @@ bool AudioPlayer::startNextFile()
     std::string nextFile = audioQueue.front();
     audioQueue.pop();
 
-    audioFile = m_sdCardManager->openFile(nextFile.c_str());
+    audioFile = m_sdCardManager.openFile(nextFile.c_str());
     if (!audioFile)
     {
-        Serial.printf("AudioPlayer: Failed to open audio file: %s\n", nextFile.c_str());
+        Serial.printf("AudioPlayer::startNextFile() Failed to open audio file: %s\n", nextFile.c_str());
         return startNextFile(); // Try the next file in the queue
     }
 
@@ -260,7 +286,7 @@ bool AudioPlayer::startNextFile()
     m_currentFilePath = String(nextFile.c_str());
     m_currentBufferFileIndex = getFileIndex(m_currentFilePath);
 
-    Serial.printf("AudioPlayer: Started buffering new file: %s (index: %d)\n", m_currentFilePath.c_str(), m_currentBufferFileIndex);
+    Serial.printf("AudioPlayer::startNextFile() Started buffering new file: %s (index: %d)\n", m_currentFilePath.c_str(), m_currentBufferFileIndex);
     return true;
 }
 

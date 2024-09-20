@@ -159,7 +159,7 @@ const char* bluetooth_audio::get_speaker_name() const {
 
 void bluetooth_audio::connection_state_changed(esp_a2d_connection_state_t state, void* ptr) {
     bluetooth_audio* self = static_cast<bluetooth_audio*>(ptr);
-    
+        
     switch(state) {
         case ESP_A2D_CONNECTION_STATE_DISCONNECTED:
             Serial.printf("Not connected to Bluetooth speaker '%s'.\n", self->_speaker_name);
@@ -167,10 +167,12 @@ void bluetooth_audio::connection_state_changed(esp_a2d_connection_state_t state,
             break;
         case ESP_A2D_CONNECTION_STATE_CONNECTING:
             Serial.printf("Attempting to connect to Bluetooth speaker '%s'...\n", self->_speaker_name);
+            //CAMKILL:self->disableComms(); // Updated from instance->disableComms();
             break;
         case ESP_A2D_CONNECTION_STATE_CONNECTED:
             Serial.printf("Successfully connected to Bluetooth speaker '%s'.\n", self->_speaker_name);
             self->is_bluetooth_connected = true;
+            //CAMKILL:self->enableComms(); // Updated from instance->enableComms();
             break;
         case ESP_A2D_CONNECTION_STATE_DISCONNECTING:
             Serial.printf("Disconnecting from Bluetooth speaker '%s'...\n", self->_speaker_name);

@@ -18,8 +18,8 @@
 #include <cmath>
 
 SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController& servoController, LightController& lightController, 
-    std::vector<ParsedSkit>& skits, SDCardManager* sdCardManager)
-    : m_audioPlayer(sdCardManager),
+    std::vector<ParsedSkit>& skits, SDCardManager& sdCardManager, RadioManager& radioManager)
+    : m_audioPlayer(sdCardManager, radioManager),
       m_servoController(servoController),
       m_lightController(lightController),
       m_sdCardManager(sdCardManager),

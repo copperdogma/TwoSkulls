@@ -10,22 +10,12 @@
 #include <mutex>
 #include <stdint.h>
 #include <Arduino.h>
-
-const size_t BUFFER_END_POS_UNDEFINED = (size_t)(-1); 
-
-// Define FileEntry struct
-struct FileEntry {
-    String filePath;
-    size_t bufferEndPos;
-
-    FileEntry(const String &path = "", size_t end = BUFFER_END_POS_UNDEFINED)
-        : filePath(path), bufferEndPos(end) {}
-};
+#include "radio_manager.h"
 
 class AudioPlayer
 {
 public:
-    AudioPlayer(SDCardManager *sdCardManager);
+    AudioPlayer(SDCardManager &sdCardManager, RadioManager &radioManager);
     void playNext(const char *filePath);
     int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
     bool isAudioPlaying() const;
@@ -36,7 +26,7 @@ public:
 
     // Callback types
     typedef void (*PlaybackCallback)(const String &filePath);
-    typedef void (*AudioFramesProvidedCallback)(const String&, const Frame*, int32_t);
+    typedef void (*AudioFramesProvidedCallback)(const String &, const Frame *, int32_t);
 
     // Setters for callbacks
     void setPlaybackStartCallback(PlaybackCallback callback) { m_playbackStartCallback = callback; }
@@ -44,6 +34,20 @@ public:
     void setAudioFramesProvidedCallback(AudioFramesProvidedCallback callback) { m_audioFramesProvidedCallback = callback; }
 
 private:
+    static constexpr const char* IDENTIFIER = "AudioPlayer";
+    static constexpr size_t BUFFER_END_POS_UNDEFINED = static_cast<size_t>(-1);
+    static constexpr size_t AUDIO_BUFFER_SIZE = 8192; // Adjust as needed
+
+    // Define FileEntry struct inside the private section
+    struct FileEntry
+    {
+        String filePath;
+        size_t bufferEndPos;
+
+        FileEntry(const String &path = "", size_t end = BUFFER_END_POS_UNDEFINED)
+            : filePath(path), bufferEndPos(end) {}
+    };
+
     void fillBuffer();
     bool startNextFile();
     uint16_t getFileIndex(const String &filePath);
@@ -54,7 +58,6 @@ private:
     void writeToBuffer(const uint8_t *audioData, size_t dataSize);
 
     // Buffer management
-    static const size_t AUDIO_BUFFER_SIZE = 8192; // Adjust as needed
     uint8_t m_audioBuffer[AUDIO_BUFFER_SIZE];
     size_t m_writePos;
     size_t m_readPos;
@@ -79,7 +82,7 @@ private:
     std::queue<std::string> audioQueue;
 
     // SD card manager
-    SDCardManager *m_sdCardManager;
+    SDCardManager& m_sdCardManager;
 
     // Thread safety
     std::mutex m_mutex;
@@ -88,6 +91,8 @@ private:
     PlaybackCallback m_playbackStartCallback;
     PlaybackCallback m_playbackEndCallback;
     AudioFramesProvidedCallback m_audioFramesProvidedCallback;
+
+    RadioManager& m_radioManager;
 
     void handleEndOfFile();
     void updatePlaybackTime();

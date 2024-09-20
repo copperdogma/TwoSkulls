@@ -24,6 +24,7 @@
 #include "esp_sleep.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
+#include "radio_manager.h"
 
 const int LEFT_EYE_PIN = 32;  // GPIO pin for left eye LED
 const int RIGHT_EYE_PIN = 33; // GPIO pin for right eye LED
@@ -42,6 +43,7 @@ ServoController servoController;
 bluetooth_audio bluetoothAudio;
 AudioPlayer *audioPlayer = nullptr;
 SkullCommunication *skullCommunication = nullptr;
+RadioManager radioManager;
 
 // Exponential smoothing
 struct AudioState
@@ -96,26 +98,26 @@ void custom_crash_handler()
 
 void onMessageSent(const struct_message &msg)
 {
-    if (isPrimary && msg.message == Message::CONNECTION_REQUEST)
+  if (isPrimary && msg.message == Message::CONNECTION_REQUEST)
+  {
+    lightController.blinkEyes(1); // 1 blink for wifi connection request
+    if (bluetoothAudio.is_connected() && !audioPlayer->isAudioPlaying())
     {
-        lightController.blinkEyes(1); // 1 blink for wifi connection request
-        if (bluetoothAudio.is_connected() && !audioPlayer->isAudioPlaying())
-        {
-            audioPlayer->playNext("/audio/Marco.wav");
-        }
+      audioPlayer->playNext("/audio/Marco.wav");
     }
+  }
 
-    if (!isPrimary && msg.message == Message::CONNECTION_ACK)
+  if (!isPrimary && msg.message == Message::CONNECTION_ACK)
+  {
+    lightController.blinkEyes(1); // 1 blink for wifi connection received
+    if (bluetoothAudio.is_connected() && !audioPlayer->isAudioPlaying())
     {
-        lightController.blinkEyes(1); // 1 blink for wifi connection received
-        if (bluetoothAudio.is_connected() && !audioPlayer->isAudioPlaying())
-        {
-            // The CONNECTION_REQUEST/CONNECTION_ACK is so fast that the Polo will play while Marco is still playing.
-            // Wait 1000ms before playing Polo.
-            delay(1500); 
-            audioPlayer->playNext("/audio/Polo.wav");
-        }
+      // The CONNECTION_REQUEST/CONNECTION_ACK is so fast that the Polo will play while Marco is still playing.
+      // Wait 1000ms before playing Polo.
+      delay(1500);
+      audioPlayer->playNext("/audio/Polo.wav");
     }
+  }
 }
 
 void onMessageReceived(const struct_message &msg)
@@ -201,8 +203,8 @@ void setup()
   // Initialize AudioPlayer
   esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
 
-  audioPlayer = new AudioPlayer(sdCardManager);
-  
+  audioPlayer = new AudioPlayer(*sdCardManager, radioManager);
+
   // Announce "System initialized" and role
   String initAudioFilePath = isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav";
   Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
@@ -232,7 +234,7 @@ void setup()
   String macAddress = isPrimary ? primaryMacAddress : secondaryMacAddress;
   String otherMacAddress = isPrimary ? secondaryMacAddress : primaryMacAddress;
 
-  skullCommunication = new SkullCommunication(isPrimary, macAddress, otherMacAddress);
+  skullCommunication = new SkullCommunication(isPrimary, macAddress, otherMacAddress, &radioManager);
   skullCommunication->registerSendCallback(onMessageSent);
   skullCommunication->registerReceiveCallback(onMessageReceived);
   skullCommunication->begin();
@@ -252,89 +254,86 @@ void setup()
   adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
   esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
 
-  // Set enabled callback for skull_communication
-  skullCommunication->setEnabledCallback([](bool enabled) {
-    // This callback is called when skull_communication should be enabled/disabled
-    // You might want to disable it when audio is playing
-  });
-
   // Set play file callback for skull_communication
-  skullCommunication->setPlayFileCallback([](const char* filename) {
+  skullCommunication->setPlayFileCallback([](const char *filename)
+                                          {
     // This callback is called when a PLAY_FILE_ACK is received and it's time to play audio
-    audioPlayer->playNext(filename);
-  });
+    audioPlayer->playNext(filename); });
 
-  audioPlayer->setPlaybackStartCallback([](const String& filePath) {
-    Serial.printf("MAIN: Started playing: %s\n", filePath.c_str());
-  });
+  audioPlayer->setPlaybackStartCallback([](const String &filePath)
+                                        {
+    Serial.printf("MAIN: Started playing audio: %s\n", filePath.c_str());
+    });
 
-  audioPlayer->setPlaybackEndCallback([](const String& filePath) {
-    Serial.printf("MAIN: Finished playing: %s\n", filePath.c_str());
-  });
+  audioPlayer->setPlaybackEndCallback([](const String &filePath)
+                                      {
+    Serial.printf("MAIN: Finished playing audio: %s\n", filePath.c_str());
+    });
 
-  audioPlayer->setAudioFramesProvidedCallback([](const String& filePath, const Frame* frames, int32_t frameCount) {
-    //CAMKILL: Serial.printf("Provided %d frames for %s\n", frameCount, filePath.c_str());
-  });
+  audioPlayer->setAudioFramesProvidedCallback([](const String &filePath, const Frame *frames, int32_t frameCount)
+                                              {
+                                                // CAMKILL: Serial.printf("Provided %d frames for %s\n", frameCount, filePath.c_str());
+                                              });
 }
 
 void loop()
 {
-    unsigned long currentMillis = millis();
-    static unsigned long lastMillis = 0;
+  unsigned long currentMillis = millis();
+  static unsigned long lastMillis = 0;
 
-    // Reset the watchdog timer
-    esp_task_wdt_reset();
+  // Reset the watchdog timer
+  esp_task_wdt_reset();
 
-    // Update the audio player's state
-    bool isAudioPlaying = audioPlayer->isAudioPlaying();
+  // Update the audio player's state
+  bool isAudioPlaying = audioPlayer->isAudioPlaying();
 
-    // Every 5000ms output "loop() running" and check memory, reset reason, and power info
-    if (currentMillis - lastMillis >= 5000)
+  // Every 5000ms output "loop() running" and check memory, reset reason, and power info
+  if (currentMillis - lastMillis >= 5000)
+  {
+    size_t freeHeap = ESP.getFreeHeap();
+    esp_reset_reason_t reset_reason = esp_reset_reason();
+
+    // Read ADC and convert to voltage
+    uint32_t adc_reading = adc1_get_raw(ADC1_CHANNEL_0);
+    uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_chars);
+
+    Serial.printf("%lu loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
+    Serial.printf("Bluetooth connected: %s, ", bluetoothAudio.is_connected() ? "true" : "false");
+    Serial.printf("isAudioPlaying: %s, ", isAudioPlaying ? "true" : "false");
+    Serial.printf("Peer connected: %s, ", skullCommunication->isPeerConnected() ? "true" : "false");
+    Serial.printf("Voltage: %d mV, ", voltage);
+    Serial.printf("lastHeardTime: %lu\n", skullCommunication->getLastHeardTime());
+
+    if (reset_reason == ESP_RST_BROWNOUT)
     {
-        size_t freeHeap = ESP.getFreeHeap();
-        esp_reset_reason_t reset_reason = esp_reset_reason();
-
-        // Read ADC and convert to voltage
-        uint32_t adc_reading = adc1_get_raw(ADC1_CHANNEL_0);
-        uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_chars);
-
-        Serial.printf("%lu loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
-        Serial.printf("Bluetooth connected: %s, ", bluetoothAudio.is_connected() ? "true" : "false");
-        Serial.printf("isAudioPlaying: %s, ", isAudioPlaying ? "true" : "false");
-        Serial.printf("Peer connected: %s, ", skullCommunication->isPeerConnected() ? "true" : "false");
-        Serial.printf("Voltage: %d mV, ", voltage);
-        Serial.printf("lastHeardTime: %lu\n", skullCommunication->getLastHeardTime());
-
-        if (reset_reason == ESP_RST_BROWNOUT)
-        {
-            Serial.println("WARNING: Last reset was due to brownout!");
-        }
-
-        lastMillis = currentMillis;
+      Serial.println("WARNING: Last reset was due to brownout!");
     }
 
-    // Update SkullCommunication
-    if (skullCommunication)
-    {
-        skullCommunication->update();
-    }
+    lastMillis = currentMillis;
+  }
 
-    // Test sending play command every 10 seconds
-    static unsigned long lastPlayCommand = 0;
-    if (isPrimary && currentMillis - lastPlayCommand >= 10000)
-    {
-        lastPlayCommand = currentMillis;
-        if (skullCommunication->isPeerConnected())
-        {
-            skullCommunication->sendPlayCommand("/audio/Skit - names.wav");
-            lastPlayCommand = currentMillis;
-        }
-        else
-        {
-            Serial.println("SkullCommunication: Cannot send play command, peer not connected");
-        }
-    }
+  // Update SkullCommunication
+  if (skullCommunication)
+  {
+    skullCommunication->update();
+  }
 
-    // Allow other tasks to run
-    delay(1);
+  // Test sending play command every 10 seconds
+  static unsigned long lastPlayCommand = 0;
+  if (isPrimary && currentMillis - lastPlayCommand >= 10000)
+  {
+    lastPlayCommand = currentMillis;
+    if (skullCommunication->isPeerConnected())
+    {
+      skullCommunication->sendPlayCommand("/audio/Skit - names.wav");
+      lastPlayCommand = currentMillis;
+    }
+    else
+    {
+      Serial.println("SkullCommunication: Cannot send play command, peer not connected");
+    }
+  }
+
+  // Allow other tasks to run
+  delay(1);
 }
