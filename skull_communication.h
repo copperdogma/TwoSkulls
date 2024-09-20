@@ -44,6 +44,8 @@ public:
     void setPlayFileCallback(std::function<void(const char*)> callback) { playFileCallback = callback; }
 
 private:
+    static const unsigned long RADIO_ACCESS_TIMEOUT_MS = 200; // 200ms timeout for radio access
+
     bool isPrimary;
     uint8_t myMac[6];
     uint8_t otherSkullMac[6];

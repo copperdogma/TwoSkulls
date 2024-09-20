@@ -57,6 +57,13 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
+    // Request radio access
+    if (!m_radioManager.requestAccess(IDENTIFIER, RADIO_ACCESS_TIMEOUT_MS))
+    {
+        Serial.println("AudioPlayer::provideAudioFrames() Couldn't get radio access");
+        return 0;
+    }
+
     size_t bytesToRead = frame_count * sizeof(Frame);
     size_t bytesRead = 0;
 
@@ -112,6 +119,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         m_audioFramesProvidedCallback(m_currentFilePath, frame, frame_count);
     }
 
+    // No need to explicitly release radio access
     return frame_count;
 }
 
@@ -131,27 +139,16 @@ void AudioPlayer::handleEndOfFile()
     m_currentPlaybackFileIndex++;
     if (m_currentPlaybackFileIndex < m_fileList.size())
     {
-        // Request radio access before starting the next file
-        if (m_radioManager.requestAccess(IDENTIFIER))
+        // Trigger playbackStartCallback for the next file
+        if (m_playbackStartCallback)
         {
-            // Trigger playbackStartCallback for the next file
-            if (m_playbackStartCallback)
-            {
-                m_playbackStartCallback(m_fileList[m_currentPlaybackFileIndex].filePath);
-            }
-            
-            // Start playback of the next file
-            m_isAudioPlaying = true;
-            m_currentFilePath = m_fileList[m_currentPlaybackFileIndex].filePath;
-            Serial.printf("AudioPlayer::handleEndOfFile() Starting playback of next file: %s\n", m_currentFilePath.c_str());
+            m_playbackStartCallback(m_fileList[m_currentPlaybackFileIndex].filePath);
         }
-        else
-        {
-            // If we couldn't get radio access, stop playback
-            m_isAudioPlaying = false;
-            m_currentFilePath = "";
-            Serial.println("AudioPlayer::handleEndOfFile() Couldn't get radio access, stopping playback");
-        }
+        
+        // Start playback of the next file
+        m_isAudioPlaying = true;
+        m_currentFilePath = m_fileList[m_currentPlaybackFileIndex].filePath;
+        Serial.printf("AudioPlayer::handleEndOfFile() Starting playback of next file: %s\n", m_currentFilePath.c_str());
     }
     else
     {
@@ -159,13 +156,6 @@ void AudioPlayer::handleEndOfFile()
         m_isAudioPlaying = false;
         m_currentFilePath = "";
         Serial.println("AudioPlayer::handleEndOfFile() No more files to play");
-    }
-
-    // Release radio access when playback ends
-    if (!m_isAudioPlaying)
-    {
-        m_radioManager.releaseAccess(IDENTIFIER);
-        Serial.println("AudioPlayer::handleEndOfFile() Released radio access");
     }
 }
 

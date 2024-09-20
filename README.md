@@ -144,7 +144,6 @@ ISSUES
 
   ** skull communication using wifi
     ** ISSUE: primary frequently doesn't hear secondary and vice-versa
-      - try setting different channel?
     ** ISSUE: audio all over the map
       - this is because it's attempting to connect/ack and play/ack before the bluetooth is connected which
       is pointless and disruptive. Add skullCommunication->Enabled(true/false) when bluetooth is connected.

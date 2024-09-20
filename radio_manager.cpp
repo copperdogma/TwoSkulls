@@ -1,105 +1,39 @@
 #include "radio_manager.h"
+#include <Arduino.h>
 
 RadioManager::RadioManager()
-    : currentOwner(""), isReleasing(false) {}
+    : currentOwner(""), accessExpirationTime(0) {}
+
+std::string RadioManager::checkAndUpdateOwner()
+{
+    if (millis() >= accessExpirationTime)
+    {
+        currentOwner = "";
+    }
+    return currentOwner;
+}
 
 bool RadioManager::requestAccess(const std::string &requester, unsigned long timeoutMs)
 {
-    std::unique_lock<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(mtx);
 
-    // If the requester is already the current owner, grant access immediately
-    if (currentOwner == requester)
-    {
-        log("Requester '" + requester + "' already owns the radio.");
-        return true;
-    }
+    std::string owner = checkAndUpdateOwner();
 
-    // If no one owns the radio, grant access
-    if (currentOwner.empty())
+    // If no one owns the radio or the requester is already the owner, grant access
+    if (owner.empty() || owner == requester)
     {
         currentOwner = requester;
-        log("Access granted to '" + requester + "'.");
+        accessExpirationTime = millis() + timeoutMs;
+        //Serial.printf("RadioManager: Access granted to '%s' until %lu\n", requester.c_str(), accessExpirationTime);
         return true;
     }
 
-    // Add to the queue
-    requestQueue.push(requester);
-    log("Requester '" + requester + "' added to the queue.");
-
-    // Wait for access or timeout
-    auto start = std::chrono::steady_clock::now();
-    while (currentOwner != requester)
-    {
-        if (cv.wait_until(lock, start + std::chrono::milliseconds(timeoutMs)) == std::cv_status::timeout)
-        {
-            // Timeout occurred
-            // Remove requester from the queue
-            std::queue<std::string> tempQueue;
-            while (!requestQueue.empty())
-            {
-                if (requestQueue.front() != requester)
-                {
-                    tempQueue.push(requestQueue.front());
-                }
-                requestQueue.pop();
-            }
-            requestQueue = tempQueue;
-            log("Timeout: Requester '" + requester + "' could not acquire the radio.");
-            return false;
-        }
-    }
-
-    // Access granted
-    log("Access granted to '" + requester + "'.");
-    return true;
-}
-
-void RadioManager::releaseAccess(const std::string &requester)
-{
-    std::unique_lock<std::mutex> lock(mtx);
-
-    if (currentOwner != requester)
-    {
-        log("Requester '" + requester + "' attempted to release the radio but does not own it.");
-        return;
-    }
-
-    log("Requester '" + requester + "' is releasing the radio.");
-    isReleasing = true;
-    currentOwner = "";
-    lock.unlock();
-
-    // Start grace period
-    delay(GRACE_PERIOD_MS);
-
-    lock.lock();
-    isReleasing = false;
-    handleNext();
+    //Serial.printf("RadioManager: Access denied for '%s'. Current owner: '%s'\n", requester.c_str(), owner.c_str());
+    return false;
 }
 
 std::string RadioManager::getCurrentOwner()
 {
     std::lock_guard<std::mutex> lock(mtx);
-    return currentOwner;
-}
-
-void RadioManager::log(const std::string &message)
-{
-    Serial.println(("RadioManager: " + message).c_str());
-}
-
-void RadioManager::handleNext()
-{
-    if (!requestQueue.empty())
-    {
-        currentOwner = requestQueue.front();
-        requestQueue.pop();
-        log("Access granted to next requester '" + currentOwner + "'.");
-        cv.notify_all();
-    }
-    else
-    {
-        log("Radio is now free.");
-        cv.notify_all();
-    }
+    return checkAndUpdateOwner();
 }

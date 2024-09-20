@@ -37,6 +37,7 @@ private:
     static constexpr const char* IDENTIFIER = "AudioPlayer";
     static constexpr size_t BUFFER_END_POS_UNDEFINED = static_cast<size_t>(-1);
     static constexpr size_t AUDIO_BUFFER_SIZE = 8192; // Adjust as needed
+    static constexpr unsigned long RADIO_ACCESS_TIMEOUT_MS = 500; // 500ms timeout for radio access
 
     // Define FileEntry struct inside the private section
     struct FileEntry

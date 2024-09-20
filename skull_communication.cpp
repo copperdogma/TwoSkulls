@@ -18,7 +18,7 @@
 SkullCommunication *SkullCommunication::instance = nullptr;
 struct_message myData;
 
-SkullCommunication::SkullCommunication(bool isPrimary, const String &macAddress, const String &otherMacAddress, RadioManager* radioManager)
+SkullCommunication::SkullCommunication(bool isPrimary, const String &macAddress, const String &otherMacAddress, RadioManager *radioManager)
     : isPrimary(isPrimary), m_radioManager(radioManager)
 {
     instance = this;
@@ -118,10 +118,9 @@ void SkullCommunication::update()
 
     if (!m_isPeerConnected && (currentMillis - lastSentTime > CONNECTION_RETRY_DELAY))
     {
-        if (m_radioManager && m_radioManager->requestAccess("SkullCommunication", 1000))  // 1 second timeout
+        if (m_radioManager->requestAccess("SkullCommunication", RADIO_ACCESS_TIMEOUT_MS))
         {
             sendMessage(Message::CONNECTION_REQUEST, "CONNECTION_REQUEST sent", "Failed to send CONNECTION_REQUEST");
-            m_radioManager->releaseAccess("SkullCommunication");
         }
     }
 
@@ -133,7 +132,7 @@ void SkullCommunication::update()
 
 void SkullCommunication::sendMessage(Message message, const char *successMessage, const char *failureMessage)
 {
-    if (m_radioManager && !m_radioManager->requestAccess("SkullCommunication", 1000))  // 1 second timeout
+    if (!m_radioManager->requestAccess("SkullCommunication", RADIO_ACCESS_TIMEOUT_MS))
     {
         Serial.println("COMMS: Cannot send message, radio not available");
         return;
@@ -142,10 +141,6 @@ void SkullCommunication::sendMessage(Message message, const char *successMessage
     if (!esp_now_is_peer_exist(otherSkullMac))
     {
         Serial.println("COMMS: Peer not in list, cannot send message");
-        if (m_radioManager)
-        {
-            m_radioManager->releaseAccess("SkullCommunication");
-        }
         return; // Exit the function instead of trying to re-add
     }
 
@@ -164,48 +159,32 @@ void SkullCommunication::sendMessage(Message message, const char *successMessage
     {
         Serial.printf("COMMS: %s (code: %d)\n", failureMessage, result);
     }
-
-    if (m_radioManager)
-    {
-        m_radioManager->releaseAccess("SkullCommunication");
-    }
 }
 
 void SkullCommunication::sendPlayCommand(const char *filename)
 {
-    if (m_radioManager && !m_radioManager->requestAccess("SkullCommunication", 1000))  // 1 second timeout
-    {
-        Serial.println("COMMS: Cannot send play command, radio not available");
-        return;
-    }
-
+    // TODO: encapsulate most of this as a common guard clause
     if (!isPrimary)
     {
         Serial.println("COMMS: Cannot send play command, not primary skull");
-        if (m_radioManager)
-        {
-            m_radioManager->releaseAccess("SkullCommunication");
-        }
+        return;
+    }
+
+    if (!m_radioManager->requestAccess("SkullCommunication", RADIO_ACCESS_TIMEOUT_MS))
+    {
+        Serial.println("COMMS: Cannot send play command, radio not available");
         return;
     }
 
     if (!m_isPeerConnected)
     {
         Serial.println("COMMS: Cannot send play command, peer not connected");
-        if (m_radioManager)
-        {
-            m_radioManager->releaseAccess("SkullCommunication");
-        }
         return;
     }
 
     if (!esp_now_is_peer_exist(otherSkullMac))
     {
         Serial.println("COMMS: Peer not in list, cannot send play command");
-        if (m_radioManager)
-        {
-            m_radioManager->releaseAccess("SkullCommunication");
-        }
         return; // Exit the function instead of trying to re-add
     }
 
@@ -227,11 +206,6 @@ void SkullCommunication::sendPlayCommand(const char *filename)
     else
     {
         Serial.println("COMMS: Error sending play command");
-    }
-
-    if (m_radioManager)
-    {
-        m_radioManager->releaseAccess("SkullCommunication");
     }
 }
 
