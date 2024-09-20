@@ -37,10 +37,6 @@ AudioPlayer::AudioPlayer(SDCardManager *sdCardManager)
 {
 }
 
-void AudioPlayer::begin()
-{
-}
-
 void AudioPlayer::playNext(const char *filePath)
 {
     if (filePath)
@@ -168,7 +164,6 @@ void AudioPlayer::fillBuffer()
             // We're on the last data from the current file
             if (audioFile)
             {
-                writeToBuffer(nullptr, 0);
                 String currentFilePath = getFilePath(m_currentBufferFileIndex);
                 Serial.printf("AudioPlayer::fillBuffer() found END OF FILE (1) for fileIndex: %d, writePos: %zu, filePath: %s\n",
                               m_currentBufferFileIndex, m_writePos, currentFilePath.c_str());
@@ -183,7 +178,6 @@ void AudioPlayer::fillBuffer()
             {
                 break;
             }
-            writeToBuffer(nullptr, 0);
             String currentFilePath = getFilePath(m_currentBufferFileIndex);
             Serial.printf("AudioPlayer::fillBuffer() starting from NEW FILE: fileIndex: %d, filePath: %s\n",
                           m_currentBufferFileIndex, currentFilePath.c_str());
@@ -199,7 +193,6 @@ void AudioPlayer::fillBuffer()
             else
             {
                 // What is this section? Another end of file? Why?
-                writeToBuffer(nullptr, 0);
                 String currentFilePath = getFilePath(m_currentBufferFileIndex);
                 Serial.printf("AudioPlayer::fillBuffer() found END OF FILE (2) for fileIndex: %d, writePos: %zu, filePath: %s\n",
                               m_currentBufferFileIndex, m_writePos, currentFilePath.c_str());

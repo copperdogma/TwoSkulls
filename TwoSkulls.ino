@@ -202,8 +202,7 @@ void setup()
   esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
 
   audioPlayer = new AudioPlayer(sdCardManager);
-  audioPlayer->begin();
-
+  
   // Announce "System initialized" and role
   String initAudioFilePath = isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav";
   Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());

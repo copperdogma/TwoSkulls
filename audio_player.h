@@ -11,8 +11,7 @@
 #include <stdint.h>
 #include <Arduino.h>
 
-// Define a constant for undefined buffer end position
-const size_t BUFFER_END_POS_UNDEFINED = (size_t)(-1);
+const size_t BUFFER_END_POS_UNDEFINED = (size_t)(-1); 
 
 // Define FileEntry struct
 struct FileEntry {
@@ -27,7 +26,6 @@ class AudioPlayer
 {
 public:
     AudioPlayer(SDCardManager *sdCardManager);
-    void begin();
     void playNext(const char *filePath);
     int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
     bool isAudioPlaying() const;
