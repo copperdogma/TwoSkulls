@@ -28,7 +28,7 @@ bool RadioManager::requestAccess(const std::string &requester, unsigned long tim
         return true;
     }
 
-    //Serial.printf("RadioManager: Access denied for '%s'. Current owner: '%s'\n", requester.c_str(), owner.c_str());
+    //Serial.printf("RadioManager: Access denied for '%s'. Current owner: '%s', expiration time: %lu\n", requester.c_str(), owner.c_str(), accessExpirationTime);
     return false;
 }
 

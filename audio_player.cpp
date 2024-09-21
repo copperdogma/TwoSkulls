@@ -31,7 +31,7 @@
 // Add this line at the global scope, outside of any function
 constexpr size_t AudioPlayer::BUFFER_END_POS_UNDEFINED;
 
-AudioPlayer::AudioPlayer(SDCardManager& sdCardManager, RadioManager& radioManager)
+AudioPlayer::AudioPlayer(SDCardManager &sdCardManager, RadioManager &radioManager)
     : m_writePos(0), m_readPos(0), m_bufferFilled(0),
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
       m_currentPlaybackTime(0), m_lastFrameTime(0),
@@ -49,13 +49,20 @@ void AudioPlayer::playNext(const char *filePath)
         uint16_t newFileIndex = addFileToList(path); // Add the file to the list and get the index
         audioQueue.push(std::string(filePath));
         Serial.printf("AudioPlayer::playNext() Added file (index: %d) to queue: %s\n", newFileIndex, filePath);
-
     }
 }
 
 int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
+
+    // Exit if there's no data available to read.
+    if (m_bufferFilled == 0)
+    {
+        m_isAudioPlaying = false;
+        fillBuffer();
+        return 0;
+    }
 
     // Request radio access
     if (!m_radioManager.requestAccess(IDENTIFIER, RADIO_ACCESS_TIMEOUT_MS))
@@ -144,7 +151,7 @@ void AudioPlayer::handleEndOfFile()
         {
             m_playbackStartCallback(m_fileList[m_currentPlaybackFileIndex].filePath);
         }
-        
+
         // Start playback of the next file
         m_isAudioPlaying = true;
         m_currentFilePath = m_fileList[m_currentPlaybackFileIndex].filePath;

@@ -212,9 +212,9 @@ void setup()
   Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
   // Queue the "Skit - names" skit to play next
-  ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
-  audioPlayer->playNext(namesSkit.audioFile.c_str());
-  Serial.printf("'Skit - names' found; queueing audio: %s\n", namesSkit.audioFile.c_str());
+  // ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
+  // audioPlayer->playNext(namesSkit.audioFile.c_str());
+  // Serial.printf("'Skit - names' found; queueing audio: %s\n", namesSkit.audioFile.c_str());
 
   // Initialize ultrasonic sensor (for both primary and secondary)
   distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);

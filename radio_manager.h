@@ -7,10 +7,20 @@
 
 /**
  * @brief Manages exclusive access to the radio resource.
- *
- * This class handles access requests from multiple modules, ensuring that only one
- * requester has access to the radio at any given time. It incorporates thread safety,
- * timeouts, and exposes the current state of the radio.
+ * 
+ * Theory of Operation:
+ * - The RadioManager uses a time-based access system to manage the radio resource.
+ * - Requesters are granted access for a specified duration.
+ * - Access automatically expires after the granted duration.
+ * - No explicit release of access is required.
+ * 
+ * Expected Usage:
+ * 1. Components request access using requestAccess() with their identifier and desired access duration.
+ * 2. If granted, the component can use the radio for the specified duration.
+ * 3. Components should re-request access periodically if they need continued access.
+ * 4. Access is automatically released after the specified duration, allowing other components to gain access.
+ * 
+ * This approach ensures efficient use of the radio resource and prevents deadlocks or resource hogging.
  */
 class RadioManager
 {
