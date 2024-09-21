@@ -118,6 +118,15 @@ void onMessageSent(const struct_message &msg)
       audioPlayer->playNext("/audio/Polo.wav");
     }
   }
+
+  if (!isPrimary && msg.message == Message::PLAY_FILE_ACK)
+  {
+    // Immediately play the names skit to coincide with the secondary skyll accepting the command so we're in sync.
+    if (bluetoothAudio.is_connected() && !audioPlayer->isAudioPlaying())
+    {
+      audioPlayer->playNext("/audio/Skit - names.wav");
+    }
+  }
 }
 
 void onMessageReceived(const struct_message &msg)
@@ -208,7 +217,7 @@ void setup()
   // Announce "System initialized" and role
   String initAudioFilePath = isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav";
   Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
-  audioPlayer->playNext(initAudioFilePath.c_str());
+  audioPlayer->playNext(initAudioFilePath);
   Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
   // Queue the "Skit - names" skit to play next
@@ -250,25 +259,22 @@ void setup()
   lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
 
   // Configure ADC
+  // TODO: what is this? Is it needed? At the very least, document it.
   adc1_config_width(ADC_WIDTH_BIT_12);
   adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
   esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
 
   // Set play file callback for skull_communication
-  skullCommunication->setPlayFileCallback([](const char *filename)
+  skullCommunication->setPlayFileCallback([](String filePath)
                                           {
     // This callback is called when a PLAY_FILE_ACK is received and it's time to play audio
-    audioPlayer->playNext(filename); });
+    audioPlayer->playNext(filePath); });
 
   audioPlayer->setPlaybackStartCallback([](const String &filePath)
-                                        {
-    Serial.printf("MAIN: Started playing audio: %s\n", filePath.c_str());
-    });
+                                        { Serial.printf("MAIN: Started playing audio: %s\n", filePath.c_str()); });
 
   audioPlayer->setPlaybackEndCallback([](const String &filePath)
-                                      {
-    Serial.printf("MAIN: Finished playing audio: %s\n", filePath.c_str());
-    });
+                                      { Serial.printf("MAIN: Finished playing audio: %s\n", filePath.c_str()); });
 
   audioPlayer->setAudioFramesProvidedCallback([](const String &filePath, const Frame *frames, int32_t frameCount)
                                               {
@@ -313,25 +319,22 @@ void loop()
   }
 
   // Update SkullCommunication
-  if (skullCommunication)
+  if (bluetoothAudio.is_connected())
   {
+    skullCommunication->enableCommunication();
     skullCommunication->update();
+  }
+  else
+  {
+    skullCommunication->disableCommunication();
   }
 
   // Test sending play command every 10 seconds
   static unsigned long lastPlayCommand = 0;
-  if (isPrimary && currentMillis - lastPlayCommand >= 10000)
+  if (isPrimary && skullCommunication->isPeerConnected() && bluetoothAudio.is_connected() && currentMillis - lastPlayCommand >= 10000)
   {
+    skullCommunication->sendPlayCommand("/audio/Skit - names.wav");
     lastPlayCommand = currentMillis;
-    if (skullCommunication->isPeerConnected())
-    {
-      skullCommunication->sendPlayCommand("/audio/Skit - names.wav");
-      lastPlayCommand = currentMillis;
-    }
-    else
-    {
-      Serial.println("SkullCommunication: Cannot send play command, peer not connected");
-    }
   }
 
   // Allow other tasks to run

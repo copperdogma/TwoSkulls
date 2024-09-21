@@ -16,7 +16,7 @@ class AudioPlayer
 {
 public:
     AudioPlayer(SDCardManager &sdCardManager, RadioManager &radioManager);
-    void playNext(const char *filePath);
+    void playNext(String filePath);
     int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
     bool isAudioPlaying() const;
     void setMuted(bool muted);

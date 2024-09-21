@@ -40,15 +40,14 @@ AudioPlayer::AudioPlayer(SDCardManager &sdCardManager, RadioManager &radioManage
 {
 }
 
-void AudioPlayer::playNext(const char *filePath)
+void AudioPlayer::playNext(String filePath)
 {
-    if (filePath)
+    if (filePath.length() > 0)
     {
         std::lock_guard<std::mutex> lock(m_mutex); // Acquire mutex lock
-        String path(filePath);
-        uint16_t newFileIndex = addFileToList(path); // Add the file to the list and get the index
-        audioQueue.push(std::string(filePath));
-        Serial.printf("AudioPlayer::playNext() Added file (index: %d) to queue: %s\n", newFileIndex, filePath);
+        uint16_t newFileIndex = addFileToList(filePath); // Add the file to the list and get the index
+        audioQueue.push(filePath.c_str());
+        Serial.printf("AudioPlayer::playNext() Added file (index: %d) to queue: %s ...\n", newFileIndex, filePath.c_str());
     }
 }
 
@@ -97,7 +96,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     }
 
     // Handle FileEntry tracking
-    if (!m_fileList.empty())
+    if (!m_fileList.empty() && m_currentPlaybackFileIndex < m_fileList.size())
     {
         FileEntry &currentEntry = m_fileList[m_currentPlaybackFileIndex];
 
@@ -132,6 +131,14 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
 
 void AudioPlayer::handleEndOfFile()
 {
+    // Check if we're within bounds of the file list
+    if (m_currentPlaybackFileIndex >= m_fileList.size()) {
+        Serial.println("AudioPlayer::handleEndOfFile() No more files to play");
+        m_isAudioPlaying = false;
+        m_currentFilePath = "";
+        return;
+    }
+
     FileEntry &currentEntry = m_fileList[m_currentPlaybackFileIndex];
     Serial.printf("AudioPlayer::handleEndOfFile() found END OF FILE at m_readPos (%zu) >= currentEntry.bufferEndPos (%zu) for file: %s\n",
                   m_readPos, currentEntry.bufferEndPos, currentEntry.filePath.c_str());

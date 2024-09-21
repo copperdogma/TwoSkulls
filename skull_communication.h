@@ -17,10 +17,11 @@ enum class Message : int
     PLAY_FILE_ACK = 3 // Acknowledge a play file request
 };
 
-typedef struct struct_message
+typedef struct __attribute__((packed)) struct_message
 {
     Message message;
-    char filename[32];
+    char filePath[128];
+    uint8_t checksum;
 } struct_message;
 
 extern struct_message myData;
@@ -34,7 +35,7 @@ public:
 
     void begin();
     void update();
-    void sendPlayCommand(const char *filename);
+    void sendPlayCommand(String filePath);
     bool isPeerConnected() const { return m_isPeerConnected; }
     unsigned long getLastHeardTime() const { return lastHeardTime; }
 
@@ -43,8 +44,11 @@ public:
 
     void setPlayFileCallback(std::function<void(const char*)> callback) { playFileCallback = callback; }
 
+    void enableCommunication();
+    void disableCommunication();
+
 private:
-    static const unsigned long RADIO_ACCESS_TIMEOUT_MS = 200; // 200ms timeout for radio access
+    static const unsigned long RADIO_ACCESS_TIMEOUT_MS = 1000; // 1000ms timeout for radio access
 
     bool isPrimary;
     uint8_t myMac[6];
@@ -56,13 +60,15 @@ private:
     String m_audioFileToPlay;
     RadioManager* m_radioManager;
 
+    bool m_communicationEnabled = false;  // Add this line
+
     void addPeer(const char *successMessage, const char *failureMessage);
     void sendMessage(Message message, const char *successMessage, const char *failureMessage);
     static void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status);
     static void onDataReceived(const uint8_t *mac, const uint8_t *incomingData, int len);
     void printMacAddress(const uint8_t *macAddress, const char *description);
 
-    static const int WIFI_CHANNEL = 2;
+    static const int WIFI_CHANNEL = 3;
     static const int CONNECTION_RETRY_DELAY = 7000;       // 7 seconds
     static const unsigned long TIMEOUT_INTERVAL = 11000;  // 11 seconds
     static const unsigned long KEEPALIVE_INTERVAL = 5000; // 5 seconds

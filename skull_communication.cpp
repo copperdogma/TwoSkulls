@@ -56,7 +56,7 @@ void SkullCommunication::begin()
         Serial.printf("COMMS: Failed to start Wi-Fi (code: %d)\n", wifi_start_result);
         return;
     }
-    Serial.println("COMMS: Wi-Fi started successfully");
+    Serial.printf("COMMS: Wi-Fi started successfully on channel %d\n", WIFI_CHANNEL);
 
     // Initialize ESP-NOW
     if (esp_now_init() != ESP_OK)
@@ -109,6 +109,11 @@ void SkullCommunication::addPeer(const char *successMessage, const char *failure
 
 void SkullCommunication::update()
 {
+    if (!m_communicationEnabled)
+    {
+        return;
+    }
+
     if (!isPrimary)
     {
         return;
@@ -120,6 +125,7 @@ void SkullCommunication::update()
     {
         if (m_radioManager->requestAccess("SkullCommunication", RADIO_ACCESS_TIMEOUT_MS))
         {
+            begin(); // Disconnect and reconnect from scratch.
             sendMessage(Message::CONNECTION_REQUEST, "CONNECTION_REQUEST sent", "Failed to send CONNECTION_REQUEST");
         }
     }
@@ -132,6 +138,12 @@ void SkullCommunication::update()
 
 void SkullCommunication::sendMessage(Message message, const char *successMessage, const char *failureMessage)
 {
+    if (!m_communicationEnabled)
+    {
+        Serial.println("COMMS: Cannot send message, communication is disabled");
+        return;
+    }
+
     if (!m_radioManager->requestAccess("SkullCommunication", RADIO_ACCESS_TIMEOUT_MS))
     {
         Serial.println("COMMS: Cannot send message, radio not available");
@@ -161,8 +173,14 @@ void SkullCommunication::sendMessage(Message message, const char *successMessage
     }
 }
 
-void SkullCommunication::sendPlayCommand(const char *filename)
+void SkullCommunication::sendPlayCommand(String filePath)
 {
+    if (!m_communicationEnabled)
+    {
+        Serial.println("COMMS: Cannot send play command, communication is disabled");
+        return;
+    }
+
     // TODO: encapsulate most of this as a common guard clause
     if (!isPrimary)
     {
@@ -188,10 +206,23 @@ void SkullCommunication::sendPlayCommand(const char *filename)
         return; // Exit the function instead of trying to re-add
     }
 
-    m_audioFileToPlay = filename;
+    m_audioFileToPlay = filePath;
 
     myData.message = Message::PLAY_FILE;
-    strncpy(myData.filename, filename, sizeof(myData.filename));
+    strncpy(myData.filePath, filePath.c_str(), sizeof(myData.filePath) - 1);
+    myData.filePath[sizeof(myData.filePath) - 1] = '\0'; // Ensure null-termination
+
+    Serial.printf("COMMS: Sending play command. Original file path: %s\n", filePath.c_str());
+    Serial.printf("COMMS: Copied file path: %s, Length: %d\n",
+                  myData.filePath, strlen(myData.filePath));
+
+    // Calculate checksum
+    myData.checksum = 0;
+    for (int i = 0; i < sizeof(myData) - 1; i++)
+    {
+        myData.checksum += ((uint8_t *)&myData)[i];
+    }
+
     esp_err_t result = esp_now_send(otherSkullMac, reinterpret_cast<uint8_t *>(&myData), sizeof(myData));
     lastSentTime = millis();
 
@@ -214,8 +245,30 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
     instance->m_isPeerConnected = true; // Ensure connection is marked as active
     instance->lastHeardTime = millis(); // Update last heard time
 
+    if (len != sizeof(struct_message))
+    {
+        Serial.printf("COMMS: Received data length mismatch. Expected %d, got %d\n",
+                      sizeof(struct_message), len);
+        return;
+    }
+
     struct_message receivedData;
     memcpy(&receivedData, incomingData, sizeof(receivedData));
+
+    // Verify checksum
+    uint8_t calculatedChecksum = 0;
+    for (int i = 0; i < sizeof(receivedData) - 1; i++)
+    {
+        calculatedChecksum += ((uint8_t *)&receivedData)[i];
+    }
+    if (calculatedChecksum != receivedData.checksum)
+    {
+        Serial.println("COMMS: Checksum mismatch, data may be corrupted");
+        return;
+    }
+
+    Serial.printf("COMMS: Received data. Message type: %d, File path: %s, Length: %d\n",
+                  (int)receivedData.message, receivedData.filePath, strlen(receivedData.filePath));
 
     // Primary responsible for initializing connection, sending keepalives, detecting disconnections,
     // and telling secondary what to play.
@@ -262,13 +315,13 @@ void SkullCommunication::onDataReceived(const uint8_t *mac, const uint8_t *incom
             break;
         case Message::PLAY_FILE:
             // Only secondary skull should be told to play anything. The primary decides what to play.
-            Serial.printf("COMMS: Received play command for file: %s\n", receivedData.filename);
+            Serial.printf("COMMS: Received play command for file: %s\n", receivedData.filePath);
 
             instance->sendMessage(Message::PLAY_FILE_ACK, "PLAY_FILE_ACK sent", "Failed to send PLAY_FILE_ACK");
 
             if (instance->playFileCallback)
             {
-                instance->playFileCallback(instance->m_audioFileToPlay.c_str());
+                instance->playFileCallback(receivedData.filePath);
             }
             break;
         case Message::PLAY_FILE_ACK:
@@ -297,4 +350,22 @@ void SkullCommunication::printMacAddress(const uint8_t *macAddress, const char *
             Serial.print(":");
     }
     Serial.println();
+}
+
+void SkullCommunication::enableCommunication()
+{
+    if (!m_communicationEnabled)
+    {
+        Serial.println("COMMS: Communication enabled");
+    }
+    m_communicationEnabled = true;
+}
+
+void SkullCommunication::disableCommunication()
+{
+    if (m_communicationEnabled)
+    {
+        Serial.println("COMMS: Communication disabled");
+    }
+    m_communicationEnabled = false;
 }

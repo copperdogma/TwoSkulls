@@ -26,6 +26,9 @@ public:
     AudioPlayer &getAudioPlayer() { return m_audioPlayer; }
     bool isCurrentlySpeaking() { return m_isCurrentlySpeaking; }
 
+    void onPlaybackStart(const String &filePath);
+    void onPlaybackEnd(const String &filePath);
+
 private:
     AudioPlayer m_audioPlayer;
     ServoController &m_servoController;

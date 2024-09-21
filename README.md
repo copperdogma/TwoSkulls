@@ -156,6 +156,13 @@ ISSUES
         - need to give skull_audio_animator AP.isPlaying (better to raise events on start/end with filename), AP.getPlaybackTime(),
           AP.playingAudioFrames(audioFrames BT just grabbed)
         - Use existing ESP32 audio libraries/SD reader libraries so I'm not reinventing the wheel: https://chatgpt.com/c/66e9d09e-68c4-800a-a1ce-618cef69b694
+    ** don't try to connect via Wifi until the "initialized" is done playing otherwise it queues up multiple Marcos
+      - also how does it manage that? I thought the queueing system didn't allow duplicates... check
+    ** NEXT: manually disconnect bluetooth after it's done playing audio so we can use wifi, and reconnect when it needs to play again
+    ** BluetoothA2DPSource says it will NOT work with bluetooth and wifi at the same time, but You can use both A2DP and BLE at the same time. The precondition however is, that you set the bluetooth mode to ESP_BT_MODE_BTDM. An example can be found in the examples directory. https://github.com/pschatzmann/ESP32-A2DP/blob/main/examples/bt_music_receiver_and_BLE/bt_music_receiver_and_BLE.ino
+      - so maybe hack that in and see if we can use that.
+
+
   
   SD CARD
   - 20240707: Fixed initialization issue. Finally connected the power directly to the board's 3.3v pin to power it. Before I connected the 3.3 pin to the positive bar on the breadboard and it only worked 1/20 times. Bizarre. Took forever to debug.

@@ -226,3 +226,13 @@ double SkullAudioAnimator::calculateRMS(const int16_t *samples, int numSamples)
     }
     return sqrt(sum / numSamples);
 }
+
+void SkullAudioAnimator::onPlaybackStart(const String &filePath)
+{
+    // ... existing code ...
+}
+
+void SkullAudioAnimator::onPlaybackEnd(const String &filePath)
+{
+    // ... existing code ...
+}
