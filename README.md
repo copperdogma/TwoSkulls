@@ -142,7 +142,7 @@ ISSUES
   ** rebuild secondary perfboard with dupont connectors
   ** staging: mount on sticks, make name signs, figure out where to put electronics + batteries, figure out where/how to hide speakers
 
-  ** skull communication using wifi
+  ** NOPE! skull communication using wifi
     ** ISSUE: primary frequently doesn't hear secondary and vice-versa
     ** ISSUE: audio all over the map
       - this is because it's attempting to connect/ack and play/ack before the bluetooth is connected which
@@ -159,8 +159,42 @@ ISSUES
     ** don't try to connect via Wifi until the "initialized" is done playing otherwise it queues up multiple Marcos
       - also how does it manage that? I thought the queueing system didn't allow duplicates... check
     ** NEXT: manually disconnect bluetooth after it's done playing audio so we can use wifi, and reconnect when it needs to play again
-    ** BluetoothA2DPSource says it will NOT work with bluetooth and wifi at the same time, but You can use both A2DP and BLE at the same time. The precondition however is, that you set the bluetooth mode to ESP_BT_MODE_BTDM. An example can be found in the examples directory. https://github.com/pschatzmann/ESP32-A2DP/blob/main/examples/bt_music_receiver_and_BLE/bt_music_receiver_and_BLE.ino
+    ** NOPE: BluetoothA2DPSource says it will NOT work with bluetooth and wifi at the same time, but You can use both A2DP and BLE at the same time. The precondition however is, that you set the bluetooth mode to ESP_BT_MODE_BTDM. An example can be found in the examples directory. https://github.com/pschatzmann/ESP32-A2DP/blob/main/examples/bt_music_receiver_and_BLE/bt_music_receiver_and_BLE.ino
       - so maybe hack that in and see if we can use that.
+
+    ** skull communication using BLE (simultaneously with bluetooth A2DP)
+      - BluetoothA2DPSource says it will NOT work with bluetooth and wifi at the same time (https://github.com/pschatzmann/ESP32-A2DP/wiki/WIFI-and-A2DP-Coexistence), but You can use both A2DP and BLE at the same time. The precondition however is, that you set the bluetooth mode to ESP_BT_MODE_BTDM. An example can be found in the examples directory. https://github.com/pschatzmann/ESP32-A2DP/blob/main/examples/bt_music_receiver_and_BLE/bt_music_receiver_and_BLE.ino
+      - HOLY SHIT this just.. worked. Immediately. No issues. First try.
+      - using BT Inspector in App Store which seems great, but no writing (pro only), no search for device, no favourites
+        - BLE Scanner is crap, nRF Client is not bad, LightBlue is good
+      - NOTE: So we're not using TWO libraries, ESP32-A2DP and https://github.com/nkolban/ESP32_BLE_Arduino
+      ** understand how to use this
+      ** having it update the characteristic value every 5 seconds so we can see if it changes on the phone to confirm how it works
+      ** have it print out the current value of a different characteristic that WE update from the phone to confirm how it works
+      ** set up bidirectional communicaton
+      ** looks like ESP32_BLE_Arduino is deprecated as it's been rolled into Ardiuno core:
+        - https://github.com/espressif/arduino-esp32/tree/master/libraries/BLE
+        - I THINK by importing the libraries I'm already importing I'm using this
+        - Docs: https://github.com/nkolban/esp32-snippets/tree/master/Documentation
+        - Examples: https://github.com/espressif/arduino-esp32/tree/master/libraries/BLE/examples
+      ** architecture?
+        - o1-preview chat: https://chatgpt.com/c/66ef4e1d-07ec-800a-b698-ce24196f8759
+        - o1-preview recommends using GATT, which espressif/arduino-esp32/BLE seems to support (as far as searching the repo indicates)
+        - o1-preview recommends making Primary the client and Secondary the server. Seems counter-intuitive at first, but this is
+          essentially the Secondary saying "I'm ready to be commanded" and the Primary searching for it and writing commands to it.
+        - there are read/write characteristic callbacks, so do we even need acks? But that doesn't work if Secondary is the server
+          - oh it might! There's a notify() operation that the server can trigger to "push" a value to the client. So if the client
+            sets the audio file to play, the server could trigger notify() to serve as an ACK.
+          - there is also incicate() which receives a confirmation
+          - notifications and indications can send 20 bytes of less, but seeing as we'd be using them as ACKs we don't care about payload
+        - but if we use GATT apparently there's something like an ACK protocol built in so maybe that takes care of everything
+        - oh oops I misunderstood.. "GATT (Generic Attribute Profile) is the protocol used in BLE to define how two Bluetooth Low Energy devices transfer data back and forth using concepts called Services and Characteristics." There is no GATT vs characteristics.
+        ** YES: o1-preview suggests Using Indications:
+          - Primary Sends Start Command with Indication: The Primary writes to the Secondary's characteristic using an indication, which inherently requires an acknowledgment from the Secondary at the protocol level.
+          - Secondary Receives and ACKs: The Secondary's BLE stack automatically sends an acknowledgment upon receiving the indication, ensuring the Primary knows the message was received.
+        ** should hard-code addresses in code as these skulls are paired and then we can skip the scanning phase
+          ** by default the addresses are randomized so you'll have to lock it down
+
 
 
   

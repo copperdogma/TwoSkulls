@@ -42,7 +42,7 @@ bool isPrimary = false;
 ServoController servoController;
 bluetooth_audio bluetoothAudio;
 AudioPlayer *audioPlayer = nullptr;
-SkullCommunication *skullCommunication = nullptr;
+// CAMKILL:SkullCommunication *skullCommunication = nullptr;
 RadioManager radioManager;
 
 // Exponential smoothing
@@ -236,17 +236,18 @@ void setup()
     delay(50); // Wait between readings
   }
 
+  // CAMKILL: (also kill confi settings for mac addresses)
   // Initialize SkullCommunication after determining the role
-  String primaryMacAddress = config.getPrimaryMacAddress();
-  String secondaryMacAddress = config.getSecondaryMacAddress();
+  // String primaryMacAddress = config.getPrimaryMacAddress();
+  // String secondaryMacAddress = config.getSecondaryMacAddress();
 
-  String macAddress = isPrimary ? primaryMacAddress : secondaryMacAddress;
-  String otherMacAddress = isPrimary ? secondaryMacAddress : primaryMacAddress;
+  // String macAddress = isPrimary ? primaryMacAddress : secondaryMacAddress;
+  // String otherMacAddress = isPrimary ? secondaryMacAddress : primaryMacAddress;
 
-  skullCommunication = new SkullCommunication(isPrimary, macAddress, otherMacAddress, &radioManager);
-  skullCommunication->registerSendCallback(onMessageSent);
-  skullCommunication->registerReceiveCallback(onMessageReceived);
-  skullCommunication->begin();
+  // skullCommunication = new SkullCommunication(isPrimary, macAddress, otherMacAddress, &radioManager);
+  // skullCommunication->registerSendCallback(onMessageSent);
+  // skullCommunication->registerReceiveCallback(onMessageReceived);
+  // skullCommunication->begin();
 
   // Initialize Bluetooth after AudioPlayer.
   // Include the callback so that the bluetooth_audio library can call the AudioPlayer's
@@ -264,11 +265,12 @@ void setup()
   adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
   esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
 
-  // Set play file callback for skull_communication
-  skullCommunication->setPlayFileCallback([](String filePath)
-                                          {
-    // This callback is called when a PLAY_FILE_ACK is received and it's time to play audio
-    audioPlayer->playNext(filePath); });
+  // CAMKILL:
+  //  // Set play file callback for skull_communication
+  //  skullCommunication->setPlayFileCallback([](String filePath)
+  //                                          {
+  //    // This callback is called when a PLAY_FILE_ACK is received and it's time to play audio
+  //    audioPlayer->playNext(filePath); });
 
   audioPlayer->setPlaybackStartCallback([](const String &filePath)
                                         { Serial.printf("MAIN: Started playing audio: %s\n", filePath.c_str()); });
@@ -306,9 +308,10 @@ void loop()
     Serial.printf("%lu loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
     Serial.printf("Bluetooth connected: %s, ", bluetoothAudio.is_connected() ? "true" : "false");
     Serial.printf("isAudioPlaying: %s, ", isAudioPlaying ? "true" : "false");
-    Serial.printf("Peer connected: %s, ", skullCommunication->isPeerConnected() ? "true" : "false");
+    // CAMKILL: Serial.printf("Peer connected: %s, ", skullCommunication->isPeerConnected() ? "true" : "false");
     Serial.printf("Voltage: %d mV, ", voltage);
-    Serial.printf("lastHeardTime: %lu\n", skullCommunication->getLastHeardTime());
+    // CAMKILL: Serial.printf("lastHeardTime: %lu\n", skullCommunication->getLastHeardTime());
+    Serial.printf("\n");
 
     if (reset_reason == ESP_RST_BROWNOUT)
     {
@@ -318,23 +321,33 @@ void loop()
     lastMillis = currentMillis;
   }
 
-  // Update SkullCommunication
-  if (bluetoothAudio.is_connected())
-  {
-    skullCommunication->enableCommunication();
-    skullCommunication->update();
-  }
-  else
-  {
-    skullCommunication->disableCommunication();
-  }
+  // // Update SkullCommunication
+  // if (bluetoothAudio.is_connected())
+  // {
+  //   skullCommunication->enableCommunication();
+  //   skullCommunication->update();
+  // }
+  // else
+  // {
+  //   skullCommunication->disableCommunication();
+  // }
 
-  // Test sending play command every 10 seconds
-  static unsigned long lastPlayCommand = 0;
-  if (isPrimary && skullCommunication->isPeerConnected() && bluetoothAudio.is_connected() && currentMillis - lastPlayCommand >= 10000)
+  // // Test sending play command every 10 seconds
+  // static unsigned long lastPlayCommand = 0;
+  // if (isPrimary && skullCommunication->isPeerConnected() && bluetoothAudio.is_connected() && currentMillis - lastPlayCommand >= 10000)
+  // {
+  //   skullCommunication->sendPlayCommand("/audio/Skit - names.wav");
+  //   lastPlayCommand = currentMillis;
+  // }
+
+  // Test updating BLE characteristic every 10 seconds
+  static unsigned long lastCharacteristicUpdate = 0;
+  if (currentMillis - lastCharacteristicUpdate >= 10000)
   {
-    skullCommunication->sendPlayCommand("/audio/Skit - names.wav");
-    lastPlayCommand = currentMillis;
+    String message = "Hello from the primary skull at " + String(currentMillis) + "ms";
+    bluetoothAudio.setCharacteristicValue(message.c_str());
+    lastCharacteristicUpdate = currentMillis;
+    Serial.printf("Updated BLE characteristic with message: %s\n", message.c_str());
   }
 
   // Allow other tasks to run

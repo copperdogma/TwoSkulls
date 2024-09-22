@@ -15,6 +15,9 @@ std::string RadioManager::checkAndUpdateOwner()
 
 bool RadioManager::requestAccess(const std::string &requester, unsigned long timeoutMs)
 {
+    //CAMKILL: this class is awesomebut we're short citcuiting it for now to hack-test BLE comms
+    return true;
+
     std::lock_guard<std::mutex> lock(mtx);
 
     std::string owner = checkAndUpdateOwner();

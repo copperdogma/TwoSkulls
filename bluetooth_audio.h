@@ -14,7 +14,7 @@ public:
     bool is_connected();
     void set_volume(uint8_t volume);
     const char* get_speaker_name() const;
-
+    void setCharacteristicValue(const char *value);
     static void resetBluetooth();
     static void clearBluetoothNVS();
 
