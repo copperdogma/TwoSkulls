@@ -2,13 +2,8 @@
     Respoonsible for A2DP audio streaming and BLE skull-to-skull communication.
 
     Yes, ideally this should be two separate classes.
-*/
 
-//  Maybe one for setup, then we set params, then start the service? Is that what it is?
-/*
-
-
-    Note: Frame is defined in SoundData.h in https://github.com/pschatzmann/ESP32-A2DP like so:
+    Note: Frame (for A2DP audio streaming) is defined in SoundData.h in https://github.com/pschatzmann/ESP32-A2DP like so:
 
     struct __attribute__((packed)) Frame {
         int16_t channel1;
@@ -44,7 +39,12 @@ BLECharacteristic *pReadCharacteristic;
 BLECharacteristic *pReadWriteCharacteristic;
 char title[160] = {"Skull characteristic value!"};
 
-// Add a callback class for handling writes to the characteristic
+// TODO: these should be static/declared in header
+static bool deviceConnected = false;
+static boolean doConnect = false;
+static boolean connected = false;
+static BLEAdvertisedDevice *myDevice;
+
 class MyCallbacks : public BLECharacteristicCallbacks
 {
     void onWrite(BLECharacteristic *pCharacteristic)
@@ -61,6 +61,47 @@ class MyCallbacks : public BLECharacteristicCallbacks
             Serial.println();
             Serial.println("*********");
         }
+    }
+};
+
+class MyServerCallbacks : public BLEServerCallbacks
+{
+    void onConnect(BLEServer *pServer, esp_ble_gatts_cb_param_t *param)
+    {
+        deviceConnected = true;
+        Serial.println("BT-BLE: Client connected!");
+        Serial.print("BT-BLE: Client address: ");
+        for (int i = 0; i < 6; i++)
+        {
+            char str[3];
+            sprintf(str, "%02X", param->connect.remote_bda[i]);
+            Serial.print(str);
+            if (i < 5)
+                Serial.print(":");
+        }
+        Serial.println();
+
+        Serial.print("BT-BLE: Connection ID: ");
+        Serial.println(param->connect.conn_id);
+
+        Serial.print("BT-BLE: Connection interval: ");
+        Serial.println(param->connect.conn_params.interval);
+
+        Serial.print("BT-BLE: Connection latency: ");
+        Serial.println(param->connect.conn_params.latency);
+
+        Serial.print("BT-BLE: Connection timeout: ");
+        Serial.println(param->connect.conn_params.timeout);
+    }
+
+    void onDisconnect(BLEServer *pServer)
+    {
+        deviceConnected = false;
+        Serial.println("BT-BLE: Client disconnected");
+        
+        // Restart advertising
+        BLEDevice::startAdvertising();
+        Serial.println("BT-BLE: Restarted advertising after disconnection");
     }
 };
 
@@ -121,6 +162,8 @@ void bluetooth_controller::initializeBLEServer()
 
     BLEDevice::init("SkullSecondary-Server");
     BLEServer *pServer = BLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
+
     BLEService *pService = pServer->createService(SERVER_SERVICE_UUID);
 
     // Create read-only characteristic
@@ -150,13 +193,6 @@ void bluetooth_controller::initializeBLEServer()
     Serial.println("BT-BLE: Characteristics defined! Now you can read/write them from the Primary skull!");
 }
 
-// CAMKILL: yeah do this:
-// Add these new global variables
-static boolean doConnect = false;
-static boolean connected = false;
-static BLEAdvertisedDevice *myDevice;
-
-// Add this new class definition
 class MyClientCallback : public BLEClientCallbacks
 {
     void onConnect(BLEClient *pclient)
@@ -267,7 +303,6 @@ void bluetooth_controller::handleBLEClient()
     }
 }
 
-// Add this new method to be called in your main loop for the primary skull
 void bluetooth_controller::update()
 {
     if (m_isPrimary)
