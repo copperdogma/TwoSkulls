@@ -135,7 +135,7 @@ void bluetooth_controller::begin(const String &speaker_name, std::function<int32
     audio_provider_callback = audioProviderCallback;
 
     // Start A2DP (audio streaming)
-    Serial.printf("BT-A2DP: Starting as A2DP source, connecting to speaker name: %s\n", m_speaker_name);
+    Serial.printf("BT-A2DP: Starting as A2DP source, connecting to speaker name: %s\n", m_speaker_name.c_str());
 
     a2dp_source.set_default_bt_mode(ESP_BT_MODE_BTDM); // Essential to use A2DP and BLE at the same time
     a2dp_source.set_auto_reconnect(true);
@@ -246,7 +246,7 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 {
     void onResult(BLEAdvertisedDevice advertisedDevice)
     {
-        Serial.print("BLE Advertised Device found: ");
+        Serial.print("BT-BLE: Device found: ");
         Serial.println(advertisedDevice.toString().c_str());
 
         if (advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(BLEUUID(SERVER_SERVICE_UUID)))
@@ -254,6 +254,7 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
             BLEDevice::getScan()->stop();
             myDevice = new BLEAdvertisedDevice(advertisedDevice);
             doConnect = true;
+            Serial.println("BT-BLE: Found SkullSecondary-Server. Stopping scan.");
         }
     }
 };
@@ -268,9 +269,11 @@ bool bluetooth_controller::connectToServer()
 
     pClient->setClientCallbacks(new MyClientCallback());
 
+    // Connect to the remote BLE Server.
     pClient->connect(myDevice);
     Serial.println("BT-BLE: - Connected to server");
 
+    // Obtain a reference to the service we are after in the remote BLE server.
     BLERemoteService *pRemoteService = pClient->getService(BLEUUID(SERVER_SERVICE_UUID));
     if (pRemoteService == nullptr)
     {
@@ -281,16 +284,18 @@ bool bluetooth_controller::connectToServer()
     }
     Serial.println("BT-BLE: - Found our service");
 
+    // Obtain a reference to the characteristic in the service of the remote BLE server.
     pRemoteCharacteristic = pRemoteService->getCharacteristic(BLEUUID(CHARACTERISTIC_UUID));
-
     if (pRemoteCharacteristic == nullptr)
     {
-        Serial.println("BT-BLE: Failed to find our characteristic UUID");
+        Serial.print("BT-BLE: Failed to find our characteristic UUID: ");
+        Serial.println(CHARACTERISTIC_UUID);
         pClient->disconnect();
         return false;
     }
     Serial.println("BT-BLE: - Found our characteristic");
 
+    // Read the value of the characteristic.
     if (pRemoteCharacteristic->canRead())
     {
         std::string value = pRemoteCharacteristic->readValue();
@@ -298,6 +303,7 @@ bool bluetooth_controller::connectToServer()
         Serial.println(value.c_str());
     }
 
+    connected = true;
     return true;
 }
 
@@ -311,37 +317,42 @@ void bluetooth_controller::initializeBLEClient()
     pBLEScanner->setInterval(1349);
     pBLEScanner->setWindow(449);
     pBLEScanner->setActiveScan(true);
-    pBLEScanner->start(5, false);
-    Serial.println("BT-BLE: BLE Client initialized and scanning for SkullSecondary-Server...");
+    startScan();
 }
 
-void bluetooth_controller::handleBLEClient()
+void bluetooth_controller::startScan()
 {
-    if (doConnect)
-    {
-        if (connectToServer())
-        {
-            Serial.println("BT-BLE: We are now connected to the SkullSecondary-Server.");
-        }
-        else
-        {
-            Serial.println("BT-BLE: We have failed to connect to the SkullSecondary-Server; there is nothing more we will do.");
-        }
-        doConnect = false;
-    }
-
-    if (connected)
-    {
-        // Here you can perform any operations you need when connected
-        // For example, you might want to read or write to the characteristics periodically
-    }
+    pBLEScanner->stop();                   // Stop any ongoing scan
+    pBLEScanner->start(0, nullptr, false); // 0 = scan continuously
+    Serial.println("BT-BLE: Started continuous scan for SkullSecondary-Server...");
 }
 
 void bluetooth_controller::update()
 {
     if (m_isPrimary)
     {
-        handleBLEClient();
+        if (doConnect)
+        {
+            if (connectToServer())
+            {
+                Serial.println("BT-BLE: We are now connected to the SkullSecondary-Server.");
+                doConnect = false;
+            }
+            else
+            {
+                Serial.println("BT-BLE: We failed to connect to the SkullSecondary-Server; will retry in next update.");
+            }
+        }
+        else if (!connected)
+        {
+            // If not connected and not attempting to connect, start scanning
+            startScan();
+        }
+        else
+        {
+            // Here you can perform any operations you need when connected
+            // For example, you might want to read or write to the characteristics periodically
+        }
     }
 }
 

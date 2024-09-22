@@ -41,6 +41,8 @@ private:
     bool is_bluetooth_connected;
     unsigned long last_reconnection_attempt;
     BluetoothA2DPSource a2dp_source;
+
+    void startScan();  // Add this line
 };
 
 #endif // BLUETOOTH_CONTROLLER_H
