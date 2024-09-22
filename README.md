@@ -182,6 +182,8 @@ ISSUES
         ** YES: o1-preview suggests Using Indications:
           - Primary Sends Start Command with Indication: The Primary writes to the Secondary's characteristic using an indication, which inherently requires an acknowledgment from the Secondary at the protocol level.
           - Secondary Receives and ACKs: The Secondary's BLE stack automatically sends an acknowledgment upon receiving the indication, ensuring the Primary knows the message was received.
+        ** refactoring BluetoothControlller
+          ** rename some of the audio-specific methods so it's obvious they're not for bluetooth communication
 
   
   SD CARD

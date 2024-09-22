@@ -341,14 +341,14 @@ void loop()
   // }
 
   // Test updating BLE characteristic every 10 seconds
-  static unsigned long lastCharacteristicUpdate = 0;
-  if (currentMillis - lastCharacteristicUpdate >= 10000)
-  {
-    String message = "Hello from the primary skull at " + String(currentMillis) + "ms";
-    bluetoothController.setCharacteristicValue(message.c_str());
-    lastCharacteristicUpdate = currentMillis;
-    Serial.printf("Updated BLE characteristic with message: %s\n", message.c_str());
-  }
+  // static unsigned long lastCharacteristicUpdate = 0;
+  // if (currentMillis - lastCharacteristicUpdate >= 10000)
+  // {
+  //   String message = "Hello from the primary skull at " + String(currentMillis) + "ms";
+  //   bluetoothController.setCharacteristicValue(message.c_str());
+  //   lastCharacteristicUpdate = currentMillis;
+  //   Serial.printf("Updated BLE characteristic with message: %s\n", message.c_str());
+  // }
 
   // Allow other tasks to run
   delay(1);
