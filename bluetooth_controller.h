@@ -18,17 +18,15 @@ public:
     void set_volume(uint8_t volume);
     const String& get_speaker_name() const;
     void setCharacteristicValue(const char *value);
-    void update(); // CAMKILL: do this: New method to be called in the main loop
+    void update(); // New method to be called in the main loop
 
     static bluetooth_controller *instance;
 
 private:
     BLEScan* pBLEScanner;
     BLEClient* pClient;
-    BLECharacteristic* pReadCharacteristic;
-    BLECharacteristic* pReadWriteCharacteristic;
-    BLERemoteCharacteristic* pRemoteReadCharacteristic;
-    BLERemoteCharacteristic* pRemoteReadWriteCharacteristic;
+    BLECharacteristic* pCharacteristic;
+    BLERemoteCharacteristic* pRemoteCharacteristic;
 
     void initializeBLEServer();
     void initializeBLEClient();

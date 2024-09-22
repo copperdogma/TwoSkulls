@@ -29,14 +29,13 @@
 
 // This is from https://github.com/nkolban/ESP32_BLE_Arduino
 #include <BLEDevice.h>
-#include <BLEServer.h>
 #include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLE2902.h>
 #define SERVER_SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define READ_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-#define READWRITE_CHARACTERISTIC_UUID "47f1de41-c535-4e55-9b01-e6d065c6e581"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
-BLECharacteristic *pReadCharacteristic;
-BLECharacteristic *pReadWriteCharacteristic;
+BLECharacteristic *pCharacteristic;
 char title[160] = {"Skull characteristic value!"};
 
 // TODO: these should be static/declared in header
@@ -98,7 +97,7 @@ class MyServerCallbacks : public BLEServerCallbacks
     {
         deviceConnected = false;
         Serial.println("BT-BLE: Client disconnected");
-        
+
         // Restart advertising
         BLEDevice::startAdvertising();
         Serial.println("BT-BLE: Restarted advertising after disconnection");
@@ -111,7 +110,7 @@ void avrc_metadata_callback(uint8_t id, const uint8_t *text)
     if (id == ESP_AVRC_MD_ATTR_TITLE)
     {
         strncpy(title, (const char *)text, 160);
-        pReadCharacteristic->setValue(title);
+        pCharacteristic->setValue(title);
     }
 }
 
@@ -124,7 +123,7 @@ bluetooth_controller::bluetooth_controller() : is_bluetooth_connected(false), la
 
 void bluetooth_controller::setCharacteristicValue(const char *value)
 {
-    pReadCharacteristic->setValue(value);
+    pCharacteristic->setValue(value);
 }
 
 void bluetooth_controller::begin(const String &speaker_name, std::function<int32_t(Frame *, int32_t)> audioProviderCallback, bool isPrimary)
@@ -156,6 +155,44 @@ void bluetooth_controller::begin(const String &speaker_name, std::function<int32
     Serial.println("BT: Bluetooth initialization complete.");
 }
 
+/*
+    Create the BLE service and characteristic that the primary skull will read from and write to.
+
+    Note: This service/characteristic comes up (correctly) in a BLE scanner as:
+
+        **Advertised Services**
+        Unknown Service    -- the service itself
+        UUID: 4FAFC201-1FB5-459E-8FCC-C5C9C331914B
+
+        **Attribute Table**
+        Unknown Service  -- generic access service (standard Bluetooth service)
+        UUID: 1800
+        PRIMARY SERVICE
+
+        Unknown Service  -- generic attribute service (standard Bluetooth service)
+        UUID: 1801
+        PRIMARY SERVICE
+
+        Unknown Service  -- the service itself
+        UUID: 4FAFC201-1FB5-459E-8FCC-C5C9C331914B
+        PRIMARY SERVICE
+
+        Unknown Characteristic  -- the characteristic itself
+        UUID: BEB5483E-36E1-4688-B7F5-EA07361B26A8
+        Properties: Read, Write, and Indicate
+        Value: Hello from SkullSecondary
+        Value Sent: Testing can
+
+        Unknown Descriptor  -- the Client Characteristic Configuration Descriptor (CCCD) we added for indications
+        UUID: 2902
+        Value: Disabled
+        Value Sent: N/A
+
+        ---
+
+        Device Name: **SkullSecondary-Server**
+
+*/
 void bluetooth_controller::initializeBLEServer()
 {
     Serial.println("BT-BLE: Starting as BLE SECONDARY (server)");
@@ -166,20 +203,18 @@ void bluetooth_controller::initializeBLEServer()
 
     BLEService *pService = pServer->createService(SERVER_SERVICE_UUID);
 
-    // Create read-only characteristic
-    pReadCharacteristic = pService->createCharacteristic(
-        READ_CHARACTERISTIC_UUID,
-        BLECharacteristic::PROPERTY_READ);
+    // Create single read/write characteristic with indications
+    pCharacteristic = pService->createCharacteristic(
+        CHARACTERISTIC_UUID,
+        BLECharacteristic::PROPERTY_READ |
+            BLECharacteristic::PROPERTY_WRITE |
+            BLECharacteristic::PROPERTY_INDICATE);
 
-    pReadCharacteristic->setValue("Hello from SkullSecondary");
+    pCharacteristic->setValue("Hello from SkullSecondary");
+    pCharacteristic->setCallbacks(new MyCallbacks());
 
-    // Create read/write characteristic
-    pReadWriteCharacteristic = pService->createCharacteristic(
-        READWRITE_CHARACTERISTIC_UUID,
-        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-
-    pReadWriteCharacteristic->setValue("Initial writable value");
-    pReadWriteCharacteristic->setCallbacks(new MyCallbacks());
+    // Sets up indications
+    pCharacteristic->addDescriptor(new BLE2902());
 
     pService->start();
 
@@ -190,7 +225,7 @@ void bluetooth_controller::initializeBLEServer()
     pAdvertising->setMinPreferred(0x12);
     BLEDevice::startAdvertising();
 
-    Serial.println("BT-BLE: Characteristics defined! Now you can read/write them from the Primary skull!");
+    Serial.println("BT-BLE: Single characteristic defined! Now you can read/write/receive indications from the Primary skull!");
 }
 
 class MyClientCallback : public BLEClientCallbacks
@@ -246,21 +281,20 @@ bool bluetooth_controller::connectToServer()
     }
     Serial.println("BT-BLE: - Found our service");
 
-    pRemoteReadCharacteristic = pRemoteService->getCharacteristic(BLEUUID(READ_CHARACTERISTIC_UUID));
-    pRemoteReadWriteCharacteristic = pRemoteService->getCharacteristic(BLEUUID(READWRITE_CHARACTERISTIC_UUID));
+    pRemoteCharacteristic = pRemoteService->getCharacteristic(BLEUUID(CHARACTERISTIC_UUID));
 
-    if (pRemoteReadCharacteristic == nullptr || pRemoteReadWriteCharacteristic == nullptr)
+    if (pRemoteCharacteristic == nullptr)
     {
         Serial.println("BT-BLE: Failed to find our characteristic UUID");
         pClient->disconnect();
         return false;
     }
-    Serial.println("BT-BLE: - Found our characteristics");
+    Serial.println("BT-BLE: - Found our characteristic");
 
-    if (pRemoteReadCharacteristic->canRead())
+    if (pRemoteCharacteristic->canRead())
     {
-        std::string value = pRemoteReadCharacteristic->readValue();
-        Serial.print("BT-BLE: The read characteristic value was: ");
+        std::string value = pRemoteCharacteristic->readValue();
+        Serial.print("BT-BLE: The characteristic value was: ");
         Serial.println(value.c_str());
     }
 
