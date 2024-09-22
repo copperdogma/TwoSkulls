@@ -44,6 +44,7 @@ bluetooth_controller bluetoothController;
 AudioPlayer *audioPlayer = nullptr;
 // CAMKILL:SkullCommunication *skullCommunication = nullptr;
 RadioManager radioManager;
+static unsigned long lastCharacteristicUpdate = 0;
 
 // Exponential smoothing
 struct AudioState
@@ -101,7 +102,7 @@ void onMessageSent(const struct_message &msg)
   if (isPrimary && msg.message == Message::CONNECTION_REQUEST)
   {
     lightController.blinkEyes(1); // 1 blink for wifi connection request
-    if (bluetoothController.is_connected() && !audioPlayer->isAudioPlaying())
+    if (bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
     {
       audioPlayer->playNext("/audio/Marco.wav");
     }
@@ -110,7 +111,7 @@ void onMessageSent(const struct_message &msg)
   if (!isPrimary && msg.message == Message::CONNECTION_ACK)
   {
     lightController.blinkEyes(1); // 1 blink for wifi connection received
-    if (bluetoothController.is_connected() && !audioPlayer->isAudioPlaying())
+    if (bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
     {
       // The CONNECTION_REQUEST/CONNECTION_ACK is so fast that the Polo will play while Marco is still playing.
       // Wait 1000ms before playing Polo.
@@ -122,7 +123,7 @@ void onMessageSent(const struct_message &msg)
   if (!isPrimary && msg.message == Message::PLAY_FILE_ACK)
   {
     // Immediately play the names skit to coincide with the secondary skyll accepting the command so we're in sync.
-    if (bluetoothController.is_connected() && !audioPlayer->isAudioPlaying())
+    if (bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
     {
       audioPlayer->playNext("/audio/Skit - names.wav");
     }
@@ -253,7 +254,7 @@ void setup()
   // Include the callback so that the bluetooth_controller library can call the AudioPlayer's
   // provideAudioFrames method to get more audio data when the bluetooth speaker needs it.
   bluetoothController.begin(bluetoothSpeakerName, [](Frame *frame, int32_t frame_count)
-                       { return audioPlayer->provideAudioFrames(frame, frame_count); }, isPrimary);
+                            { return audioPlayer->provideAudioFrames(frame, frame_count); }, isPrimary);
   bluetoothController.set_volume(speakerVolume);
 
   // Set the initial state of the eyes to dim
@@ -306,9 +307,11 @@ void loop()
     uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_chars);
 
     Serial.printf("%lu loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
-    Serial.printf("Bluetooth connected: %s, ", bluetoothController.is_connected() ? "true" : "false");
+    Serial.printf("Bluetooth connected: %s, ", bluetoothController.isA2dpConnected() ? "true" : "false");
     Serial.printf("isAudioPlaying: %s, ", isAudioPlaying ? "true" : "false");
     // CAMKILL: Serial.printf("Peer connected: %s, ", skullCommunication->isPeerConnected() ? "true" : "false");
+    Serial.printf("BLE clientIsConnectedToServer: %s, ", bluetoothController.clientIsConnectedToServer() ? "true" : "false");
+    Serial.printf("BLE serverHasClientConnected: %s, ", bluetoothController.serverHasClientConnected() ? "true" : "false");
     Serial.printf("Voltage: %d mV, ", voltage);
     // CAMKILL: Serial.printf("lastHeardTime: %lu\n", skullCommunication->getLastHeardTime());
     Serial.printf("\n");
@@ -349,6 +352,21 @@ void loop()
   //   lastCharacteristicUpdate = currentMillis;
   //   Serial.printf("Updated BLE characteristic with message: %s\n", message.c_str());
   // }
+
+  if (isPrimary && bluetoothController.clientIsConnectedToServer() && currentMillis - lastCharacteristicUpdate >= 10000)
+  {
+    String message = "Hello from the primary skull at " + String(currentMillis) + "ms";
+    bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
+    if (success)
+    {
+      Serial.printf("Successfully updated BLE characteristic with message: %s\n", message.c_str());
+    }
+    else
+    {
+      Serial.printf("Failed to update BLE characteristic with message: %s\n", message.c_str());
+    }
+    lastCharacteristicUpdate = currentMillis;
+  }
 
   // Allow other tasks to run
   delay(1);

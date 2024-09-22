@@ -38,10 +38,9 @@
 BLECharacteristic *pCharacteristic;
 char title[160] = {"Skull characteristic value!"};
 
-// TODO: these should be static/declared in header
-static bool deviceConnected = false;
-static boolean doConnect = false;
-static boolean connected = false;
+static bool serverHasClientConnected = false;
+static boolean clientShouldConnect = false;
+static boolean clientIsConnectedToServer = false;
 static BLEAdvertisedDevice *myDevice;
 
 class MyCallbacks : public BLECharacteristicCallbacks
@@ -67,7 +66,9 @@ class MyServerCallbacks : public BLEServerCallbacks
 {
     void onConnect(BLEServer *pServer, esp_ble_gatts_cb_param_t *param)
     {
-        deviceConnected = true;
+        if (bluetooth_controller::instance) {
+            bluetooth_controller::instance->setBLEServerConnectionStatus(true);
+        }
         Serial.println("BT-BLE: Client connected!");
         Serial.print("BT-BLE: Client address: ");
         for (int i = 0; i < 6; i++)
@@ -95,7 +96,9 @@ class MyServerCallbacks : public BLEServerCallbacks
 
     void onDisconnect(BLEServer *pServer)
     {
-        deviceConnected = false;
+        if (bluetooth_controller::instance) {
+            bluetooth_controller::instance->setBLEServerConnectionStatus(false);
+        }
         Serial.println("BT-BLE: Client disconnected");
 
         // Restart advertising
@@ -116,7 +119,10 @@ void avrc_metadata_callback(uint8_t id, const uint8_t *text)
 
 bluetooth_controller *bluetooth_controller::instance = nullptr;
 
-bluetooth_controller::bluetooth_controller() : is_bluetooth_connected(false), last_reconnection_attempt(0), m_speaker_name("")
+bluetooth_controller::bluetooth_controller() 
+    : m_speaker_name(""), 
+      m_clientIsConnectedToServer(false),
+      m_serverHasClientConnected(false)  // Initialize the new member
 {
     instance = this; // This line ensures proper initialization of the static instance
 }
@@ -232,12 +238,16 @@ class MyClientCallback : public BLEClientCallbacks
 {
     void onConnect(BLEClient *pclient)
     {
-        connected = true;
+        if (bluetooth_controller::instance) {
+            bluetooth_controller::instance->setBLEClientConnectionStatus(true);
+        }
     }
 
     void onDisconnect(BLEClient *pclient)
     {
-        connected = false;
+        if (bluetooth_controller::instance) {
+            bluetooth_controller::instance->setBLEClientConnectionStatus(false);
+        }
         Serial.println("BT-BLE: Disconnected from SkullSecondary-Server");
     }
 };
@@ -253,7 +263,7 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
         {
             BLEDevice::getScan()->stop();
             myDevice = new BLEAdvertisedDevice(advertisedDevice);
-            doConnect = true;
+            clientShouldConnect = true;
             Serial.println("BT-BLE: Found SkullSecondary-Server. Stopping scan.");
         }
     }
@@ -303,8 +313,57 @@ bool bluetooth_controller::connectToServer()
         Serial.println(value.c_str());
     }
 
-    connected = true;
+    // Register for indications
+    registerForIndications();
+
+    m_clientIsConnectedToServer = true;
     return true;
+}
+
+void bluetooth_controller::registerForIndications() {
+    if (pRemoteCharacteristic->canIndicate()) {
+        pRemoteCharacteristic->registerForNotify(notifyCallback);
+        Serial.println("BT-BLE: Registered for indications");
+    } else {
+        Serial.println("BT-BLE: Characteristic does not support indications");
+    }
+}
+
+void bluetooth_controller::notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
+    if (instance) {
+        std::string value((char*)pData, length);
+        instance->handleIndication(value);
+    }
+}
+
+void bluetooth_controller::handleIndication(const std::string& value) {
+    Serial.print("BT-BLE: Received indication: ");
+    Serial.println(value.c_str());
+    indicationReceived = true;
+}
+
+bool bluetooth_controller::setRemoteCharacteristicValue(const std::string& value) {
+    if (m_clientIsConnectedToServer && pRemoteCharacteristic) {
+        indicationReceived = false;
+        pRemoteCharacteristic->writeValue(value);
+        
+        // Wait for indication (with timeout)
+        unsigned long startTime = millis();
+        while (!indicationReceived && (millis() - startTime < 5000)) {
+            delay(10);
+        }
+        
+        if (indicationReceived) {
+            Serial.println("BT-BLE: Successfully set characteristic value and received indication");
+            return true;
+        } else {
+            Serial.println("BT-BLE: Failed to receive indication after setting characteristic value");
+            return false;
+        }
+    } else {
+        Serial.println("BT-BLE: Not connected or characteristic not available");
+        return false;
+    }
 }
 
 void bluetooth_controller::initializeBLEClient()
@@ -331,19 +390,19 @@ void bluetooth_controller::update()
 {
     if (m_isPrimary)
     {
-        if (doConnect)
+        if (clientShouldConnect)
         {
             if (connectToServer())
             {
                 Serial.println("BT-BLE: We are now connected to the SkullSecondary-Server.");
-                doConnect = false;
+                clientShouldConnect = false;
             }
             else
             {
                 Serial.println("BT-BLE: We failed to connect to the SkullSecondary-Server; will retry in next update.");
             }
         }
-        else if (!connected)
+        else if (!m_clientIsConnectedToServer)
         {
             // If not connected and not attempting to connect, start scanning
             startScan();
@@ -372,15 +431,29 @@ void bluetooth_controller::set_connection_state_callback(void (*callback)(esp_a2
     a2dp_source.set_on_connection_state_changed(callback, this);
 }
 
-bool bluetooth_controller::is_connected()
+bool bluetooth_controller::isA2dpConnected()
 {
     return a2dp_source.is_connected();
 }
 
-void bluetooth_controller::set_volume(uint8_t volume)
+bool bluetooth_controller::clientIsConnectedToServer() const
 {
-    Serial.printf("BT-A2DP: Setting bluetooth speaker volume to %d\n", volume);
-    a2dp_source.set_volume(volume);
+    return m_clientIsConnectedToServer;
+}
+
+bool bluetooth_controller::serverHasClientConnected() const
+{
+    return m_serverHasClientConnected;
+}
+
+void bluetooth_controller::setBLEClientConnectionStatus(bool status)
+{
+    m_clientIsConnectedToServer = status;
+}
+
+void bluetooth_controller::setBLEServerConnectionStatus(bool status)
+{
+    m_serverHasClientConnected = status;
 }
 
 const String &bluetooth_controller::get_speaker_name() const
@@ -396,14 +469,12 @@ void bluetooth_controller::connection_state_changed(esp_a2d_connection_state_t s
     {
     case ESP_A2D_CONNECTION_STATE_DISCONNECTED:
         Serial.printf("BT-A2DP: Not connected to Bluetooth speaker '%s'.\n", self->m_speaker_name.c_str());
-        self->is_bluetooth_connected = false;
         break;
     case ESP_A2D_CONNECTION_STATE_CONNECTING:
         Serial.printf("BT-A2DP: Attempting to connect to Bluetooth speaker '%s'...\n", self->m_speaker_name.c_str());
         break;
     case ESP_A2D_CONNECTION_STATE_CONNECTED:
         Serial.printf("BT-A2DP: Successfully connected to Bluetooth speaker '%s'.\n", self->m_speaker_name.c_str());
-        self->is_bluetooth_connected = true;
         break;
     case ESP_A2D_CONNECTION_STATE_DISCONNECTING:
         Serial.printf("BT-A2DP: Disconnecting from Bluetooth speaker '%s'...\n", self->m_speaker_name.c_str());
@@ -411,4 +482,11 @@ void bluetooth_controller::connection_state_changed(esp_a2d_connection_state_t s
     default:
         Serial.printf("BT-A2DP: Unknown connection state for Bluetooth speaker '%s'.\n", self->m_speaker_name.c_str());
     }
+}
+
+// Add this method implementation
+void bluetooth_controller::set_volume(uint8_t volume)
+{
+    Serial.printf("BT-A2DP: Setting bluetooth speaker volume to %d\n", volume);
+    a2dp_source.set_volume(volume);
 }
