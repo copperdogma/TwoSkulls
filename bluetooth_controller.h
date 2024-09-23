@@ -30,7 +30,7 @@ public:
 
     static bluetooth_controller *instance;
     bool setRemoteCharacteristicValue(const std::string& value);
-    void registerForIndications();
+    bool registerForIndications();  // Changed from void to bool
 
     bool clientIsConnectedToServer() const;
     bool serverHasClientConnected() const;  // Add this new method
@@ -72,6 +72,7 @@ private:
 
     ConnectionState m_connectionState;
     unsigned long m_lastReconnectAttempt;
+    unsigned long connectionStartTime;  // Add this line
 
     void handleConnectionState();
     void attemptReconnection();
