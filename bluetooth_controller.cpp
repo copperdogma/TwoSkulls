@@ -41,7 +41,7 @@ char title[160] = {"Skull characteristic value!"};
 static bool serverHasClientConnected = false;
 static boolean clientShouldConnect = false;
 static boolean clientIsConnectedToServer = false;
-static BLEAdvertisedDevice *myDevice;
+BLEAdvertisedDevice* bluetooth_controller::myDevice = nullptr;
 
 class MyCallbacks : public BLECharacteristicCallbacks
 {
@@ -68,6 +68,7 @@ class MyServerCallbacks : public BLEServerCallbacks
     {
         if (bluetooth_controller::instance) {
             bluetooth_controller::instance->setBLEServerConnectionStatus(true);
+            bluetooth_controller::instance->setConnectionState(ConnectionState::CONNECTED);
         }
         Serial.println("BT-BLE: Client connected!");
         Serial.print("BT-BLE: Client address: ");
@@ -98,6 +99,7 @@ class MyServerCallbacks : public BLEServerCallbacks
     {
         if (bluetooth_controller::instance) {
             bluetooth_controller::instance->setBLEServerConnectionStatus(false);
+            bluetooth_controller::instance->setConnectionState(ConnectionState::DISCONNECTED);
         }
         Serial.println("BT-BLE: Client disconnected");
 
@@ -122,7 +124,10 @@ bluetooth_controller *bluetooth_controller::instance = nullptr;
 bluetooth_controller::bluetooth_controller() 
     : m_speaker_name(""), 
       m_clientIsConnectedToServer(false),
-      m_serverHasClientConnected(false)  // Initialize the new member
+      m_serverHasClientConnected(false),
+      m_connectionState(ConnectionState::DISCONNECTED),
+      m_lastReconnectAttempt(0),
+      scanStartTime(0)  // Initialize scanStartTime
 {
     instance = this; // This line ensures proper initialization of the static instance
 }
@@ -252,22 +257,104 @@ class MyClientCallback : public BLEClientCallbacks
     }
 };
 
-class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
-{
-    void onResult(BLEAdvertisedDevice advertisedDevice)
-    {
-        Serial.print("BT-BLE: Device found: ");
-        Serial.println(advertisedDevice.toString().c_str());
+static const unsigned long SCAN_INTERVAL = 10000; // 10 seconds between scan attempts
+static const unsigned long SCAN_DURATION = 5000;  // 5 seconds scan duration
 
+void bluetooth_controller::update()
+{
+    if (m_isPrimary)
+    {
+        handleConnectionState();
+    }
+    // Reduce the frequency of status updates
+    static unsigned long lastStatusUpdate = 0;
+    if (millis() - lastStatusUpdate > 5000) // Update every 5 seconds
+    {
+        Serial.printf("BT-BLE: Current connection state: %d (%s)\n", 
+                      static_cast<int>(m_connectionState),
+                      getConnectionStateString(m_connectionState).c_str());
+        Serial.printf("BT-BLE: Client connected: %s, Server has client: %s\n",
+                      m_clientIsConnectedToServer ? "true" : "false",
+                      m_serverHasClientConnected ? "true" : "false");
+        lastStatusUpdate = millis();
+    }
+}
+
+void bluetooth_controller::handleConnectionState()
+{
+    switch (m_connectionState)
+    {
+    case ConnectionState::DISCONNECTED:
+        attemptReconnection();
+        break;
+    case ConnectionState::SCANNING:
+        if (millis() - scanStartTime > SCAN_DURATION)
+        {
+            pBLEScanner->stop();
+            m_connectionState = ConnectionState::DISCONNECTED;
+            Serial.println("BT-BLE: Scan completed, no device found.");
+        }
+        break;
+    case ConnectionState::CONNECTING:
+        // Connection attempt is ongoing, wait for callback
+        break;
+    case ConnectionState::CONNECTED:
+        if (!m_clientIsConnectedToServer)
+        {
+            Serial.println("BT-BLE: Connection lost. Moving to DISCONNECTED state.");
+            disconnectFromServer();
+            m_connectionState = ConnectionState::DISCONNECTED;
+        }
+        break;
+    }
+}
+
+void bluetooth_controller::attemptReconnection()
+{
+    static unsigned long lastScanAttempt = 0;
+    unsigned long currentTime = millis();
+
+    if (currentTime - lastScanAttempt >= SCAN_INTERVAL)
+    {
+        lastScanAttempt = currentTime;
+        Serial.println("BT-BLE: Attempting to reconnect...");
+        startScan();
+        m_connectionState = ConnectionState::SCANNING;
+    }
+}
+
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+public:
+    MyAdvertisedDeviceCallbacks(bluetooth_controller* controller) : m_controller(controller) {}
+
+    void onResult(BLEAdvertisedDevice advertisedDevice) override {
         if (advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(BLEUUID(SERVER_SERVICE_UUID)))
         {
             BLEDevice::getScan()->stop();
-            myDevice = new BLEAdvertisedDevice(advertisedDevice);
-            clientShouldConnect = true;
-            Serial.println("BT-BLE: Found SkullSecondary-Server. Stopping scan.");
+            m_controller->setMyDevice(new BLEAdvertisedDevice(advertisedDevice));
+            m_controller->setConnectionState(ConnectionState::CONNECTING);
+            Serial.println("BT-BLE: Found SkullSecondary-Server. Attempting to connect.");
+            m_controller->connectToServer();
         }
     }
+
+private:
+    bluetooth_controller* m_controller;
 };
+
+void bluetooth_controller::startScan()
+{
+    if (pBLEScanner == nullptr)
+    {
+        Serial.println("BT-BLE: Scanner not initialized. Initializing now.");
+        initializeBLEClient();
+    }
+    pBLEScanner->stop();
+    pBLEScanner->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(this));
+    pBLEScanner->start(SCAN_DURATION / 1000, false);
+    Serial.println("BT-BLE: Started scan for SkullSecondary-Server...");
+    scanStartTime = millis();
+}
 
 bool bluetooth_controller::connectToServer()
 {
@@ -316,8 +403,19 @@ bool bluetooth_controller::connectToServer()
     // Register for indications
     registerForIndications();
 
+    m_connectionState = ConnectionState::CONNECTED;
     m_clientIsConnectedToServer = true;
     return true;
+}
+
+void bluetooth_controller::disconnectFromServer()
+{
+    if (pClient != nullptr && pClient->isConnected())
+    {
+        pClient->disconnect();
+    }
+    m_clientIsConnectedToServer = false;
+    m_connectionState = ConnectionState::DISCONNECTED;
 }
 
 void bluetooth_controller::registerForIndications() {
@@ -372,88 +470,27 @@ void bluetooth_controller::initializeBLEClient()
 
     BLEDevice::init("SkullPrimary-Client");
     pBLEScanner = BLEDevice::getScan();
-    pBLEScanner->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
     pBLEScanner->setInterval(1349);
     pBLEScanner->setWindow(449);
     pBLEScanner->setActiveScan(true);
-    startScan();
-}
-
-void bluetooth_controller::startScan()
-{
-    pBLEScanner->stop();                   // Stop any ongoing scan
-    pBLEScanner->start(0, nullptr, false); // 0 = scan continuously
-    Serial.println("BT-BLE: Started continuous scan for SkullSecondary-Server...");
-}
-
-void bluetooth_controller::update()
-{
-    if (m_isPrimary)
-    {
-        if (clientShouldConnect)
-        {
-            if (connectToServer())
-            {
-                Serial.println("BT-BLE: We are now connected to the SkullSecondary-Server.");
-                clientShouldConnect = false;
-            }
-            else
-            {
-                Serial.println("BT-BLE: We failed to connect to the SkullSecondary-Server; will retry in next update.");
-            }
-        }
-        else if (!m_clientIsConnectedToServer)
-        {
-            // If not connected and not attempting to connect, start scanning
-            startScan();
-        }
-        else
-        {
-            // Here you can perform any operations you need when connected
-            // For example, you might want to read or write to the characteristics periodically
-        }
-    }
-}
-
-// The bluetooth library automatically calls this to get audio data from the audio player to the bluetooth module.
-// The bluetooth only calls it when there's an active bluetooth connection.
-int bluetooth_controller::audio_callback_trampoline(Frame *frame, int frame_count)
-{
-    if (instance && instance->audio_provider_callback)
-    {
-        return static_cast<int>(instance->audio_provider_callback(frame, static_cast<int32_t>(frame_count)));
-    }
-    return 0;
-}
-// The bluetooth library automatically calls this to get audio data from the audio player to the bluetooth module.
-void bluetooth_controller::set_connection_state_callback(void (*callback)(esp_a2d_connection_state_t state, void *obj))
-{
-    a2dp_source.set_on_connection_state_changed(callback, this);
-}
-
-bool bluetooth_controller::isA2dpConnected()
-{
-    return a2dp_source.is_connected();
-}
-
-bool bluetooth_controller::clientIsConnectedToServer() const
-{
-    return m_clientIsConnectedToServer;
-}
-
-bool bluetooth_controller::serverHasClientConnected() const
-{
-    return m_serverHasClientConnected;
+    
+    // Instead of calling startScan() here, set the state to DISCONNECTED
+    m_connectionState = ConnectionState::DISCONNECTED;
+    m_lastReconnectAttempt = 0; // This will trigger a scan on the next update() call
+    
+    Serial.println("BT-BLE: Client initialized, ready to start scanning.");
 }
 
 void bluetooth_controller::setBLEClientConnectionStatus(bool status)
 {
     m_clientIsConnectedToServer = status;
+    m_connectionState = status ? ConnectionState::CONNECTED : ConnectionState::DISCONNECTED;
 }
 
 void bluetooth_controller::setBLEServerConnectionStatus(bool status)
 {
     m_serverHasClientConnected = status;
+    m_connectionState = status ? ConnectionState::CONNECTED : ConnectionState::DISCONNECTED;
 }
 
 const String &bluetooth_controller::get_speaker_name() const
@@ -489,4 +526,39 @@ void bluetooth_controller::set_volume(uint8_t volume)
 {
     Serial.printf("BT-A2DP: Setting bluetooth speaker volume to %d\n", volume);
     a2dp_source.set_volume(volume);
+}
+
+bool bluetooth_controller::isA2dpConnected()
+{
+    return a2dp_source.is_connected();
+}
+
+bool bluetooth_controller::clientIsConnectedToServer() const
+{
+    return m_clientIsConnectedToServer;
+}
+
+bool bluetooth_controller::serverHasClientConnected() const
+{
+    return m_serverHasClientConnected;
+}
+
+int bluetooth_controller::audio_callback_trampoline(Frame* frame, int frame_count)
+{
+    if (instance && instance->audio_provider_callback)
+    {
+        return instance->audio_provider_callback(frame, frame_count);
+    }
+    return 0;
+}
+
+// Add this helper method to the bluetooth_controller class
+std::string bluetooth_controller::getConnectionStateString(ConnectionState state) {
+    switch (state) {
+        case ConnectionState::DISCONNECTED: return "DISCONNECTED";
+        case ConnectionState::SCANNING: return "SCANNING";
+        case ConnectionState::CONNECTING: return "CONNECTING";
+        case ConnectionState::CONNECTED: return "CONNECTED";
+        default: return "UNKNOWN";
+    }
 }

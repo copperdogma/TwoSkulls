@@ -368,6 +368,8 @@ void loop()
     lastCharacteristicUpdate = currentMillis;
   }
 
-  // Allow other tasks to run
+  bluetoothController.update();
+
+  // Reduce the delay to allow for more frequent updates
   delay(1);
 }

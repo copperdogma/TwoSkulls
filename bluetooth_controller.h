@@ -2,12 +2,20 @@
 #define BLUETOOTH_CONTROLLER_H
 
 #include <Arduino.h>
-#include "BluetoothA2DPSource.h"
+#include "BluetoothA2DPSource.h"  // This should include the Frame struct definition
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <functional>
 #include <string>
+
+// Add this near the top of the file, after the includes
+enum class ConnectionState {
+    DISCONNECTED,
+    SCANNING,
+    CONNECTING,
+    CONNECTED
+};
 
 class bluetooth_controller {
 public:
@@ -18,7 +26,7 @@ public:
     void set_volume(uint8_t volume);
     const String& get_speaker_name() const;
     void setCharacteristicValue(const char *value);
-    void update();
+    void update();  // Add this line
 
     static bluetooth_controller *instance;
     bool setRemoteCharacteristicValue(const std::string& value);
@@ -29,6 +37,14 @@ public:
     void setBLEClientConnectionStatus(bool status);
     void setBLEServerConnectionStatus(bool status);  // Add this new method
 
+    // Make these methods public
+    void startScan();
+    bool connectToServer();
+    ConnectionState getConnectionState() const { return m_connectionState; }
+    void setConnectionState(ConnectionState state) { m_connectionState = state; }
+
+    void setMyDevice(BLEAdvertisedDevice* device) { myDevice = device; }
+
 private:
     BLEScan* pBLEScanner;
     BLEClient* pClient;
@@ -37,10 +53,8 @@ private:
 
     void initializeBLEServer();
     void initializeBLEClient();
-    void startScan(); // Add this line
     static int audio_callback_trampoline(Frame* frame, int frame_count);
     static void connection_state_changed(esp_a2d_connection_state_t state, void* ptr);
-    bool connectToServer();
     void handleBLEClient();
 
     bool m_isPrimary;
@@ -53,10 +67,20 @@ private:
     void handleIndication(const std::string& value);
 
     bool indicationReceived;
-
-    // Move this from being a static variable to a class member
     bool m_clientIsConnectedToServer;
     bool m_serverHasClientConnected;  // Add this new member variable
+
+    ConnectionState m_connectionState;
+    unsigned long m_lastReconnectAttempt;
+
+    void handleConnectionState();
+    void attemptReconnection();
+    void disconnectFromServer();
+
+    static BLEAdvertisedDevice* myDevice;
+    unsigned long scanStartTime;
+
+    std::string getConnectionStateString(ConnectionState state);
 };
 
 #endif // BLUETOOTH_CONTROLLER_H
