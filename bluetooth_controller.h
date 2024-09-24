@@ -9,7 +9,7 @@
 #include <functional>
 #include <string>
 
-// Add this near the top of the file, after the includes
+// Enum to represent the current connection state of the Bluetooth controller
 enum class ConnectionState {
     DISCONNECTED,
     SCANNING,
@@ -17,33 +17,77 @@ enum class ConnectionState {
     CONNECTED
 };
 
+// Main class for managing Bluetooth functionality
 class bluetooth_controller {
 public:
     bluetooth_controller();
+
+    // Initialize the Bluetooth controller
+    // @param speaker_name: Name of the Bluetooth speaker to connect to
+    // @param audioProviderCallback: Callback function to provide audio data
+    // @param isPrimary: Whether this device is the primary or secondary skull
     void begin(const String& speaker_name, std::function<int32_t(Frame*, int32_t)> audioProviderCallback, bool isPrimary);
+
+    // Set a callback function for A2DP connection state changes
     void set_connection_state_callback(void (*callback)(esp_a2d_connection_state_t state, void* obj));
+
+    // Check if A2DP is currently connected
     bool isA2dpConnected();
+
+    // Set the volume for A2DP audio
+    // @param volume: Volume level (0-255)
     void set_volume(uint8_t volume);
+
+    // Get the name of the connected Bluetooth speaker
     const String& get_speaker_name() const;
+
+    // Set the value of the BLE characteristic (for server mode)
     void setCharacteristicValue(const char *value);
-    void update();  // Add this line
 
+    // Update the Bluetooth controller state (call this in the main loop)
+    void update();
+
+    // Singleton instance of the Bluetooth controller
     static bluetooth_controller *instance;
+
+    // Set the value of the remote BLE characteristic (for client mode)
     bool setRemoteCharacteristicValue(const std::string& value);
-    bool registerForIndications();  // Changed from void to bool
 
+    // Register for indications from the remote BLE characteristic
+    bool registerForIndications();
+
+    // Check if the BLE client is connected to a server
     bool clientIsConnectedToServer() const;
-    bool serverHasClientConnected() const;  // Add this new method
-    void setBLEClientConnectionStatus(bool status);
-    void setBLEServerConnectionStatus(bool status);  // Add this new method
 
-    // Make these methods public
+    // Check if the BLE server has a connected client
+    bool serverHasClientConnected() const;
+
+    // Set the BLE client connection status
+    void setBLEClientConnectionStatus(bool status);
+
+    // Set the BLE server connection status
+    void setBLEServerConnectionStatus(bool status);
+
+    // Start scanning for BLE devices
     void startScan();
+
+    // Connect to a BLE server
     bool connectToServer();
+
+    // Get the current connection state
     ConnectionState getConnectionState() const { return m_connectionState; }
+
+    // Set the current connection state
     void setConnectionState(ConnectionState state) { m_connectionState = state; }
 
+    // Set the discovered BLE device (internal use)
     void setMyDevice(BLEAdvertisedDevice* device) { myDevice = device; }
+
+    // Set the connection start time (internal use)
+    void setConnectionStartTime(unsigned long time) { connectionStartTime = time; }
+
+    // Check if the server is still advertising
+    bool isServerAdvertising();
 
 private:
     BLEScan* pBLEScanner;
@@ -68,18 +112,17 @@ private:
 
     bool indicationReceived;
     bool m_clientIsConnectedToServer;
-    bool m_serverHasClientConnected;  // Add this new member variable
+    bool m_serverHasClientConnected;
 
     ConnectionState m_connectionState;
     unsigned long m_lastReconnectAttempt;
-    unsigned long connectionStartTime;  // Add this line
+    unsigned long connectionStartTime;  // Add this line if it's not already present
+    unsigned long scanStartTime;
 
     void handleConnectionState();
-    void attemptReconnection();
     void disconnectFromServer();
 
     static BLEAdvertisedDevice* myDevice;
-    unsigned long scanStartTime;
 
     std::string getConnectionStateString(ConnectionState state);
 };

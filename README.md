@@ -101,8 +101,6 @@ A,37000,0,0       - Primary (0s): snaps jaw closed
 B,47000,2000      - Secondary (2s): sorry, I was on the phone... you were saying?
 
 
-
-
 LEDs (x2, red, for eyes)
 - connect to GPIO 32 and 33, plus single ground 
   - the two LED black wires are combined with a 100ohm resistor to stop them from drawing too many amps and burning out, which leads to a single black ground wire
@@ -125,6 +123,14 @@ Ultrasonic Sensor HC-SR04
 Servo: Power HD HD-1160A
 - 4.8v-6v, stall torque: 3.0kg.com, max current: 0.8A, 0.12s/60deg speed, Pulse width Modulation
 - speed = 0.12s/60deg = 500 deg/s max speed
+
+
+TROUBLESHOOTING:
+- If it won't compile citing, library references, especially if you've just changed branches or did something large and disruptive,
+  it may be a cachine issue with Arduino IDE. To clear the cache, compile for a different board (which will fail) and then switch
+  back to the actual board and recompile.
+
+
 
 ISSUES
 
