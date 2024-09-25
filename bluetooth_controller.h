@@ -28,9 +28,6 @@ public:
     // @param isPrimary: Whether this device is the primary or secondary skull
     void begin(const String& speaker_name, std::function<int32_t(Frame*, int32_t)> audioProviderCallback, bool isPrimary);
 
-    // Set a callback function for A2DP connection state changes
-    void set_connection_state_callback(void (*callback)(esp_a2d_connection_state_t state, void* obj));
-
     // Check if A2DP is currently connected
     bool isA2dpConnected();
 
@@ -103,7 +100,6 @@ private:
     void initializeBLEClient();
     static int audio_callback_trampoline(Frame* frame, int frame_count);
     static void connection_state_changed(esp_a2d_connection_state_t state, void* ptr);
-    void handleBLEClient();
 
     bool m_isPrimary;
     String m_speaker_name;
@@ -123,7 +119,6 @@ private:
     unsigned long connectionStartTime;  // Add this line if it's not already present
     unsigned long scanStartTime;
 
-    void handleConnectionState();
     void disconnectFromServer();
 
     static BLEAdvertisedDevice* myDevice;

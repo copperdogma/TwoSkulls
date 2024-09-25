@@ -147,49 +147,17 @@ ISSUES
     - power board, providing power to both the ESP32 board and the servo: I think I only have one
   ** rebuild secondary perfboard with dupont connectors
   ** staging: mount on sticks, make name signs, figure out where to put electronics + batteries, figure out where/how to hide speakers
-
-  ** NOPE! skull communication using wifi
-    ** ISSUE: primary frequently doesn't hear secondary and vice-versa
-    ** ISSUE: audio all over the map
-      - this is because it's attempting to connect/ack and play/ack before the bluetooth is connected which
-      is pointless and disruptive. Add skullCommunication->Enabled(true/false) when bluetooth is connected.
-      - could also just have a skullAnimator or INO state machine
-    ** TODO: why does skull_communication have access to skullAudioAnimator? That seems like the wrong inversion.
-             Perhaps skull_communication should have a callback, coordinated by skull_audio_animator or the INO
-             file, which sets skull_communication->Enabled(true/false) (for when it's playing audio), and
-             the callback should be for when the primary gets PLAY_FILE_ACK and should start playing the file.
+  ** why does skull_communication have access to skullAudioAnimator? That seems like the wrong inversion.
+      Perhaps skull_communication should have a callback, coordinated by skull_audio_animator or the INO
+      file, which sets skull_communication->Enabled(true/false) (for when it's playing audio), and
+      the callback should be for when the primary gets PLAY_FILE_ACK and should start playing the file.
       - REFACTORING
         - need to give skull_audio_animator AP.isPlaying (better to raise events on start/end with filename), AP.getPlaybackTime(),
           AP.playingAudioFrames(audioFrames BT just grabbed)
         - Use existing ESP32 audio libraries/SD reader libraries so I'm not reinventing the wheel: https://chatgpt.com/c/66e9d09e-68c4-800a-a1ce-618cef69b694
-    ** don't try to connect via Wifi until the "initialized" is done playing otherwise it queues up multiple Marcos
-      - also how does it manage that? I thought the queueing system didn't allow duplicates... check
-    ** NEXT: manually disconnect bluetooth after it's done playing audio so we can use wifi, and reconnect when it needs to play again
-    ** NOPE: BluetoothA2DPSource says it will NOT work with bluetooth and wifi at the same time, but You can use both A2DP and BLE at the same time. The precondition however is, that you set the bluetooth mode to ESP_BT_MODE_BTDM. An example can be found in the examples directory. https://github.com/pschatzmann/ESP32-A2DP/blob/main/examples/bt_music_receiver_and_BLE/bt_music_receiver_and_BLE.ino
-      - so maybe hack that in and see if we can use that.
+  ** comms: if client connects then server dies, client never reconnects until restarted
 
-    ** skull communication using BLE (simultaneously with bluetooth A2DP)
-      - BluetoothA2DPSource says it will NOT work with bluetooth and wifi at the same time (https://github.com/pschatzmann/ESP32-A2DP/wiki/WIFI-and-A2DP-Coexistence), but You can use both A2DP and BLE at the same time. The precondition however is, that you set the bluetooth mode to ESP_BT_MODE_BTDM. An example can be found in the examples directory. https://github.com/pschatzmann/ESP32-A2DP/blob/main/examples/bt_music_receiver_and_BLE/bt_music_receiver_and_BLE.ino
-      - HOLY SHIT this just.. worked. Immediately. No issues. First try.
-      - using BT Inspector in App Store which seems great, but no writing (pro only), no search for device, no favourites
-        - BLE Scanner is crap, nRF Client is not bad, LightBlue is good
-      - NOTE: So we're not using TWO libraries, ESP32-A2DP and https://github.com/nkolban/ESP32_BLE_Arduino
-      ** set up bidirectional communicaton
-      - looks like ESP32_BLE_Arduino is deprecated as it's been rolled into Ardiuno core:
-        - https://github.com/espressif/arduino-esp32/tree/master/libraries/BLE
-        - I THINK by importing the libraries I'm already importing I'm using this
-        - Docs: https://github.com/nkolban/esp32-snippets/tree/master/Documentation
-        - Examples: https://github.com/espressif/arduino-esp32/tree/master/libraries/BLE/examples
-      ** architecture?
-        - o1-preview chat: https://chatgpt.com/c/66ef4e1d-07ec-800a-b698-ce24196f8759
-        - o1-preview recommends making Primary the client and Secondary the server. Seems counter-intuitive at first, but this is
-          essentially the Secondary saying "I'm ready to be commanded" and the Primary searching for it and writing commands to it.
-        devices transfer data back and forth using concepts called Services and Characteristics." There is no GATT vs characteristics.
-        ** YES: o1-preview suggests Using Indications:
-          - Primary Sends Start Command with Indication: The Primary writes to the Secondary's characteristic using an indication, which inherently requires an acknowledgment from the Secondary at the protocol level.
-          - Secondary Receives and ACKs: The Secondary's BLE stack automatically sends an acknowledgment upon receiving the indication, ensuring the Primary knows the message was received.
-        ** refactoring BluetoothControlller
-          ** rename some of the audio-specific methods so it's obvious they're not for bluetooth communication
+
 
   
   SD CARD

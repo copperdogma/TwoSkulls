@@ -42,17 +42,14 @@
 
 // BLE-related includes and definitions
 #include <BLEDevice.h>
-#include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h>
 
 // Global variables for BLE communication
 BLECharacteristic *pCharacteristic;
-char title[160] = {"Skull characteristic value!"}; // Stores the current title/value of the BLE characteristic
 
 // Connection status flags
 static bool serverHasClientConnected = false;                  // Indicates if the BLE server (secondary skull) has a connected client
-static boolean clientShouldConnect = false;                    // Flag to initiate client connection attempt
 static boolean clientIsConnectedToServer = false;              // Indicates if the BLE client (primary skull) is connected to a server
 BLEAdvertisedDevice *bluetooth_controller::myDevice = nullptr; // Stores the discovered BLE server device
 
@@ -61,7 +58,7 @@ static BLEScan *pBLEScan = nullptr; // BLE scanner object
 static bool isScanning = false;     // Flag to track if BLE scanning is in progress
 
 // Callback class for handling BLE characteristic writes
-class MyCallbacks : public BLECharacteristicCallbacks
+class MyCharacteristicCallbacks : public BLECharacteristicCallbacks
 {
     void onWrite(BLECharacteristic *pCharacteristic)
     {
@@ -86,8 +83,18 @@ class MyServerCallbacks : public BLEServerCallbacks
     {
         bluetooth_controller::instance->setBLEServerConnectionStatus(true);
         bluetooth_controller::instance->setConnectionState(ConnectionState::CONNECTED);
+        
+        // Log client address and connection details
+        char remoteAddress[18];
+        sprintf(remoteAddress, "%02x:%02x:%02x:%02x:%02x:%02x",
+                param->connect.remote_bda[0], param->connect.remote_bda[1],
+                param->connect.remote_bda[2], param->connect.remote_bda[3],
+                param->connect.remote_bda[4], param->connect.remote_bda[5]);
+        
         Serial.println("BT-BLE: Client connected!");
-        // TODO: Implement logging of client address and connection details
+        Serial.printf("BT-BLE: Client Address: %s\n", remoteAddress);
+        Serial.printf("BT-BLE: Connection ID: %d\n", param->connect.conn_id);
+        Serial.printf("BT-BLE: Connection Handle: %d\n", param->connect.conn_handle);
     }
 
     void onDisconnect(BLEServer *pServer)
@@ -211,7 +218,7 @@ void bluetooth_controller::initializeBLEServer()
             BLECharacteristic::PROPERTY_INDICATE);
 
     pCharacteristic->setValue("Hello from SkullSecondary");
-    pCharacteristic->setCallbacks(new MyCallbacks());
+    pCharacteristic->setCallbacks(new MyCharacteristicCallbacks());
 
     // Add descriptor for indications
     pCharacteristic->addDescriptor(new BLE2902());
@@ -226,7 +233,7 @@ void bluetooth_controller::initializeBLEServer()
     pAdvertising->setMinPreferred(0x12);
     BLEDevice::startAdvertising();
 
-    Serial.println("BT-BLE: Single characteristic defined! Now you can read/write/receive indications from the Primary skull!");
+    Serial.println("BT-BLE: Audio Playback characteristic defined. Ready for Primary skull (client) to command an audio file be played.");
 }
 
 // Callback class for BLE client events
@@ -633,7 +640,6 @@ int bluetooth_controller::audio_callback_trampoline(Frame *frame, int frame_coun
     }
     return 0;
 }
-
 // Helper method to get a string representation of the connection state
 std::string bluetooth_controller::getConnectionStateString(ConnectionState state)
 {
