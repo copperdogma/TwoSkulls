@@ -155,7 +155,13 @@ ISSUES
         - need to give skull_audio_animator AP.isPlaying (better to raise events on start/end with filename), AP.getPlaybackTime(),
           AP.playingAudioFrames(audioFrames BT just grabbed)
         - Use existing ESP32 audio libraries/SD reader libraries so I'm not reinventing the wheel: https://chatgpt.com/c/66e9d09e-68c4-800a-a1ce-618cef69b694
-  ** comms: if client connects then server dies, client never reconnects until restarted
+  ** NEXT:
+    ** don't allow comms until A2DP set up and done speaking "initialized"
+    ** don't ACK if playing audio or A2DP uninitialized
+    ** have both play same file at same time
+    ** kill radioManger (it's integrated in a bunch of places still)
+    ** finish refactoring of proper architecture (see paper scrap)
+    ** future: ultrasonic distance needs to be done from multiple averages shots because the sensors results are noisy
 
 
 

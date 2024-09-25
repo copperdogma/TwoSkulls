@@ -39,10 +39,11 @@ SDCardManager *sdCardManager = nullptr;
 SDCardContent sdCardContent;
 
 bool isPrimary = false;
+bool isDonePlayingInitializationAudio = false;
+bool isBleInitializationStarted = false;
 ServoController servoController;
 bluetooth_controller bluetoothController;
 AudioPlayer *audioPlayer = nullptr;
-// CAMKILL:SkullCommunication *skullCommunication = nullptr;
 RadioManager radioManager;
 static unsigned long lastCharacteristicUpdateMillis = 0;
 static unsigned long lastServerScanMillis = 0;
@@ -210,10 +211,16 @@ void setup()
 
   audioPlayer = new AudioPlayer(*sdCardManager, radioManager);
 
-  // Announce "System initialized" and role
+  // Initialize Bluetooth A2DP only
+  bluetoothController.initializeA2DP(bluetoothSpeakerName, [](Frame *frame, int32_t frame_count)
+                                     { return audioPlayer->provideAudioFrames(frame, frame_count); });
+
+  // Queue the initialization audio
   String initAudioFilePath = isPrimary ? "/audio/Initialized - Primary.wav" : "/audio/Initialized - Secondary.wav";
-  Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
   audioPlayer->playNext(initAudioFilePath);
+
+  // Announce "System initialized" and role
+  Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
   Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
   // Queue the "Skit - names" skit to play next
@@ -237,8 +244,6 @@ void setup()
   // Initialize Bluetooth after AudioPlayer.
   // Include the callback so that the bluetooth_controller library can call the AudioPlayer's
   // provideAudioFrames method to get more audio data when the bluetooth speaker needs it.
-  bluetoothController.begin(bluetoothSpeakerName, [](Frame *frame, int32_t frame_count)
-                            { return audioPlayer->provideAudioFrames(frame, frame_count); }, isPrimary);
   bluetoothController.set_volume(speakerVolume);
 
   // Set the initial state of the eyes to dim
@@ -248,7 +253,12 @@ void setup()
                                         { Serial.printf("MAIN: Started playing audio: %s\n", filePath.c_str()); });
 
   audioPlayer->setPlaybackEndCallback([](const String &filePath)
-                                      { Serial.printf("MAIN: Finished playing audio: %s\n", filePath.c_str()); });
+                                      { 
+                                        Serial.printf("MAIN: Finished playing audio: %s\n", filePath.c_str());
+                                        if (filePath.endsWith("/audio/Initialized - Primary.wav") || filePath.endsWith("/audio/Initialized - Secondary.wav"))
+                                        {
+                                          isDonePlayingInitializationAudio = true;
+                                        } });
 
   audioPlayer->setAudioFramesProvidedCallback([](const String &filePath, const Frame *frames, int32_t frameCount)
                                               {
@@ -299,6 +309,7 @@ void loop()
     lastStateLoggingMillis = currentMillis;
   }
 
+  // TEST CODE: play the Names skit after everything is properly initialized
   if (isPrimary && bluetoothController.clientIsConnectedToServer() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
   {
     String message = "/audio/Skit - names.wav";
@@ -314,6 +325,7 @@ void loop()
     lastCharacteristicUpdateMillis = currentMillis;
   }
 
+  // Priamry Only: Play "Marco!" ever 5 seconds when scanning for the BLE server (Secondary skull)
   static unsigned long lastScanLogMillis = 0;
   if (isPrimary && bluetoothController.getConnectionState() == ConnectionState::SCANNING)
   {
@@ -333,7 +345,15 @@ void loop()
     lastScanLogMillis = currentMillis;
   }
 
+  // Update Bluetooth controller (it will handle BLE initialization internally)
   bluetoothController.update();
+
+  // If you need to know if both A2DP and BLE are initialized, you can use:
+  if (isDonePlayingInitializationAudio && !isBleInitializationStarted)
+  {
+    bluetoothController.initializeBLE(isPrimary);
+    isBleInitializationStarted = true;
+  }
 
   // Reduce the delay to allow for more frequent updates
   delay(1);

@@ -2,7 +2,7 @@
 #define BLUETOOTH_CONTROLLER_H
 
 #include <Arduino.h>
-#include "BluetoothA2DPSource.h"  // This should include the Frame struct definition
+#include "BluetoothA2DPSource.h" // This should include the Frame struct definition
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
@@ -10,7 +10,8 @@
 #include <string>
 
 // Enum to represent the current connection state of the Bluetooth controller
-enum class ConnectionState {
+enum class ConnectionState
+{
     DISCONNECTED,
     SCANNING,
     CONNECTING,
@@ -18,7 +19,8 @@ enum class ConnectionState {
 };
 
 // Main class for managing Bluetooth functionality
-class bluetooth_controller {
+class bluetooth_controller
+{
 public:
     bluetooth_controller();
 
@@ -26,7 +28,11 @@ public:
     // @param speaker_name: Name of the Bluetooth speaker to connect to
     // @param audioProviderCallback: Callback function to provide audio data
     // @param isPrimary: Whether this device is the primary or secondary skull
-    void begin(const String& speaker_name, std::function<int32_t(Frame*, int32_t)> audioProviderCallback, bool isPrimary);
+    void begin(const String &speaker_name, std::function<int32_t(Frame *, int32_t)> audioProviderCallback, bool isPrimary);
+
+    // Separate A2DP and BLE initialization
+    void initializeA2DP(const String &speaker_name, std::function<int32_t(Frame *, int32_t)> audioProviderCallback);
+    void initializeBLE(bool isPrimary);
 
     // Check if A2DP is currently connected
     bool isA2dpConnected();
@@ -36,7 +42,7 @@ public:
     void set_volume(uint8_t volume);
 
     // Get the name of the connected Bluetooth speaker
-    const String& get_speaker_name() const;
+    const String &get_speaker_name() const;
 
     // Set the value of the BLE characteristic (for server mode)
     void setCharacteristicValue(const char *value);
@@ -48,7 +54,7 @@ public:
     static bluetooth_controller *instance;
 
     // Set the value of the remote BLE characteristic (for client mode)
-    bool setRemoteCharacteristicValue(const std::string& value);
+    bool setRemoteCharacteristicValue(const std::string &value);
 
     // Register for indications from the remote BLE characteristic
     bool registerForIndications();
@@ -58,6 +64,9 @@ public:
 
     // Check if the BLE server has a connected client
     bool serverHasClientConnected() const;
+
+    // Check if a client-server connection exists
+    bool isBleConnected() const;
 
     // Set the BLE client connection status
     void setBLEClientConnectionStatus(bool status);
@@ -75,17 +84,20 @@ public:
     ConnectionState getConnectionState() const { return m_connectionState; }
 
     // Set the current connection state
-    void setConnectionState(ConnectionState newState) {
-        if (m_connectionState != newState) {
+    void setConnectionState(ConnectionState newState)
+    {
+        if (m_connectionState != newState)
+        {
             m_connectionState = newState;
-            if (m_connectionStateChangeCallback) {
+            if (m_connectionStateChangeCallback)
+            {
                 m_connectionStateChangeCallback(m_connectionState);
             }
         }
     }
 
     // Set the discovered BLE device (internal use)
-    void setMyDevice(BLEAdvertisedDevice* device) { myDevice = device; }
+    void setMyDevice(BLEAdvertisedDevice *device) { myDevice = device; }
 
     // Set the connection start time (internal use)
     void setConnectionStartTime(unsigned long time) { connectionStartTime = time; }
@@ -94,14 +106,15 @@ public:
     bool isServerAdvertising();
 
     // Getter methods for UUIDs
-    static constexpr const char* getServerServiceUUID() { return SERVER_SERVICE_UUID; }
-    static constexpr const char* getCharacteristicUUID() { return CHARACTERISTIC_UUID; }
+    static constexpr const char *getServerServiceUUID() { return SERVER_SERVICE_UUID; }
+    static constexpr const char *getCharacteristicUUID() { return CHARACTERISTIC_UUID; }
 
     // Add this new typedef for the connection state change callback
     typedef std::function<void(ConnectionState)> ConnectionStateChangeCallback;
 
     // Add this new method to set the callback
-    void setConnectionStateChangeCallback(ConnectionStateChangeCallback callback) {
+    void setConnectionStateChangeCallback(ConnectionStateChangeCallback callback)
+    {
         m_connectionStateChangeCallback = callback;
     }
 
@@ -109,41 +122,45 @@ public:
     static std::string getConnectionStateString(ConnectionState state);
 
     // Add this new typedef for the characteristic change callback
-    typedef std::function<void(const std::string&)> CharacteristicChangeCallback;
+    typedef std::function<void(const std::string &)> CharacteristicChangeCallback;
 
     // Add this new method to set the callback
-    void setCharacteristicChangeCallback(CharacteristicChangeCallback callback) {
+    void setCharacteristicChangeCallback(CharacteristicChangeCallback callback)
+    {
         m_characteristicChangeCallback = callback;
     }
 
     // Add this new public method
-    void triggerCharacteristicChangeCallback(const std::string& value) {
-        if (m_characteristicChangeCallback) {
+    void triggerCharacteristicChangeCallback(const std::string &value)
+    {
+        if (m_characteristicChangeCallback)
+        {
             m_characteristicChangeCallback(value);
         }
     }
 
-    // ... rest of the existing code ...
+    // New method to check if both A2DP and BLE are initialized
+    bool isFullyInitialized() const;
 
 private:
-    BLEScan* pBLEScanner;
-    BLEClient* pClient;
-    BLECharacteristic* pCharacteristic;
-    BLERemoteCharacteristic* pRemoteCharacteristic;
+    BLEScan *pBLEScanner;
+    BLEClient *pClient;
+    BLECharacteristic *pCharacteristic;
+    BLERemoteCharacteristic *pRemoteCharacteristic;
 
     void initializeBLEServer();
     void initializeBLEClient();
-    static int audio_callback_trampoline(Frame* frame, int frame_count);
-    static void connection_state_changed(esp_a2d_connection_state_t state, void* ptr);
+    static int audio_callback_trampoline(Frame *frame, int frame_count);
+    static void connection_state_changed(esp_a2d_connection_state_t state, void *ptr);
 
     bool m_isPrimary;
     String m_speaker_name;
-    std::function<int32_t(Frame*, int32_t)> audio_provider_callback;
+    std::function<int32_t(Frame *, int32_t)> audio_provider_callback;
     unsigned long last_reconnection_attempt;
     BluetoothA2DPSource a2dp_source;
 
-    static void notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify);
-    void handleIndication(const std::string& value);
+    static void notifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify);
+    void handleIndication(const std::string &value);
 
     bool indicationReceived;
     bool m_clientIsConnectedToServer;
@@ -151,25 +168,28 @@ private:
 
     ConnectionState m_connectionState;
     unsigned long m_lastReconnectAttempt;
-    unsigned long connectionStartTime;  // Add this line if it's not already present
+    unsigned long connectionStartTime; // Add this line if it's not already present
     unsigned long scanStartTime;
 
     void disconnectFromServer();
 
-    static BLEAdvertisedDevice* myDevice;
+    static BLEAdvertisedDevice *myDevice;
 
     ConnectionStateChangeCallback m_connectionStateChangeCallback = nullptr;
     CharacteristicChangeCallback m_characteristicChangeCallback = nullptr;
 
     // UUIDs for BLE services and characteristics
-    static constexpr const char* SERVER_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-    static constexpr const char* CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+    static constexpr const char *SERVER_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+    static constexpr const char *CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
     // Timing constants
     static const unsigned long SCAN_INTERVAL = 10000;      // 10 seconds between scan attempts
     static const unsigned long SCAN_DURATION = 10000;      // 10 seconds scan duration
     static const unsigned long CONNECTION_TIMEOUT = 30000; // 30 seconds connection timeout
-    static const unsigned long SCAN_TIMEOUT = 30000;  // 30 seconds
+    static const unsigned long SCAN_TIMEOUT = 30000;       // 30 seconds
+
+    bool m_a2dpInitialized;
+    bool m_bleInitialized;
 };
 
 #endif // BLUETOOTH_CONTROLLER_H

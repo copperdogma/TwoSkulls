@@ -124,23 +124,16 @@ bluetooth_controller::bluetooth_controller()
       m_connectionState(ConnectionState::DISCONNECTED),
       m_lastReconnectAttempt(0),
       scanStartTime(0),
-      connectionStartTime(0)
+      connectionStartTime(0),
+      m_a2dpInitialized(false),
+      m_bleInitialized(false)
 {
     instance = this; // Ensure proper initialization of the static instance
 }
 
-// Set the value of the BLE characteristic
-void bluetooth_controller::setCharacteristicValue(const char *value)
-{
-    pCharacteristic->setValue(value);
-}
+void bluetooth_controller::initializeA2DP(const String& speaker_name, std::function<int32_t(Frame*, int32_t)> audioProviderCallback) {
+    Serial.println("BT: Initializing Bluetooth A2DP...");
 
-// Initialize the Bluetooth controller
-void bluetooth_controller::begin(const String &speaker_name, std::function<int32_t(Frame *, int32_t)> audioProviderCallback, bool isPrimary)
-{
-    Serial.println("BT: Initializing Bluetooth...");
-
-    m_isPrimary = isPrimary;
     m_speaker_name = speaker_name;
     audio_provider_callback = audioProviderCallback;
 
@@ -152,17 +145,40 @@ void bluetooth_controller::begin(const String &speaker_name, std::function<int32
     a2dp_source.set_on_connection_state_changed(connection_state_changed, this);
     a2dp_source.start(m_speaker_name.c_str(), audio_callback_trampoline);
 
+    m_a2dpInitialized = true;
+    Serial.println("BT: Bluetooth A2DP initialization complete.");
+}
+
+void bluetooth_controller::initializeBLE(bool isPrimary) {
+    Serial.println("BT: Initializing Bluetooth BLE...");
+
+    m_isPrimary = isPrimary;
+
     // Initialize BLE based on whether this is the primary or secondary skull
-    if (m_isPrimary)
-    {
+    if (m_isPrimary) {
         initializeBLEClient();
-    }
-    else
-    {
+    } else {
         initializeBLEServer();
     }
 
-    Serial.println("BT: Bluetooth initialization complete.");
+    m_bleInitialized = true;
+    Serial.println("BT: Bluetooth BLE initialization complete.");
+}
+
+// Initialize the BLE client (for primary skull)
+void bluetooth_controller::initializeBLEClient()
+{
+    Serial.println("BT-BLE: Starting as BLE PRIMARY (client)");
+    if (!BLEDevice::getInitialized())
+    {
+        BLEDevice::init("SkullPrimary-Client");
+        if (!BLEDevice::getInitialized())
+        {
+            Serial.println("BT-BLE: Failed to initialize BLEDevice!");
+            return;
+        }
+    }
+    startScan();
 }
 
 /*
@@ -265,6 +281,10 @@ class MyClientCallback : public BLEClientCallbacks
 // Main update function for the Bluetooth controller
 void bluetooth_controller::update()
 {
+    if (m_a2dpInitialized && !m_bleInitialized && isA2dpConnected()) {
+        initializeBLE(m_isPrimary);
+    }
+
     if (m_isPrimary)
     {
         static unsigned long lastStatusUpdate = 0;
@@ -533,6 +553,12 @@ void bluetooth_controller::handleIndication(const std::string &value)
     indicationReceived = true;
 }
 
+// Set the value of the BLE characteristic
+void bluetooth_controller::setCharacteristicValue(const char *value)
+{
+    pCharacteristic->setValue(value);
+}
+
 // Set the value of the remote characteristic
 bool bluetooth_controller::setRemoteCharacteristicValue(const std::string &value)
 {
@@ -565,22 +591,6 @@ bool bluetooth_controller::setRemoteCharacteristicValue(const std::string &value
         Serial.println("BT-BLE: Not connected or characteristic not available");
         return false;
     }
-}
-
-// Initialize the BLE client (for primary skull)
-void bluetooth_controller::initializeBLEClient()
-{
-    Serial.println("BT-BLE: Starting as BLE PRIMARY (client)");
-    if (!BLEDevice::getInitialized())
-    {
-        BLEDevice::init("SkullPrimary-Client");
-        if (!BLEDevice::getInitialized())
-        {
-            Serial.println("BT-BLE: Failed to initialize BLEDevice!");
-            return;
-        }
-    }
-    startScan();
 }
 
 // Set the BLE client connection status
@@ -654,6 +664,12 @@ bool bluetooth_controller::serverHasClientConnected() const
     return m_serverHasClientConnected;
 }
 
+// Check if a client-server connection exists
+bool bluetooth_controller::isBleConnected() const
+{
+    return m_serverHasClientConnected || m_serverHasClientConnected;
+}
+
 // Static trampoline function for audio callback
 int bluetooth_controller::audio_callback_trampoline(Frame *frame, int frame_count)
 {
@@ -680,4 +696,8 @@ std::string bluetooth_controller::getConnectionStateString(ConnectionState state
     default:
         return "UNKNOWN";
     }
+}
+
+bool bluetooth_controller::isFullyInitialized() const {
+    return m_a2dpInitialized && m_bleInitialized;
 }
