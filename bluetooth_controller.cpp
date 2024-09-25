@@ -80,12 +80,9 @@ class MyCallbacks : public BLECharacteristicCallbacks
         {
             Serial.println("*********");
             Serial.print("New value: ");
-            for (int i = 0; i < value.length(); i++)
-            {
-                Serial.print(value[i]);
-            }
-            Serial.println();
+            Serial.println(value.c_str());
             Serial.println("*********");
+            pCharacteristic->notify(); // Notify the client
         }
     }
 };
@@ -471,6 +468,10 @@ bool bluetooth_controller::connectToServer()
             return false;
         }
 
+        if (pRemoteCharacteristic->canIndicate()) {
+            pRemoteCharacteristic->registerForNotify(notifyCallback); // Register for notifications/indications
+        }
+
         m_connectionState = ConnectionState::CONNECTED;
         m_clientIsConnectedToServer = true;
         return true;
@@ -538,6 +539,7 @@ bool bluetooth_controller::setRemoteCharacteristicValue(const std::string &value
     {
         indicationReceived = false;
         pRemoteCharacteristic->writeValue(value);
+        delay(100); // Wait for the server to process the write
 
         // Wait for indication (with timeout)
         unsigned long startTime = millis();
