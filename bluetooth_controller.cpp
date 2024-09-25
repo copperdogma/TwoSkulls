@@ -62,8 +62,6 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks
 {
     void onWrite(BLECharacteristic *pCharacteristic)
     {
-        // This method is called when a client writes to the characteristic
-        // It prints the new value to the Serial monitor for debugging
         std::string value = pCharacteristic->getValue();
         if (value.length() > 0)
         {
@@ -72,6 +70,12 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks
             Serial.println(value.c_str());
             Serial.println("*********");
             pCharacteristic->notify(); // Notify the client
+
+            // Trigger the characteristic change callback using the public method
+            if (bluetooth_controller::instance)
+            {
+                bluetooth_controller::instance->triggerCharacteristicChangeCallback(value);
+            }
         }
     }
 };

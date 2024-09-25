@@ -108,6 +108,23 @@ public:
     // Add this new method to get the connection state string
     static std::string getConnectionStateString(ConnectionState state);
 
+    // Add this new typedef for the characteristic change callback
+    typedef std::function<void(const std::string&)> CharacteristicChangeCallback;
+
+    // Add this new method to set the callback
+    void setCharacteristicChangeCallback(CharacteristicChangeCallback callback) {
+        m_characteristicChangeCallback = callback;
+    }
+
+    // Add this new public method
+    void triggerCharacteristicChangeCallback(const std::string& value) {
+        if (m_characteristicChangeCallback) {
+            m_characteristicChangeCallback(value);
+        }
+    }
+
+    // ... rest of the existing code ...
+
 private:
     BLEScan* pBLEScanner;
     BLEClient* pClient;
@@ -142,6 +159,7 @@ private:
     static BLEAdvertisedDevice* myDevice;
 
     ConnectionStateChangeCallback m_connectionStateChangeCallback = nullptr;
+    CharacteristicChangeCallback m_characteristicChangeCallback = nullptr;
 
     // UUIDs for BLE services and characteristics
     static constexpr const char* SERVER_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";

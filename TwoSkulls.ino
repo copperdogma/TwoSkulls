@@ -112,6 +112,23 @@ void onConnectionStateChange(ConnectionState newState)
   }
 }
 
+// Add this function to handle characteristic changes
+void onCharacteristicChange(const std::string &newValue)
+{
+  Serial.printf("Characteristic changed. New value: %s\n", newValue.c_str());
+
+  // Attempt to play the audio file specified by the new characteristic value
+  if (bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
+  {
+    audioPlayer->playNext(newValue.c_str());
+    Serial.printf("Attempting to play audio file: %s\n", newValue.c_str());
+  }
+  else
+  {
+    Serial.println("Cannot play audio: Either Bluetooth is not connected or audio is already playing.");
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -227,13 +244,6 @@ void setup()
   // Set the initial state of the eyes to dim
   lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
 
-  // Configure ADC
-  // TODO: what is this? Is it needed? At the very least, document it.
-  adc1_config_width(ADC_WIDTH_BIT_12);
-  adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
-  esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
-
- 
   audioPlayer->setPlaybackStartCallback([](const String &filePath)
                                         { Serial.printf("MAIN: Started playing audio: %s\n", filePath.c_str()); });
 
@@ -247,6 +257,9 @@ void setup()
 
   // Set the connection state change callback
   bluetoothController.setConnectionStateChangeCallback(onConnectionStateChange);
+
+  // Set the characteristic change callback
+  bluetoothController.setCharacteristicChangeCallback(onCharacteristicChange);
 }
 
 void loop()
@@ -288,7 +301,7 @@ void loop()
 
   if (isPrimary && bluetoothController.clientIsConnectedToServer() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
   {
-    String message = "Hello from the primary skull at " + String(currentMillis) + "ms";
+    String message = "/audio/Skit - names.wav";
     bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
     if (success)
     {
