@@ -99,7 +99,7 @@ void custom_crash_handler()
   esp_restart();
 }
 
-// Add this function to handle connection state changes
+// Secondary (server) only: Handle connection state changes
 void onConnectionStateChange(ConnectionState newState)
 {
   Serial.printf("Connection state changed to: %s\n", bluetoothController.getConnectionStateString(newState).c_str());
@@ -113,7 +113,7 @@ void onConnectionStateChange(ConnectionState newState)
   }
 }
 
-// Add this function to handle characteristic changes
+// Secondary (server) only: Handle characteristic changes
 void onCharacteristicChange(const std::string &newValue)
 {
   Serial.printf("Characteristic changed. New value: %s\n", newValue.c_str());
@@ -136,8 +136,6 @@ void setup()
 
   // Register custom crash handler
   esp_register_shutdown_handler((shutdown_handler_t)custom_crash_handler);
-
-  delay(1000);
 
   Serial.println("\n\n\n\n\n\nStarting setup ... ");
 
@@ -317,6 +315,9 @@ void loop()
     if (success)
     {
       Serial.printf("Successfully updated BLE characteristic with message: %s\n", message.c_str());
+      
+      // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
+      audioPlayer->playNext(message); 
     }
     else
     {
@@ -348,7 +349,7 @@ void loop()
   // Update Bluetooth controller (it will handle BLE initialization internally)
   bluetoothController.update();
 
-  // If you need to know if both A2DP and BLE are initialized, you can use:
+  // Initialize comms (BLE) once the audio (A2DP) is initialized and done playing the "Initialized" wav
   if (isDonePlayingInitializationAudio && !isBleInitializationStarted)
   {
     bluetoothController.initializeBLE(isPrimary);

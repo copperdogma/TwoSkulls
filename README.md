@@ -155,10 +155,14 @@ ISSUES
         - need to give skull_audio_animator AP.isPlaying (better to raise events on start/end with filename), AP.getPlaybackTime(),
           AP.playingAudioFrames(audioFrames BT just grabbed)
         - Use existing ESP32 audio libraries/SD reader libraries so I'm not reinventing the wheel: https://chatgpt.com/c/66e9d09e-68c4-800a-a1ce-618cef69b694
+  ** OPTIMIZATION:
+    - audio sync USUALLY 95%+ but...
+      - what if secondary is playing audio when it gets the call to play a different file? it SHOULD just ignore it,
+          and maybe primary should ignore the lack of ACK as well.. just next time it'll see if everything is free. Also ensure
+          we have access to the audio file before ACKing? Any other verifications we need before we're 100% ready?
+        - do we maybe need a better sync? Like readyfile(file) then playFile(file). readyFile() has primary ensure it can read the
+          file and Secondary doesn't ack until the same. Then they're both ready for playFile().
   ** NEXT:
-    ** don't allow comms until A2DP set up and done speaking "initialized"
-    ** don't ACK if playing audio or A2DP uninitialized
-    ** have both play same file at same time
     ** kill radioManger (it's integrated in a bunch of places still)
     ** finish refactoring of proper architecture (see paper scrap)
     ** future: ultrasonic distance needs to be done from multiple averages shots because the sensors results are noisy

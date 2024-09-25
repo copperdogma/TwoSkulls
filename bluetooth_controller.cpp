@@ -281,10 +281,6 @@ class MyClientCallback : public BLEClientCallbacks
 // Main update function for the Bluetooth controller
 void bluetooth_controller::update()
 {
-    if (m_a2dpInitialized && !m_bleInitialized && isA2dpConnected()) {
-        initializeBLE(m_isPrimary);
-    }
-
     if (m_isPrimary)
     {
         static unsigned long lastStatusUpdate = 0;
@@ -559,7 +555,7 @@ void bluetooth_controller::setCharacteristicValue(const char *value)
     pCharacteristic->setValue(value);
 }
 
-// Set the value of the remote characteristic
+// Primary (client) only: Set the value of the remote characteristic
 bool bluetooth_controller::setRemoteCharacteristicValue(const std::string &value)
 {
     if (m_clientIsConnectedToServer && pRemoteCharacteristic)
