@@ -277,6 +277,13 @@ void bluetooth_controller::update()
             break;
 
         case ConnectionState::SCANNING:
+            if (currentTime - scanStartTime > SCAN_TIMEOUT)
+            {
+                Serial.println("BT-BLE: Scan timed out. Restarting scan.");
+                pBLEScan->stop();
+                delay(100);  // Give some time for the scan to stop
+                startScan();
+            }
             // Scanning is handled in the BLEAdvertisedDeviceCallbacks
             if (!isScanning && myDevice != nullptr)
             {
@@ -288,13 +295,21 @@ void bluetooth_controller::update()
         case ConnectionState::CONNECTING:
             if (currentTime - connectionStartTime > CONNECTION_TIMEOUT)
             {
-                Serial.println("BT-BLE: Connection attempt timed out. Restarting scan.");
+                Serial.println("BT-BLE: Connection attempt timed out. Restarting scan immediately.");
                 disconnectFromServer();
                 m_connectionState = ConnectionState::DISCONNECTED;
+                m_lastReconnectAttempt = currentTime;  // Reset the last reconnect attempt time
+                startScan();  // Start a new scan immediately
             }
             else if (connectToServer())
             {
                 m_connectionState = ConnectionState::CONNECTED;
+                Serial.println("BT-BLE: Successfully connected to server");
+            }
+            else
+            {
+                Serial.println("BT-BLE: Connection attempt failed, but not timed out yet. Retrying...");
+                delay(1000);  // Wait a bit before retrying
             }
             break;
 
@@ -355,6 +370,7 @@ public:
             Serial.println(advertisedDevice.toString().c_str());
             m_controller->setMyDevice(new BLEAdvertisedDevice(advertisedDevice));
             m_controller->setConnectionState(ConnectionState::CONNECTING);
+            m_controller->setConnectionStartTime(millis());  // Reset the connection start time
             BLEDevice::getScan()->stop();
         }
     }
@@ -375,6 +391,7 @@ void bluetooth_controller::startScan()
 
     Serial.println("BT-BLE: Starting scan...");
     m_connectionState = ConnectionState::SCANNING;
+    scanStartTime = millis();  // Initialize scanStartTime here
 
     if (pBLEScan == nullptr)
     {
@@ -423,6 +440,7 @@ bool bluetooth_controller::connectToServer()
     // Connect to the remote BLE Server
     BLEAddress address = myDevice->getAddress();
     esp_ble_addr_type_t type = myDevice->getAddressType();
+    Serial.println("BT-BLE: Attempting to connect...");
     if (pClient->connect(address, type))
     {
         Serial.println("BT-BLE: Connected to the server");
@@ -447,7 +465,8 @@ bool bluetooth_controller::connectToServer()
         }
 
         if (pRemoteCharacteristic->canIndicate()) {
-            pRemoteCharacteristic->registerForNotify(notifyCallback); // Register for notifications/indications
+            pRemoteCharacteristic->registerForNotify(notifyCallback);
+            Serial.println("BT-BLE: Registered for notifications/indications");
         }
 
         m_connectionState = ConnectionState::CONNECTED;

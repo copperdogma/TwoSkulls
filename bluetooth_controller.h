@@ -133,6 +133,7 @@ private:
     static const unsigned long SCAN_INTERVAL = 10000;      // 10 seconds between scan attempts
     static const unsigned long SCAN_DURATION = 10000;      // 10 seconds scan duration
     static const unsigned long CONNECTION_TIMEOUT = 30000; // 30 seconds connection timeout
+    static const unsigned long SCAN_TIMEOUT = 30000;  // 30 seconds
 };
 
 #endif // BLUETOOTH_CONTROLLER_H
