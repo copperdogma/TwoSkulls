@@ -45,14 +45,6 @@
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h>
-#define SERVER_SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-
-// Constants for BLE scanning and connection
-static const unsigned long SCAN_INTERVAL = 10000;      // 10 seconds between scan attempts
-static const unsigned long SCAN_DURATION = 10000;      // 10 seconds scan duration
-static const unsigned long CONNECTION_TIMEOUT = 30000; // 30 seconds connection timeout
-
 
 // Global variables for BLE communication
 BLECharacteristic *pCharacteristic;
@@ -92,24 +84,16 @@ class MyServerCallbacks : public BLEServerCallbacks
 {
     void onConnect(BLEServer *pServer, esp_ble_gatts_cb_param_t *param)
     {
-        // This method is called when a client connects to the BLE server
-        if (bluetooth_controller::instance)
-        {
-            bluetooth_controller::instance->setBLEServerConnectionStatus(true);
-            bluetooth_controller::instance->setConnectionState(ConnectionState::CONNECTED);
-        }
+        bluetooth_controller::instance->setBLEServerConnectionStatus(true);
+        bluetooth_controller::instance->setConnectionState(ConnectionState::CONNECTED);
         Serial.println("BT-BLE: Client connected!");
         // TODO: Implement logging of client address and connection details
     }
 
     void onDisconnect(BLEServer *pServer)
     {
-        // This method is called when a client disconnects from the BLE server
-        if (bluetooth_controller::instance)
-        {
-            bluetooth_controller::instance->setBLEServerConnectionStatus(false);
-            bluetooth_controller::instance->setConnectionState(ConnectionState::DISCONNECTED);
-        }
+        bluetooth_controller::instance->setBLEServerConnectionStatus(false);
+        bluetooth_controller::instance->setConnectionState(ConnectionState::DISCONNECTED);
         Serial.println("BT-BLE: Client disconnected");
 
         // Restart advertising to allow new connections
@@ -117,19 +101,6 @@ class MyServerCallbacks : public BLEServerCallbacks
         Serial.println("BT-BLE: Restarted advertising after disconnection");
     }
 };
-
-// Callback function for AVRC metadata
-void avrc_metadata_callback(uint8_t id, const uint8_t *text)
-{
-    // This function handles AVRC (Audio/Video Remote Control) metadata updates
-    // It's primarily used to update the title of the currently playing audio
-    Serial.printf("==> AVRC metadata rsp: attribute id 0x%x, %s\n", id, text);
-    if (id == ESP_AVRC_MD_ATTR_TITLE)
-    {
-        strncpy(title, (const char *)text, 160);
-        pCharacteristic->setValue(title);
-    }
-}
 
 // Static instance pointer initialization
 bluetooth_controller *bluetooth_controller::instance = nullptr;
@@ -371,7 +342,7 @@ public:
 
     void onResult(BLEAdvertisedDevice advertisedDevice)
     {
-        if (advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(BLEUUID(SERVER_SERVICE_UUID)))
+        if (advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(BLEUUID(bluetooth_controller::getServerServiceUUID())))
         {
             Serial.print("BT-BLE: Found our server: ");
             Serial.println(advertisedDevice.toString().c_str());

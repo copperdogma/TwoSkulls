@@ -89,6 +89,10 @@ public:
     // Check if the server is still advertising
     bool isServerAdvertising();
 
+    // Getter methods for UUIDs
+    static constexpr const char* getServerServiceUUID() { return SERVER_SERVICE_UUID; }
+    static constexpr const char* getCharacteristicUUID() { return CHARACTERISTIC_UUID; }
+
 private:
     BLEScan* pBLEScanner;
     BLEClient* pClient;
@@ -125,6 +129,15 @@ private:
     static BLEAdvertisedDevice* myDevice;
 
     std::string getConnectionStateString(ConnectionState state);
+
+    // UUIDs for BLE services and characteristics
+    static constexpr const char* SERVER_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+    static constexpr const char* CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
+    // Timing constants
+    static const unsigned long SCAN_INTERVAL = 10000;      // 10 seconds between scan attempts
+    static const unsigned long SCAN_DURATION = 10000;      // 10 seconds scan duration
+    static const unsigned long CONNECTION_TIMEOUT = 30000; // 30 seconds connection timeout
 };
 
 #endif // BLUETOOTH_CONTROLLER_H
