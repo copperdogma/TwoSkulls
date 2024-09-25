@@ -583,7 +583,7 @@ void bluetooth_controller::initializeBLEClient()
 void bluetooth_controller::setBLEClientConnectionStatus(bool status)
 {
     m_clientIsConnectedToServer = status;
-    m_connectionState = status ? ConnectionState::CONNECTED : ConnectionState::DISCONNECTED;
+    setConnectionState(status ? ConnectionState::CONNECTED : ConnectionState::DISCONNECTED);
     Serial.printf("BT-BLE: Client connection status changed to %s\n", status ? "connected" : "disconnected");
 }
 
@@ -591,7 +591,7 @@ void bluetooth_controller::setBLEClientConnectionStatus(bool status)
 void bluetooth_controller::setBLEServerConnectionStatus(bool status)
 {
     m_serverHasClientConnected = status;
-    m_connectionState = status ? ConnectionState::CONNECTED : ConnectionState::DISCONNECTED;
+    setConnectionState(status ? ConnectionState::CONNECTED : ConnectionState::DISCONNECTED);
     Serial.printf("BT-BLE: Server connection status changed to %s\n", status ? "connected" : "disconnected");
 }
 
@@ -659,10 +659,10 @@ int bluetooth_controller::audio_callback_trampoline(Frame *frame, int frame_coun
     }
     return 0;
 }
+
 // Helper method to get a string representation of the connection state
 std::string bluetooth_controller::getConnectionStateString(ConnectionState state)
 {
-    // This method converts the ConnectionState enum to a human-readable string
     switch (state)
     {
     case ConnectionState::DISCONNECTED:

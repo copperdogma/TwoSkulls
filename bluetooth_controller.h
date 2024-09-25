@@ -75,7 +75,14 @@ public:
     ConnectionState getConnectionState() const { return m_connectionState; }
 
     // Set the current connection state
-    void setConnectionState(ConnectionState state) { m_connectionState = state; }
+    void setConnectionState(ConnectionState newState) {
+        if (m_connectionState != newState) {
+            m_connectionState = newState;
+            if (m_connectionStateChangeCallback) {
+                m_connectionStateChangeCallback(m_connectionState);
+            }
+        }
+    }
 
     // Set the discovered BLE device (internal use)
     void setMyDevice(BLEAdvertisedDevice* device) { myDevice = device; }
@@ -89,6 +96,17 @@ public:
     // Getter methods for UUIDs
     static constexpr const char* getServerServiceUUID() { return SERVER_SERVICE_UUID; }
     static constexpr const char* getCharacteristicUUID() { return CHARACTERISTIC_UUID; }
+
+    // Add this new typedef for the connection state change callback
+    typedef std::function<void(ConnectionState)> ConnectionStateChangeCallback;
+
+    // Add this new method to set the callback
+    void setConnectionStateChangeCallback(ConnectionStateChangeCallback callback) {
+        m_connectionStateChangeCallback = callback;
+    }
+
+    // Add this new method to get the connection state string
+    static std::string getConnectionStateString(ConnectionState state);
 
 private:
     BLEScan* pBLEScanner;
@@ -123,7 +141,7 @@ private:
 
     static BLEAdvertisedDevice* myDevice;
 
-    std::string getConnectionStateString(ConnectionState state);
+    ConnectionStateChangeCallback m_connectionStateChangeCallback = nullptr;
 
     // UUIDs for BLE services and characteristics
     static constexpr const char* SERVER_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";

@@ -44,7 +44,8 @@ bluetooth_controller bluetoothController;
 AudioPlayer *audioPlayer = nullptr;
 // CAMKILL:SkullCommunication *skullCommunication = nullptr;
 RadioManager radioManager;
-static unsigned long lastCharacteristicUpdate = 0;
+static unsigned long lastCharacteristicUpdateMillis = 0;
+static unsigned long lastServerScanMillis = 0;
 
 // Exponential smoothing
 struct AudioState
@@ -97,41 +98,18 @@ void custom_crash_handler()
   esp_restart();
 }
 
-void onMessageSent(const struct_message &msg)
+// Add this function to handle connection state changes
+void onConnectionStateChange(ConnectionState newState)
 {
-  if (isPrimary && msg.message == Message::CONNECTION_REQUEST)
-  {
-    lightController.blinkEyes(1); // 1 blink for wifi connection request
-    if (bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
-    {
-      audioPlayer->playNext("/audio/Marco.wav");
-    }
-  }
+  Serial.printf("Connection state changed to: %s\n", bluetoothController.getConnectionStateString(newState).c_str());
 
-  if (!isPrimary && msg.message == Message::CONNECTION_ACK)
+  if (!isPrimary && newState == ConnectionState::CONNECTED)
   {
-    lightController.blinkEyes(1); // 1 blink for wifi connection received
     if (bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
     {
-      // The CONNECTION_REQUEST/CONNECTION_ACK is so fast that the Polo will play while Marco is still playing.
-      // Wait 1000ms before playing Polo.
-      delay(1500);
       audioPlayer->playNext("/audio/Polo.wav");
     }
   }
-
-  if (!isPrimary && msg.message == Message::PLAY_FILE_ACK)
-  {
-    // Immediately play the names skit to coincide with the secondary skyll accepting the command so we're in sync.
-    if (bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
-    {
-      audioPlayer->playNext("/audio/Skit - names.wav");
-    }
-  }
-}
-
-void onMessageReceived(const struct_message &msg)
-{
 }
 
 void setup()
@@ -237,18 +215,7 @@ void setup()
     delay(50); // Wait between readings
   }
 
-  // CAMKILL: (also kill confi settings for mac addresses)
-  // Initialize SkullCommunication after determining the role
-  // String primaryMacAddress = config.getPrimaryMacAddress();
-  // String secondaryMacAddress = config.getSecondaryMacAddress();
-
-  // String macAddress = isPrimary ? primaryMacAddress : secondaryMacAddress;
-  // String otherMacAddress = isPrimary ? secondaryMacAddress : primaryMacAddress;
-
-  // skullCommunication = new SkullCommunication(isPrimary, macAddress, otherMacAddress, &radioManager);
-  // skullCommunication->registerSendCallback(onMessageSent);
-  // skullCommunication->registerReceiveCallback(onMessageReceived);
-  // skullCommunication->begin();
+  // CAMKILL: (also kill config.txt settings for mac addresses)
 
   // Initialize Bluetooth after AudioPlayer.
   // Include the callback so that the bluetooth_controller library can call the AudioPlayer's
@@ -266,13 +233,7 @@ void setup()
   adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
   esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
 
-  // CAMKILL:
-  //  // Set play file callback for skull_communication
-  //  skullCommunication->setPlayFileCallback([](String filePath)
-  //                                          {
-  //    // This callback is called when a PLAY_FILE_ACK is received and it's time to play audio
-  //    audioPlayer->playNext(filePath); });
-
+ 
   audioPlayer->setPlaybackStartCallback([](const String &filePath)
                                         { Serial.printf("MAIN: Started playing audio: %s\n", filePath.c_str()); });
 
@@ -283,12 +244,15 @@ void setup()
                                               {
                                                 // CAMKILL: Serial.printf("Provided %d frames for %s\n", frameCount, filePath.c_str());
                                               });
+
+  // Set the connection state change callback
+  bluetoothController.setConnectionStateChangeCallback(onConnectionStateChange);
 }
 
 void loop()
 {
   unsigned long currentMillis = millis();
-  static unsigned long lastMillis = 0;
+  static unsigned long lastStateLoggingMillis = 0;
 
   // Reset the watchdog timer
   esp_task_wdt_reset();
@@ -297,7 +261,7 @@ void loop()
   bool isAudioPlaying = audioPlayer->isAudioPlaying();
 
   // Every 5000ms output "loop() running" and check memory, reset reason, and power info
-  if (currentMillis - lastMillis >= 5000)
+  if (currentMillis - lastStateLoggingMillis >= 5000)
   {
     size_t freeHeap = ESP.getFreeHeap();
     esp_reset_reason_t reset_reason = esp_reset_reason();
@@ -309,11 +273,9 @@ void loop()
     Serial.printf("%lu loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
     Serial.printf("Bluetooth connected: %s, ", bluetoothController.isA2dpConnected() ? "true" : "false");
     Serial.printf("isAudioPlaying: %s, ", isAudioPlaying ? "true" : "false");
-    // CAMKILL: Serial.printf("Peer connected: %s, ", skullCommunication->isPeerConnected() ? "true" : "false");
     Serial.printf("BLE clientIsConnectedToServer: %s, ", bluetoothController.clientIsConnectedToServer() ? "true" : "false");
     Serial.printf("BLE serverHasClientConnected: %s, ", bluetoothController.serverHasClientConnected() ? "true" : "false");
     Serial.printf("Voltage: %d mV, ", voltage);
-    // CAMKILL: Serial.printf("lastHeardTime: %lu\n", skullCommunication->getLastHeardTime());
     Serial.printf("\n");
 
     if (reset_reason == ESP_RST_BROWNOUT)
@@ -321,39 +283,10 @@ void loop()
       Serial.println("WARNING: Last reset was due to brownout!");
     }
 
-    lastMillis = currentMillis;
+    lastStateLoggingMillis = currentMillis;
   }
 
-  // // Update SkullCommunication
-  // if (bluetoothAudio.is_connected())
-  // {
-  //   skullCommunication->enableCommunication();
-  //   skullCommunication->update();
-  // }
-  // else
-  // {
-  //   skullCommunication->disableCommunication();
-  // }
-
-  // // Test sending play command every 10 seconds
-  // static unsigned long lastPlayCommand = 0;
-  // if (isPrimary && skullCommunication->isPeerConnected() && bluetoothAudio.is_connected() && currentMillis - lastPlayCommand >= 10000)
-  // {
-  //   skullCommunication->sendPlayCommand("/audio/Skit - names.wav");
-  //   lastPlayCommand = currentMillis;
-  // }
-
-  // Test updating BLE characteristic every 10 seconds
-  // static unsigned long lastCharacteristicUpdate = 0;
-  // if (currentMillis - lastCharacteristicUpdate >= 10000)
-  // {
-  //   String message = "Hello from the primary skull at " + String(currentMillis) + "ms";
-  //   bluetoothController.setCharacteristicValue(message.c_str());
-  //   lastCharacteristicUpdate = currentMillis;
-  //   Serial.printf("Updated BLE characteristic with message: %s\n", message.c_str());
-  // }
-
-  if (isPrimary && bluetoothController.clientIsConnectedToServer() && currentMillis - lastCharacteristicUpdate >= 10000)
+  if (isPrimary && bluetoothController.clientIsConnectedToServer() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
   {
     String message = "Hello from the primary skull at " + String(currentMillis) + "ms";
     bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
@@ -365,7 +298,26 @@ void loop()
     {
       Serial.printf("Failed to update BLE characteristic with message: %s\n", message.c_str());
     }
-    lastCharacteristicUpdate = currentMillis;
+    lastCharacteristicUpdateMillis = currentMillis;
+  }
+
+  static unsigned long lastScanLogMillis = 0;
+  if (isPrimary && bluetoothController.getConnectionState() == ConnectionState::SCANNING)
+  {
+    if (currentMillis - lastScanLogMillis >= 5000)
+    {
+      lightController.blinkEyes(1); // 1 blink for wifi connection request
+      if (bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
+      {
+        audioPlayer->playNext("/audio/Marco.wav");
+      }
+      lastScanLogMillis = currentMillis;
+    }
+  }
+  else
+  {
+    // Reset the timer if we're not scanning
+    lastScanLogMillis = currentMillis;
   }
 
   bluetoothController.update();
