@@ -36,7 +36,7 @@ static unsigned long lastPrintedSecond = 0;
 AudioPlayer::AudioPlayer(SDCardManager &sdCardManager)
     : m_writePos(0), m_readPos(0), m_bufferFilled(0),
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
-      m_currentPlaybackTime(0), m_lastFrameTime(0),
+      m_playbackStartTime(0),
       m_currentBufferFileIndex(0), m_currentPlaybackFileIndex(0),
       m_sdCardManager(sdCardManager)
 {
@@ -47,7 +47,7 @@ void AudioPlayer::playNext(String filePath)
 {
     if (filePath.length() > 0)
     {
-        std::lock_guard<std::mutex> lock(m_mutex); // Ensure thread-safe access to shared resources
+        std::lock_guard<std::mutex> lock(m_mutex);       // Ensure thread-safe access to shared resources
         uint16_t newFileIndex = addFileToList(filePath); // Add the file to the list and get its index
         audioQueue.push(filePath.c_str());
         Serial.printf("AudioPlayer::playNext() Added file (index: %d) to queue: %s ...\n", newFileIndex, filePath.c_str());
@@ -114,8 +114,6 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         memset(frame, 0, frame_count * sizeof(Frame)); // Mute audio if necessary
     }
 
-    updatePlaybackTime();
-
     // Call the frames provided callback if set
     if (m_audioFramesProvidedCallback)
     {
@@ -129,10 +127,12 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
 void AudioPlayer::handleEndOfFile()
 {
     // Check if we're within bounds of the file list
-    if (m_currentPlaybackFileIndex >= m_fileList.size()) {
+    if (m_currentPlaybackFileIndex >= m_fileList.size())
+    {
         Serial.println("AudioPlayer::handleEndOfFile() No more files to play");
         m_isAudioPlaying = false;
         m_currentFilePath = "";
+        m_playbackStartTime = 0; // Reset playback start time
         return;
     }
 
@@ -159,6 +159,7 @@ void AudioPlayer::handleEndOfFile()
         // Start playback of the next file
         m_isAudioPlaying = true;
         m_currentFilePath = m_fileList[m_currentPlaybackFileIndex].filePath;
+        m_playbackStartTime = millis(); // Set the playback start time for the new file
         Serial.printf("AudioPlayer::handleEndOfFile() Starting playback of next file: %s\n", m_currentFilePath.c_str());
     }
     else
@@ -166,26 +167,8 @@ void AudioPlayer::handleEndOfFile()
         // No more files to play
         m_isAudioPlaying = false;
         m_currentFilePath = "";
+        m_playbackStartTime = 0; // Reset playback start time
         Serial.println("AudioPlayer::handleEndOfFile() No more files to play");
-    }
-}
-
-// Update the current playback time
-void AudioPlayer::updatePlaybackTime()
-{
-    unsigned long now = millis();
-    if (m_lastFrameTime != 0)
-    {
-        unsigned long elapsedTime = now - m_lastFrameTime;
-        m_currentPlaybackTime += elapsedTime;
-    }
-    m_lastFrameTime = now;
-    
-    // Only print every second to reduce log spam
-    if (m_currentPlaybackTime / 1000 != lastPrintedSecond)
-    {
-        lastPrintedSecond = m_currentPlaybackTime / 1000;
-        Serial.printf("AudioPlayer::updatePlaybackTime() m_currentPlaybackTime: %lu\n", m_currentPlaybackTime);
     }
 }
 
@@ -299,6 +282,9 @@ bool AudioPlayer::startNextFile()
     m_currentFilePath = String(nextFile.c_str());
     m_currentBufferFileIndex = getFileIndex(m_currentFilePath);
 
+    // Set the playback start time
+    m_playbackStartTime = millis();
+
     Serial.printf("AudioPlayer::startNextFile() Started buffering new file: %s (index: %d)\n", m_currentFilePath.c_str(), m_currentBufferFileIndex);
     return true;
 }
@@ -350,15 +336,14 @@ bool AudioPlayer::isAudioPlaying() const
 }
 
 // Get the current playback time
-// TODO playbackTime is currently "time since audio started playing," not "time since track started" which I THINK it should be?
 unsigned long AudioPlayer::getPlaybackTime() const
 {
-    if (!m_isAudioPlaying)
+    if (!m_isAudioPlaying || m_playbackStartTime == 0)
     {
         return 0;
     }
 
-    return m_currentPlaybackTime;
+    return millis() - m_playbackStartTime;
 }
 
 // Get the file path of the currently playing audio

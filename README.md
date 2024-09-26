@@ -168,10 +168,9 @@ ISSUES
       ** audio sync code for playing the same file on both (with prep/ack/deny/etc)
     ** future: ultrasonic distance needs to be done from multiple averages shots because the sensors results are noisy
     ** BUGS
-      ** audioPlayer not returning correct playback time. It starts when it starts playing but never resets when a new file starts.
-         However, there's also a m_lastFrameTime in there as well.
-          ** muting works, but doesn't do it at the right times. PRETTY sure it's from the above timing issue.
-          ** what all uses these time variables? Anything?
+      ** skit timing not quite right; it clips by 500ms or so at skit line boundaries
+        - not sure if this is audioPlayer or skullAudioAnimator. Try more rapid debug lines in SAA
+      ** fix eye brightness: it's too dim. PWN at max is NOT as bright as direct control.
 
 
 20231022: Created.

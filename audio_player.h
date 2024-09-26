@@ -96,8 +96,7 @@ private:
     bool m_muted;
 
     // Timing
-    unsigned long m_currentPlaybackTime;
-    unsigned long m_lastFrameTime;
+    unsigned long m_playbackStartTime = 0;
 
     // File list management
     std::vector<FileEntry> m_fileList;

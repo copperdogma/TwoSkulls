@@ -73,7 +73,7 @@ void SkullAudioAnimator::updateSkit()
     }
 
     // Handle case when current file is empty
-    if (m_currentFile.isEmpty())
+    if (m_isCurrentlySpeaking && m_currentFile.isEmpty())
     {
         Serial.println("SkullAudioAnimator: currentFile is empty; setting m_isCurrentlySpeaking to false");
         setSpeakingState(false);

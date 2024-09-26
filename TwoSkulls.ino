@@ -233,6 +233,7 @@ void setup()
   Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
   Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
+  // TESTING CODE:
   // Queue the "Skit - names" skit to play next
   // ParsedSkit namesSkit = sdCardManager->findSkitByName(sdCardContent.skits, "Skit - names");
   // audioPlayer->playNext(namesSkit.audioFile.c_str());
@@ -248,8 +249,6 @@ void setup()
     Serial.println("Ultrasonic distance: " + String(distance) + "cm");
     delay(50); // Wait between readings
   }
-
-  // CAMKILL: (also kill config.txt settings for mac addresses)
 
   // Initialize Bluetooth after AudioPlayer.
   // Include the callback so that the bluetooth_controller library can call the AudioPlayer's
@@ -328,31 +327,32 @@ void loop()
     lastStateLoggingMillis = currentMillis;
   }
 
-  // // A2DP + BLE TEST TEST CODE: play the Names skit after everything is properly initialized
-  // if (isPrimary && bluetoothController.clientIsConnectedToServer() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
-  // {
-  //     String message = "/audio/Skit - names.wav";
-  //     bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
-  //     if (success)
-  //     {
-  //         Serial.printf("Successfully updated BLE characteristic with message: %s\n", message.c_str());
-
-  //         // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
-  //         audioPlayer->playNext(message);
-  //     }
-  //     else
-  //     {
-  //         Serial.printf("Failed to update BLE characteristic with message: %s\n", message.c_str());
-  //     }
-  //     lastCharacteristicUpdateMillis = currentMillis;
-  // }
-
-  // SKULL_AUDIO_ANIMATOR TEST CODE: play the Names skit after A2DP is properly initialized
-  if (isPrimary && bluetoothController.isA2dpConnected() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
+  // A2DP + BLE TEST TEST CODE: play the Names skit after everything is properly initialized
+  if (isPrimary && currentMillis - lastCharacteristicUpdateMillis >= 10000 && bluetoothController.clientIsConnectedToServer() && 
+  bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
   {
-    audioPlayer->playNext("/audio/Skit - names.wav");
-    lastCharacteristicUpdateMillis = currentMillis;
+      String message = "/audio/Skit - names.wav";
+      bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
+      if (success)
+      {
+          Serial.printf("Successfully updated BLE characteristic with message: %s\n", message.c_str());
+
+          // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
+          audioPlayer->playNext(message);
+      }
+      else
+      {
+          Serial.printf("Failed to update BLE characteristic with message: %s\n", message.c_str());
+      }
+      lastCharacteristicUpdateMillis = currentMillis + 30000; // extra delay so it doens't play them back to back
   }
+
+  // // SKULL_AUDIO_ANIMATOR TEST CODE: play the Names skit after A2DP is properly initialized
+  // if (isPrimary && bluetoothController.isA2dpConnected() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
+  // {
+  //   audioPlayer->playNext("/audio/Skit - names.wav");
+  //   lastCharacteristicUpdateMillis = currentMillis;
+  // }
 
   // Priamry Only: Play "Marco!" ever 5 seconds when scanning for the BLE server (Secondary skull)
   static unsigned long lastScanLogMillis = 0;
