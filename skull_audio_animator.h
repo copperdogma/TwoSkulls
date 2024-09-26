@@ -1,14 +1,15 @@
 #ifndef SKULL_AUDIO_ANIMATOR_H
 #define SKULL_AUDIO_ANIMATOR_H
 
-// #include "audio_player.h"  // Commented out
 #include "servo_controller.h"
 #include "arduinoFFT.h"
 #include "light_controller.h"
 #include "parsed_skit.h"
 #include <vector>
-#include "SoundData.h"
+#include <Arduino.h>
+#include "SoundData.h" // Include this to get the Frame struct definition
 
+// TODO: Should probably be defined by the audioPlayer and passed in from it, either during init or via processAudioFrames()
 #define SAMPLES 256
 #define SAMPLE_RATE 44100
 
@@ -21,20 +22,15 @@ public:
     SkullAudioAnimator(bool isPrimary, ServoController &servoController, LightController &lightController,
                        std::vector<ParsedSkit> &skits, SDCardManager &sdCardManager, int servoMinDegrees, int servoMaxDegrees);
 
-    void update();
     ParsedSkit findSkitByName(const std::vector<ParsedSkit> &skits, const String &name);
-    // int32_t provideAudioFrames(Frame *frame, int32_t frame_count);  // Commented out
-    // AudioPlayer &getAudioPlayer() { return m_audioPlayer; }  // Commented out
     bool isCurrentlySpeaking() { return m_isCurrentlySpeaking; }
 
     void onPlaybackStart(const String &filePath);
     void onPlaybackEnd(const String &filePath);
 
-    // Add this new method
     void processAudioFrames(const Frame* frames, int32_t frameCount, const String& currentFile, unsigned long playbackTime);
 
 private:
-    // AudioPlayer m_audioPlayer;  // Commented out
     ServoController &m_servoController;
     LightController &m_lightController;
     SDCardManager &m_sdCardManager;
@@ -49,16 +45,15 @@ private:
     double vImag[SAMPLES];
     arduinoFFT FFT;
 
-    // Add these new members
     String m_currentFile;
     unsigned long m_currentPlaybackTime;
     bool m_isAudioPlaying;
 
-    void updateJawPosition();
+    void updateJawPosition(const Frame* frames, int32_t frameCount);
     void updateEyes();
     void updateSkit();
     double calculateRMS(const int16_t *samples, int numSamples);
-    void performFFT();
+    void performFFT(const Frame* frames, int32_t frameCount);
     double getFFTResult(int index);
 
     int m_servoMinDegrees;

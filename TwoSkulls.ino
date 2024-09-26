@@ -317,22 +317,29 @@ void loop()
     lastStateLoggingMillis = currentMillis;
   }
 
-  // TEST CODE: play the Names skit after everything is properly initialized
-  if (isPrimary && bluetoothController.clientIsConnectedToServer() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
-  {
-    String message = "/audio/Skit - names.wav";
-    bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
-    if (success)
-    {
-      Serial.printf("Successfully updated BLE characteristic with message: %s\n", message.c_str());
+  // // A2DP + BLE TEST TEST CODE: play the Names skit after everything is properly initialized
+  // if (isPrimary && bluetoothController.clientIsConnectedToServer() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
+  // {
+  //     String message = "/audio/Skit - names.wav";
+  //     bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
+  //     if (success)
+  //     {
+  //         Serial.printf("Successfully updated BLE characteristic with message: %s\n", message.c_str());
 
-      // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
-      audioPlayer->playNext(message);
-    }
-    else
-    {
-      Serial.printf("Failed to update BLE characteristic with message: %s\n", message.c_str());
-    }
+  //         // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
+  //         audioPlayer->playNext(message);
+  //     }
+  //     else
+  //     {
+  //         Serial.printf("Failed to update BLE characteristic with message: %s\n", message.c_str());
+  //     }
+  //     lastCharacteristicUpdateMillis = currentMillis;
+  // }
+
+  // SKULL_AUDIO_ANIMATOR TEST CODE: play the Names skit after A2DP is properly initialized
+  if (isPrimary && bluetoothController.isA2dpConnected() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
+  {
+    audioPlayer->playNext("/audio/Skit - names.wav");
     lastCharacteristicUpdateMillis = currentMillis;
   }
 
@@ -364,12 +371,6 @@ void loop()
   {
     bluetoothController.initializeBLE(isPrimary);
     isBleInitializationStarted = true;
-  }
-
-  // Update SkullAudioAnimator
-  if (skullAudioAnimator != nullptr)
-  {
-    skullAudioAnimator->update();
   }
 
   // Reduce the delay to allow for more frequent updates

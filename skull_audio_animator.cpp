@@ -17,10 +17,10 @@
 #include "skull_audio_animator.h"
 #include <cmath>
 #include <algorithm>
-#include <cstdlib>
+#include <Arduino.h>
 
-SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController& servoController, LightController& lightController, 
-    std::vector<ParsedSkit>& skits, SDCardManager& sdCardManager, int servoMinDegrees, int servoMaxDegrees)
+SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController &servoController, LightController &lightController,
+                                       std::vector<ParsedSkit> &skits, SDCardManager &sdCardManager, int servoMinDegrees, int servoMaxDegrees)
     : m_servoController(servoController),
       m_lightController(lightController),
       m_sdCardManager(sdCardManager),
@@ -33,73 +33,84 @@ SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController& servoCon
       m_wasAudioPlaying(false),
       FFT(vReal, vImag, SAMPLES, SAMPLE_RATE)
 {
-    // Constructor body (if needed)
 }
 
-void SkullAudioAnimator::update()
+void SkullAudioAnimator::processAudioFrames(const Frame *frames, int32_t frameCount, const String &currentFile, unsigned long playbackTime)
 {
-    Serial.println("SkullAudioAnimator::update(): DOING NOTHING");
-    return;
+    // Update internal state based on new audio data
+    m_currentFile = currentFile;
+    m_currentPlaybackTime = playbackTime;
+    m_isAudioPlaying = (frameCount > 0);
 
-    // The audio player is updated when playNext() is called or when the audio engine needs more data,
-    // so we don't need to worry about it here. Here we're just reacting to what the audio player is playing.
+    // Process audio frames for various animations
     updateSkit();
     updateEyes();
-    // CAMKILL: removing for now as it's endlessly calling provideAudioFrames and burning the data
-    // updateJawPosition();
+    performFFT(frames, frameCount);
+    updateJawPosition(frames, frameCount);
 }
 
-// Determine the currently playing skit and line.
-// Will set m_currentSkit and m_currentSkitLineNumber to the current skit and line.
+void SkullAudioAnimator::updateJawPosition(const Frame *frames, int32_t frameCount)
+{
+    if (frameCount > 0)
+    {
+        // Find the maximum amplitude in the current frame set
+        int16_t maxAmplitude = 0;
+        for (int32_t i = 0; i < frameCount; ++i)
+        {
+            maxAmplitude = std::max(maxAmplitude, static_cast<int16_t>(std::abs(frames[i].channel1)));
+            maxAmplitude = std::max(maxAmplitude, static_cast<int16_t>(std::abs(frames[i].channel2)));
+        }
+
+        // Map the amplitude to jaw position
+        int jawPosition = map(maxAmplitude, 0, 32767, m_servoMinDegrees, m_servoMaxDegrees);
+        m_servoController.setPosition(jawPosition);
+    }
+    else
+    {
+        // Close the jaw when there's no audio
+        m_servoController.setPosition(m_servoMinDegrees);
+    }
+}
+
 void SkullAudioAnimator::updateSkit()
 {
-    // TODO: Implement proper audio playback detection
-    //ORIGL: bool isAudioPlaying = m_audioPlayer.isAudioPlaying();
-    bool isAudioPlaying = false; // Placeholder, replace with actual implementation later
-
-    // Detect when audio playback has just stopped
-    if (m_wasAudioPlaying && !isAudioPlaying)
+    if (m_wasAudioPlaying && !m_isAudioPlaying)
     {
         Serial.printf("SkullAudioAnimator: Finished playing audio file: %s\n", m_currentAudioFilePath.c_str());
-        m_currentAudioFilePath = "";  // Reset current audio file path after logging
-        m_currentSkit = ParsedSkit(); // Reset current skit
-        m_currentSkitLineNumber = -1; // Reset current skit line number
+        m_currentAudioFilePath = "";
+        m_currentSkit = ParsedSkit();
+        m_currentSkitLineNumber = -1;
     }
-    m_wasAudioPlaying = isAudioPlaying;
+    m_wasAudioPlaying = m_isAudioPlaying;
 
-    if (!isAudioPlaying)
+    if (!m_isAudioPlaying)
     {
         m_isCurrentlySpeaking = false;
         return;
     }
 
-    // TODO: Implement getting current playing file path
-    //ORIG: const String filePath = m_audioPlayer.getCurrentlyPlayingFilePath();
-    const String filePath = ""; // Placeholder, replace with actual implementation later
-
-    if (filePath.isEmpty())
+    if (m_currentFile.isEmpty())
     {
-        Serial.println("SkullAudioAnimator: filePath.isEmpty(); setting m_isCurrentlySpeaking to false");
+        Serial.println("SkullAudioAnimator: currentFile is empty; setting m_isCurrentlySpeaking to false");
         m_isCurrentlySpeaking = false;
         return;
     }
 
-    if (filePath != m_currentAudioFilePath)
+    if (m_currentFile != m_currentAudioFilePath)
     {
-        m_currentAudioFilePath = filePath;
-        m_currentSkitLineNumber = -1; // Reset line number when new audio starts
+        m_currentAudioFilePath = m_currentFile;
+        m_currentSkitLineNumber = -1;
 
-        m_currentSkit = findSkitByName(m_skits, filePath);
+        m_currentSkit = findSkitByName(m_skits, m_currentFile);
         if (m_currentSkit.lines.empty())
         {
-            Serial.printf("SkullAudioAnimator: Playing non-skit audio file: %s\n", filePath.c_str());
+            Serial.printf("SkullAudioAnimator: Playing non-skit audio file: %s\n", m_currentFile.c_str());
             m_isCurrentlySpeaking = true;
             return;
         }
 
         Serial.printf("SkullAudioAnimator: Playing new skit: %s\n", m_currentSkit.audioFile.c_str());
 
-        // Filter lines for the current skull
         std::vector<ParsedSkitLine> lines;
         for (const auto &line : m_currentSkit.lines)
         {
@@ -113,15 +124,11 @@ void SkullAudioAnimator::updateSkit()
         m_currentSkit.lines = lines;
     }
 
-    // TODO: Implement getting playback time
-    //ORIG: unsigned long playbackTime = m_audioPlayer.getPlaybackTime();
-    unsigned long playbackTime = 0; // Placeholder, replace with actual implementation later
-
     size_t originalLineNumber = m_currentSkitLineNumber;
     bool foundLine = false;
     for (const auto &line : m_currentSkit.lines)
     {
-        if (playbackTime >= line.timestamp && playbackTime < line.timestamp + line.duration)
+        if (m_currentPlaybackTime >= line.timestamp && m_currentPlaybackTime < line.timestamp + line.duration)
         {
             m_currentSkitLineNumber = line.lineNumber;
             foundLine = true;
@@ -129,46 +136,24 @@ void SkullAudioAnimator::updateSkit()
         }
     }
 
-    // Log when starting a new line, only if there are lines
     if (m_currentSkitLineNumber != originalLineNumber && !m_currentSkit.lines.empty())
     {
         Serial.printf("SkullAudioAnimator: Now speaking line %d\n", m_currentSkitLineNumber);
     }
 
-    // Log when ending a line, only if there are lines
     if (m_isCurrentlySpeaking && !foundLine && !m_currentSkit.lines.empty())
     {
         Serial.printf("SkullAudioAnimator: Ended speaking line %d\n", m_currentSkitLineNumber);
     }
 
-    // Update speaking status
     if (!m_currentSkit.lines.empty())
     {
         m_isCurrentlySpeaking = foundLine;
     }
     else
     {
-        // For non-skit audio files, keep m_isCurrentlySpeaking true while audio is playing
         m_isCurrentlySpeaking = true;
     }
-
-    // TODO: Implement audio muting
-    //ORIG:  m_audioPlayer.setMuted(!m_isCurrentlySpeaking);
-}
-
-void SkullAudioAnimator::updateJawPosition()
-{
-    // if (m_audioPlayer.hasRemainingAudioData())
-    // {
-    //     performFFT();
-    //     double bassEnergy = 0;
-    //     for (int i = 1; i < 10; i++)
-    //     {
-    //         bassEnergy += getFFTResult(i);
-    //     }
-    //     int jawPosition = map(bassEnergy, 0, 1000, 0, 90);
-    //     m_servoController.setPosition(jawPosition);
-    // }
 }
 
 void SkullAudioAnimator::updateEyes()
@@ -192,30 +177,20 @@ ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &ski
             return skit;
         }
     }
-    return ParsedSkit(); // Return an empty ParsedSkit if not found
+    return ParsedSkit();
 }
 
-void SkullAudioAnimator::performFFT()
+void SkullAudioAnimator::performFFT(const Frame *frames, int32_t frameCount)
 {
-    // Get the current audio buffer
-    // Frame buffer[SAMPLES];
-    // int32_t bufferSize = m_audioPlayer.provideAudioFrames(buffer, SAMPLES);
+    if (frameCount < SAMPLES)
+        return;
 
-    // Fill vReal with audio samples
-    // for (uint16_t i = 0; i < SAMPLES; i++)
-    // {
-    //     if (i < bufferSize)
-    //     {
-    //         vReal[i] = (double)buffer[i].channel1; // Use channel 1 or average of both channels
-    //     }
-    //     else
-    //     {
-    //         vReal[i] = 0;
-    //     }
-    //     vImag[i] = 0;
-    // }
+    for (uint16_t i = 0; i < SAMPLES; i++)
+    {
+        vReal[i] = (double)frames[i].channel1;
+        vImag[i] = 0;
+    }
 
-    // Perform FFT
     FFT.Windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);
     FFT.Compute(FFT_FORWARD);
     FFT.ComplexToMagnitude();
@@ -242,43 +217,10 @@ double SkullAudioAnimator::calculateRMS(const int16_t *samples, int numSamples)
 
 void SkullAudioAnimator::onPlaybackStart(const String &filePath)
 {
-    // ... existing code ...
+    // Implementation if needed
 }
 
 void SkullAudioAnimator::onPlaybackEnd(const String &filePath)
 {
-    // ... existing code ...
-}
-
-void SkullAudioAnimator::processAudioFrames(const Frame* frames, int32_t frameCount, const String& currentFile, unsigned long playbackTime)
-{
-    m_currentFile = currentFile;
-    m_currentPlaybackTime = playbackTime;
-    m_isAudioPlaying = (frameCount > 0);
-
-    // Basic jaw position calculation based on audio amplitude
-    if (frameCount > 0)
-    {
-        int16_t maxAmplitude = 0;
-        for (int32_t i = 0; i < frameCount; ++i)
-        {
-            maxAmplitude = std::max(maxAmplitude, static_cast<int16_t>(std::abs(frames[i].channel1)));
-            maxAmplitude = std::max(maxAmplitude, static_cast<int16_t>(std::abs(frames[i].channel2)));
-        }
-
-        // Map the amplitude to jaw position
-        int jawPosition = map(maxAmplitude, 0, 32767, m_servoMinDegrees, m_servoMaxDegrees);
-        m_servoController.setPosition(jawPosition);
-    }
-    else
-    {
-        // If no frames, close the jaw
-        m_servoController.setPosition(m_servoMinDegrees);
-    }
-
-    // Update skit information
-    updateSkit();
-
-    // Update eyes based on speaking state
-    updateEyes();
+    // Implementation if needed
 }
