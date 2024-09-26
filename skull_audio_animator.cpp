@@ -18,9 +18,8 @@
 #include <cmath>
 
 SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController& servoController, LightController& lightController, 
-    std::vector<ParsedSkit>& skits, SDCardManager& sdCardManager, RadioManager& radioManager)
-    : m_audioPlayer(sdCardManager, radioManager),
-      m_servoController(servoController),
+    std::vector<ParsedSkit>& skits, SDCardManager& sdCardManager)
+    : m_servoController(servoController),
       m_lightController(lightController),
       m_sdCardManager(sdCardManager),
       m_isPrimary(isPrimary),
@@ -34,6 +33,9 @@ SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController& servoCon
 
 void SkullAudioAnimator::update()
 {
+    Serial.println("SkullAudioAnimator::update(): DOING NOTHING");
+    return;
+
     // The audio player is updated when playNext() is called or when the audio engine needs more data,
     // so we don't need to worry about it here. Here we're just reacting to what the audio player is playing.
     updateSkit();
@@ -46,7 +48,9 @@ void SkullAudioAnimator::update()
 // Will set m_currentSkit and m_currentSkitLineNumber to the current skit and line.
 void SkullAudioAnimator::updateSkit()
 {
-    bool isAudioPlaying = m_audioPlayer.isAudioPlaying();
+    // TODO: Implement proper audio playback detection
+    //ORIGL: bool isAudioPlaying = m_audioPlayer.isAudioPlaying();
+    bool isAudioPlaying = false; // Placeholder, replace with actual implementation later
 
     // Detect when audio playback has just stopped
     if (m_wasAudioPlaying && !isAudioPlaying)
@@ -64,12 +68,13 @@ void SkullAudioAnimator::updateSkit()
         return;
     }
 
-    const String filePath = m_audioPlayer.getCurrentlyPlayingFilePath();
+    // TODO: Implement getting current playing file path
+    //ORIG: const String filePath = m_audioPlayer.getCurrentlyPlayingFilePath();
+    const String filePath = ""; // Placeholder, replace with actual implementation later
 
     if (filePath.isEmpty())
     {
         Serial.println("SkullAudioAnimator: filePath.isEmpty(); setting m_isCurrentlySpeaking to false");
-        // Do not reset m_currentAudioFilePath here
         m_isCurrentlySpeaking = false;
         return;
     }
@@ -103,7 +108,10 @@ void SkullAudioAnimator::updateSkit()
         m_currentSkit.lines = lines;
     }
 
-    unsigned long playbackTime = m_audioPlayer.getPlaybackTime();
+    // TODO: Implement getting playback time
+    //ORIG: unsigned long playbackTime = m_audioPlayer.getPlaybackTime();
+    unsigned long playbackTime = 0; // Placeholder, replace with actual implementation later
+
     size_t originalLineNumber = m_currentSkitLineNumber;
     bool foundLine = false;
     for (const auto &line : m_currentSkit.lines)
@@ -139,23 +147,23 @@ void SkullAudioAnimator::updateSkit()
         m_isCurrentlySpeaking = true;
     }
 
-    // Mute the audio if not currently speaking
-    m_audioPlayer.setMuted(!m_isCurrentlySpeaking);
+    // TODO: Implement audio muting
+    //ORIG:  m_audioPlayer.setMuted(!m_isCurrentlySpeaking);
 }
 
 void SkullAudioAnimator::updateJawPosition()
 {
-    if (m_audioPlayer.hasRemainingAudioData())
-    {
-        performFFT();
-        double bassEnergy = 0;
-        for (int i = 1; i < 10; i++)
-        {
-            bassEnergy += getFFTResult(i);
-        }
-        int jawPosition = map(bassEnergy, 0, 1000, 0, 90);
-        m_servoController.setPosition(jawPosition);
-    }
+    // if (m_audioPlayer.hasRemainingAudioData())
+    // {
+    //     performFFT();
+    //     double bassEnergy = 0;
+    //     for (int i = 1; i < 10; i++)
+    //     {
+    //         bassEnergy += getFFTResult(i);
+    //     }
+    //     int jawPosition = map(bassEnergy, 0, 1000, 0, 90);
+    //     m_servoController.setPosition(jawPosition);
+    // }
 }
 
 void SkullAudioAnimator::updateEyes()
@@ -185,22 +193,22 @@ ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &ski
 void SkullAudioAnimator::performFFT()
 {
     // Get the current audio buffer
-    Frame buffer[SAMPLES];
-    int32_t bufferSize = m_audioPlayer.provideAudioFrames(buffer, SAMPLES);
+    // Frame buffer[SAMPLES];
+    // int32_t bufferSize = m_audioPlayer.provideAudioFrames(buffer, SAMPLES);
 
     // Fill vReal with audio samples
-    for (uint16_t i = 0; i < SAMPLES; i++)
-    {
-        if (i < bufferSize)
-        {
-            vReal[i] = (double)buffer[i].channel1; // Use channel 1 or average of both channels
-        }
-        else
-        {
-            vReal[i] = 0;
-        }
-        vImag[i] = 0;
-    }
+    // for (uint16_t i = 0; i < SAMPLES; i++)
+    // {
+    //     if (i < bufferSize)
+    //     {
+    //         vReal[i] = (double)buffer[i].channel1; // Use channel 1 or average of both channels
+    //     }
+    //     else
+    //     {
+    //         vReal[i] = 0;
+    //     }
+    //     vImag[i] = 0;
+    // }
 
     // Perform FFT
     FFT.Windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);

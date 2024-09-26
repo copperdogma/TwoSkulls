@@ -1,36 +1,36 @@
 #ifndef SKULL_AUDIO_ANIMATOR_H
 #define SKULL_AUDIO_ANIMATOR_H
 
-#include "audio_player.h"
+// #include "audio_player.h"  // Commented out
 #include "servo_controller.h"
 #include "arduinoFFT.h"
 #include "light_controller.h"
-#include "parsed_skit.h" // Add this line to include the ParsedSkit definition
+#include "parsed_skit.h"
 #include <vector>
 
 #define SAMPLES 256
 #define SAMPLE_RATE 44100
 
-// Forward declaration
+// Forward declarations
 class SDCardManager;
 
 class SkullAudioAnimator
 {
 public:
     SkullAudioAnimator(bool isPrimary, ServoController &servoController, LightController &lightController,
-                       std::vector<ParsedSkit> &skits, SDCardManager &sdCardManager, RadioManager &radioManager);
+                       std::vector<ParsedSkit> &skits, SDCardManager &sdCardManager);
 
     void update();
     ParsedSkit findSkitByName(const std::vector<ParsedSkit> &skits, const String &name);
-    int32_t provideAudioFrames(Frame *frame, int32_t frame_count);
-    AudioPlayer &getAudioPlayer() { return m_audioPlayer; }
+    // int32_t provideAudioFrames(Frame *frame, int32_t frame_count);  // Commented out
+    // AudioPlayer &getAudioPlayer() { return m_audioPlayer; }  // Commented out
     bool isCurrentlySpeaking() { return m_isCurrentlySpeaking; }
 
     void onPlaybackStart(const String &filePath);
     void onPlaybackEnd(const String &filePath);
 
 private:
-    AudioPlayer m_audioPlayer;
+    // AudioPlayer m_audioPlayer;  // Commented out
     ServoController &m_servoController;
     LightController &m_lightController;
     SDCardManager &m_sdCardManager;

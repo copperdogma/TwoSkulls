@@ -48,6 +48,9 @@ RadioManager radioManager;
 static unsigned long lastCharacteristicUpdateMillis = 0;
 static unsigned long lastServerScanMillis = 0;
 
+// Add this line to declare skullAudioAnimator
+SkullAudioAnimator *skullAudioAnimator = nullptr;
+
 // Exponential smoothing
 struct AudioState
 {
@@ -268,6 +271,9 @@ void setup()
 
   // Set the characteristic change callback
   bluetoothController.setCharacteristicChangeCallback(onCharacteristicChange);
+
+  // Initialize SkullAudioAnimator
+  skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits, *sdCardManager);
 }
 
 void loop()
@@ -315,9 +321,9 @@ void loop()
     if (success)
     {
       Serial.printf("Successfully updated BLE characteristic with message: %s\n", message.c_str());
-      
+
       // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
-      audioPlayer->playNext(message); 
+      audioPlayer->playNext(message);
     }
     else
     {
@@ -354,6 +360,12 @@ void loop()
   {
     bluetoothController.initializeBLE(isPrimary);
     isBleInitializationStarted = true;
+  }
+
+  // Update SkullAudioAnimator
+  if (skullAudioAnimator != nullptr)
+  {
+    skullAudioAnimator->update();
   }
 
   // Reduce the delay to allow for more frequent updates

@@ -163,20 +163,18 @@ ISSUES
         - do we maybe need a better sync? Like readyfile(file) then playFile(file). readyFile() has primary ensure it can read the
           file and Secondary doesn't ack until the same. Then they're both ready for playFile().
   ** NEXT:
-    ** kill radioManger (it's integrated in a bunch of places still)
     ** finish refactoring of proper architecture (see paper scrap)
+      - pull frames into INO via callback and feed to skull_audio_animator
+      - refactor skull_audio_animator.. it's a mess
+    ** audio sync code for playing the same file on both (with prep/ack/deny/etc)
+    ** kill radioManger (it's integrated in a bunch of places still)
+      ** remove radioManager from audioPlayer
     ** future: ultrasonic distance needs to be done from multiple averages shots because the sensors results are noisy
 
-
-
-  
-  SD CARD
-  - 20240707: Fixed initialization issue. Finally connected the power directly to the board's 3.3v pin to power it. Before I connected the 3.3 pin to the positive bar on the breadboard and it only worked 1/20 times. Bizarre. Took forever to debug.
-  - The pins I am using are NOT what the docs say to use.. Not sure where I got them, but it works. But I also can't see in the setup where I told it to use those pins. But perhaps those are just the standard SPI communication pins for this board?
-    - WHY are there NO pins set for the SD carD? Not in here, not in audio_player.cpp/.h... Am I just using the default pins expected by SD.h so we're good? At least doc that.
-  - NEEDS SHIELDING from servo, which is electrically noisy. Otherwise it will fail to read within 10 seconds of audio playing. Ask me how I know;)
 
 20231022: Created.
 20231023: Exposed buffer + buffer size so they could be read in loop() by audio analysis code.
 20231023: Audio now analyzed in loop() and used to drive servo. It works, but it's just sort of spastic.
 20231023: Changed servo init to just quickly open fully and then close.
+29240925: Full BLE communication working, Marco/Polo server connection, only attempts comms after Initialized wav played,
+          and can play audio file in sync.
