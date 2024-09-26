@@ -18,6 +18,7 @@ When adding comments, follow these guidelines:
 - Focus on the "why" and "how" rather than just the "what"
 - Use single-line comments for brief explanations
 - Use multi-line comments for longer explanations or function/class descriptions
+- Do not remove existing comments unless you're very sure your replacement is better
 
 Your output should be the original code with your added comments. Make sure to preserve the original code's formatting and structure.
 

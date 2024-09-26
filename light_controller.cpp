@@ -1,42 +1,60 @@
 #include "light_controller.h"
 
+// LightController class constructor
+// Initializes the pins for left and right eyes and sets initial brightness to off
 LightController::LightController(int leftEyePin, int rightEyePin)
     : _leftEyePin(leftEyePin), _rightEyePin(rightEyePin), _currentBrightness(BRIGHTNESS_OFF) {}
 
+// Initializes the LightController
+// Sets up PWM channels and attaches them to the eye pins
 void LightController::begin()
 {
+    // Configure pins as outputs
     pinMode(_leftEyePin, OUTPUT);
     pinMode(_rightEyePin, OUTPUT);
 
+    // Set up PWM channels for both eyes
+    // Using the same frequency and resolution for both channels
     ledcSetup(PWM_CHANNEL_LEFT, PWM_FREQUENCY, PWM_RESOLUTION);
     ledcSetup(PWM_CHANNEL_RIGHT, PWM_FREQUENCY, PWM_RESOLUTION);
+
+    // Attach the PWM channels to the respective pins
     ledcAttachPin(_leftEyePin, PWM_CHANNEL_LEFT);
     ledcAttachPin(_rightEyePin, PWM_CHANNEL_RIGHT);
 
+    // Initialize eyes to maximum brightness
     setEyeBrightness(BRIGHTNESS_MAX);
 }
 
-void LightController::setEyeBrightness(uint8_t brightness)  // Changed int to uint8_t
+// Sets the brightness of both eyes
+// @param brightness: uint8_t value between 0 (off) and 255 (max brightness)
+void LightController::setEyeBrightness(uint8_t brightness)
 {
-    // Clamp the values to be between 0 and 255 (min and max)
+    // Ensure brightness is within valid range (0-255)
     brightness = max(BRIGHTNESS_OFF, min(brightness, BRIGHTNESS_MAX));
 
-    // If the current brightness is different from the new brightness, update the LEDs
-    if (brightness != _currentBrightness) {
+    // Update LEDs only if the brightness has changed
+    if (brightness != _currentBrightness)
+    {
+        // Set PWM duty cycle for both eyes
         ledcWrite(PWM_CHANNEL_LEFT, brightness);
         ledcWrite(PWM_CHANNEL_RIGHT, brightness);
         _currentBrightness = brightness;
     }
 }
 
+// Blinks the eyes a specified number of times
+// @param numBlinks: Number of times to blink
+// @param onBrightness: Brightness level when eyes are on
+// @param offBrightness: Brightness level when eyes are off
 void LightController::blinkEyes(int numBlinks, int onBrightness, int offBrightness)
 {
     for (int i = 0; i < numBlinks; i++)
     {
         setEyeBrightness(onBrightness);
-        delay(100); // On for 100ms
+        delay(100); // Eyes on for 100ms
         setEyeBrightness(offBrightness);
-        delay(100); // Off for 100ms
+        delay(100); // Eyes off for 100ms
     }
-    setEyeBrightness(onBrightness); // End with eyes on
+    setEyeBrightness(onBrightness); // Ensure eyes are on at the end of blinking sequence
 }

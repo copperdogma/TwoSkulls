@@ -17,18 +17,27 @@
 // Forward declarations
 class SDCardManager;
 
+// SkullAudioAnimator class handles the animation of skulls based on audio input
 class SkullAudioAnimator
 {
 public:
+    // Constructor: initializes the animator with necessary controllers and parameters
     SkullAudioAnimator(bool isPrimary, ServoController &servoController, LightController &lightController,
                        std::vector<ParsedSkit> &skits, SDCardManager &sdCardManager, int servoMinDegrees, int servoMaxDegrees);
 
+    // Finds a skit by its name in the list of parsed skits
     ParsedSkit findSkitByName(const std::vector<ParsedSkit> &skits, const String &name);
+
+    // Returns the current speaking state of the skull
     bool isCurrentlySpeaking() { return m_isCurrentlySpeaking; }
 
-    void processAudioFrames(const Frame* frames, int32_t frameCount, const String& currentFile, unsigned long playbackTime);
+    // Main function to process incoming audio frames and update animations
+    void processAudioFrames(const Frame *frames, int32_t frameCount, const String &currentFile, unsigned long playbackTime);
 
+    // Typedef for the speaking state callback function
     using SpeakingStateCallback = std::function<void(bool)>;
+
+    // Sets the callback function for speaking state changes
     void setSpeakingStateCallback(SpeakingStateCallback callback);
 
 private:
@@ -50,17 +59,30 @@ private:
     unsigned long m_currentPlaybackTime;
     bool m_isAudioPlaying;
 
-    void updateJawPosition(const Frame* frames, int32_t frameCount);
+    // Updates the jaw position based on the audio amplitude
+    void updateJawPosition(const Frame *frames, int32_t frameCount);
+
+    // Updates the eye brightness based on the speaking state
     void updateEyes();
+
+    // Updates the current skit state and speaking status based on audio playback
     void updateSkit();
+
+    // Calculates the Root Mean Square (RMS) of the audio samples (not currently used)
     double calculateRMS(const int16_t *samples, int numSamples);
-    void performFFT(const Frame* frames, int32_t frameCount);
+
+    // Performs Fast Fourier Transform on the audio frames (not currently used for animation)
+    void performFFT(const Frame *frames, int32_t frameCount);
+
+    // Returns the FFT result for a specific index (not currently used)
     double getFFTResult(int index);
 
     int m_servoMinDegrees;
     int m_servoMaxDegrees;
 
     SpeakingStateCallback m_speakingStateCallback;
+
+    // Updates the speaking state and triggers the callback if changed
     void setSpeakingState(bool isSpeaking);
 };
 

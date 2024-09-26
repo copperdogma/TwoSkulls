@@ -1,8 +1,9 @@
 /*
   Two Chatting Skulls with Skull Jaws Synced to Audio
 
-  Main file.
-
+  Main file for controlling two animatronic skulls that chat with each other.
+  This system uses Bluetooth for communication, SD card for audio storage,
+  and various sensors and actuators for animation.
 */
 #include <Arduino.h>
 #include "bluetooth_controller.h"
@@ -38,7 +39,7 @@ const int ECHO_PIN = 22;                            // Pin number ultrasonic ech
 SDCardManager *sdCardManager = nullptr;
 SDCardContent sdCardContent;
 
-bool isPrimary = false;
+bool isPrimary = false; // Determines if this skull is the primary or secondary unit
 bool isDonePlayingInitializationAudio = false;
 bool isBleInitializationStarted = false;
 ServoController servoController;
@@ -48,10 +49,9 @@ RadioManager radioManager;
 static unsigned long lastCharacteristicUpdateMillis = 0;
 static unsigned long lastServerScanMillis = 0;
 
-// Add this line to declare skullAudioAnimator
 SkullAudioAnimator *skullAudioAnimator = nullptr;
 
-// Exponential smoothing
+// Audio processing parameters, enabling exponential smoothing
 struct AudioState
 {
   double smoothedPosition = 0;
@@ -62,19 +62,19 @@ struct AudioState
 
 AudioState audioState;
 
+// Constants for audio processing and jaw movement
 const double ALPHA = 0.2;             // Smoothing factor; 0-1, lower=smoother
 const double SILENCE_THRESHOLD = 200; // Higher = vol needs to be louder to be considered "not silence", max 2000?
 const int MIN_MOVEMENT_THRESHOLD = 3; // Minimum degree change to move the servo
-const double MOVE_EXPONENT = 0.2;     // 0-1, smaller = more movement
+const double MOVE_EXPONENT = 0.2;     // Exponent for non-linear mapping of audio to jaw movement. 0-1, smaller = more movement
 const double RMS_MAX = 32768.0;       // Maximum possible RMS value for 16-bit audio
+const int CHUNKS_NEEDED = 17;         // Chunks requested per call. Note: it's 34 chunks per 100ms of audio
 
-const int CHUNKS_NEEDED = 17; // Number of chunks needed for 100ms (34)
-
-// Servo
 const int SERVO_PIN = 15; // Servo control pin
 
 esp_adc_cal_characteristics_t adc_chars;
 
+// Custom crash handler to provide debug information and restart the device
 void custom_crash_handler()
 {
   Serial.println("detected!");
@@ -142,6 +142,7 @@ void onSpeakingStateChange(bool isSpeaking)
     }
 }
 
+// Main setup function
 void setup()
 {
   Serial.begin(115200);
@@ -292,18 +293,19 @@ void setup()
   skullAudioAnimator->setSpeakingStateCallback(onSpeakingStateChange);
 }
 
+// Main loop function
 void loop()
 {
   unsigned long currentMillis = millis();
   static unsigned long lastStateLoggingMillis = 0;
 
-  // Reset the watchdog timer
+  // Reset the watchdog timer to prevent system resets
   esp_task_wdt_reset();
 
-  // Update the audio player's state
+  // Update audio player state
   bool isAudioPlaying = audioPlayer->isAudioPlaying();
 
-  // Every 5000ms output "loop() running" and check memory, reset reason, and power info
+  // Periodic logging of system state (every 5 seconds)
   if (currentMillis - lastStateLoggingMillis >= 5000)
   {
     size_t freeHeap = ESP.getFreeHeap();
@@ -385,6 +387,7 @@ void loop()
     isBleInitializationStarted = true;
   }
 
-  // Reduce the delay to allow for more frequent updates
+  // Delay to allow for other componeents to update.
+  // TODO: remove? I think this was a guess at fixing an issue but I don't think it's necessary.
   delay(1);
 }

@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <Arduino.h>
 
+// Constructor for SkullAudioAnimator class
+// Initializes the animator with necessary controllers and parameters
 SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController &servoController, LightController &lightController,
                                        std::vector<ParsedSkit> &skits, SDCardManager &sdCardManager, int servoMinDegrees, int servoMaxDegrees)
     : m_servoController(servoController),
@@ -35,6 +37,7 @@ SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController &servoCon
 {
 }
 
+// Main function to process incoming audio frames and update animations
 void SkullAudioAnimator::processAudioFrames(const Frame *frames, int32_t frameCount, const String &currentFile, unsigned long playbackTime)
 {
     // Update internal state based on new audio data
@@ -49,8 +52,10 @@ void SkullAudioAnimator::processAudioFrames(const Frame *frames, int32_t frameCo
     updateJawPosition(frames, frameCount);
 }
 
+// Updates the current skit state and speaking status based on audio playback
 void SkullAudioAnimator::updateSkit()
 {
+    // Handle audio playback ending
     if (m_wasAudioPlaying && !m_isAudioPlaying)
     {
         Serial.printf("SkullAudioAnimator: Finished playing audio file: %s\n", m_currentAudioFilePath.c_str());
@@ -60,12 +65,14 @@ void SkullAudioAnimator::updateSkit()
     }
     m_wasAudioPlaying = m_isAudioPlaying;
 
+    // If no audio is playing, set speaking state to false
     if (!m_isAudioPlaying)
     {
         setSpeakingState(false);
         return;
     }
 
+    // Handle case when current file is empty
     if (m_currentFile.isEmpty())
     {
         Serial.println("SkullAudioAnimator: currentFile is empty; setting m_isCurrentlySpeaking to false");
@@ -79,6 +86,7 @@ void SkullAudioAnimator::updateSkit()
         m_currentAudioFilePath = m_currentFile;
         m_currentSkitLineNumber = -1;
 
+        // Find the corresponding skit for the current audio file
         m_currentSkit = findSkitByName(m_skits, m_currentFile);
         if (m_currentSkit.lines.empty())
         {
@@ -89,6 +97,7 @@ void SkullAudioAnimator::updateSkit()
 
         Serial.printf("SkullAudioAnimator: Playing new skit: %s\n", m_currentSkit.audioFile.c_str());
 
+        // Filter skit lines for the current skull (primary or secondary)
         std::vector<ParsedSkitLine> lines;
         for (const auto &line : m_currentSkit.lines)
         {
@@ -102,7 +111,7 @@ void SkullAudioAnimator::updateSkit()
         m_currentSkit.lines = lines;
     }
 
-    // Find the line we're currently speaking
+    // Find the current speaking line based on playback time
     size_t originalLineNumber = m_currentSkitLineNumber;
     bool foundLine = false;
     for (const auto &line : m_currentSkit.lines)
@@ -115,11 +124,13 @@ void SkullAudioAnimator::updateSkit()
         }
     }
 
+    // Log when a new line starts speaking
     if (m_currentSkitLineNumber != originalLineNumber && !m_currentSkit.lines.empty())
     {
         Serial.printf("SkullAudioAnimator: Now speaking line %d\n", m_currentSkitLineNumber);
     }
 
+    // Log when a line finishes speaking
     if (m_isCurrentlySpeaking && !foundLine && !m_currentSkit.lines.empty())
     {
         Serial.printf("SkullAudioAnimator: Ended speaking line %d\n", m_currentSkitLineNumber);
@@ -137,6 +148,7 @@ void SkullAudioAnimator::updateSkit()
     }
 }
 
+// Updates the eye brightness based on the speaking state
 void SkullAudioAnimator::updateEyes()
 {
     if (m_isCurrentlySpeaking)
@@ -149,6 +161,7 @@ void SkullAudioAnimator::updateEyes()
     }
 }
 
+// Updates the jaw position based on the audio amplitude
 void SkullAudioAnimator::updateJawPosition(const Frame *frames, int32_t frameCount)
 {
     if (frameCount > 0)
@@ -172,7 +185,7 @@ void SkullAudioAnimator::updateJawPosition(const Frame *frames, int32_t frameCou
     }
 }
 
-
+// Finds a skit by its name in the list of parsed skits
 ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &skits, const String &name)
 {
     for (const auto &skit : skits)
@@ -185,7 +198,8 @@ ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &ski
     return ParsedSkit();
 }
 
-// Called from processAudioFrames() but doesn't actually affect anything (yet). Keep for now.
+// Performs Fast Fourier Transform on the audio frames
+// Currently not used for animation, but kept for potential future use
 void SkullAudioAnimator::performFFT(const Frame *frames, int32_t frameCount)
 {
     if (frameCount < SAMPLES)
@@ -202,7 +216,8 @@ void SkullAudioAnimator::performFFT(const Frame *frames, int32_t frameCount)
     FFT.ComplexToMagnitude();
 }
 
-// Not currently used. But keep for now.
+// Returns the FFT result for a specific index
+// Not currently used, but kept for potential future use
 double SkullAudioAnimator::getFFTResult(int index)
 {
     if (index >= 0 && index < SAMPLES / 2)
@@ -212,7 +227,8 @@ double SkullAudioAnimator::getFFTResult(int index)
     return 0;
 }
 
-// Not currently used. But keep for now.
+// Calculates the Root Mean Square (RMS) of the audio samples
+// Not currently used, but kept for potential future use
 double SkullAudioAnimator::calculateRMS(const int16_t *samples, int numSamples)
 {
     double sum = 0;
@@ -223,11 +239,13 @@ double SkullAudioAnimator::calculateRMS(const int16_t *samples, int numSamples)
     return sqrt(sum / numSamples);
 }
 
+// Sets the callback function for speaking state changes
 void SkullAudioAnimator::setSpeakingStateCallback(SpeakingStateCallback callback)
 {
     m_speakingStateCallback = std::move(callback);
 }
 
+// Updates the speaking state and triggers the callback if changed
 void SkullAudioAnimator::setSpeakingState(bool isSpeaking)
 {
     if (m_isCurrentlySpeaking != isSpeaking)

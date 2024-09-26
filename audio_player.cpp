@@ -28,9 +28,12 @@
 #include <thread>
 #include "radio_manager.h"
 
+// Define a constant for an undefined buffer end position
 constexpr size_t AudioPlayer::BUFFER_END_POS_UNDEFINED;
+// Keep track of the last printed second for logging purposes
 static unsigned long lastPrintedSecond = 0;
 
+// Constructor for AudioPlayer class
 AudioPlayer::AudioPlayer(SDCardManager &sdCardManager, RadioManager &radioManager)
     : m_writePos(0), m_readPos(0), m_bufferFilled(0),
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
@@ -40,30 +43,32 @@ AudioPlayer::AudioPlayer(SDCardManager &sdCardManager, RadioManager &radioManage
 {
 }
 
+// Add a new audio file to the playback queue
 void AudioPlayer::playNext(String filePath)
 {
     if (filePath.length() > 0)
     {
-        std::lock_guard<std::mutex> lock(m_mutex); // Acquire mutex lock
-        uint16_t newFileIndex = addFileToList(filePath); // Add the file to the list and get the index
+        std::lock_guard<std::mutex> lock(m_mutex); // Ensure thread-safe access to shared resources
+        uint16_t newFileIndex = addFileToList(filePath); // Add the file to the list and get its index
         audioQueue.push(filePath.c_str());
         Serial.printf("AudioPlayer::playNext() Added file (index: %d) to queue: %s ...\n", newFileIndex, filePath.c_str());
     }
 }
 
+// Provide audio frames to the audio output stream
 int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex); // Ensure thread-safe access to shared resources
 
-    // Exit if there's no data available to read.
+    // Exit if there's no data available to read
     if (m_bufferFilled == 0)
     {
         m_isAudioPlaying = false;
-        fillBuffer();
+        fillBuffer(); // Try to fill the buffer
         return 0;
     }
 
-    // Request radio access
+    // Request radio access with a timeout
     if (!m_radioManager.requestAccess(IDENTIFIER, RADIO_ACCESS_TIMEOUT_MS))
     {
         Serial.println("AudioPlayer::provideAudioFrames() Couldn't get radio access");
@@ -73,7 +78,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     size_t bytesToRead = frame_count * sizeof(Frame);
     size_t bytesRead = 0;
 
-    // Read data from buffer
+    // Read data from buffer, handling wrap-around if necessary
     while (bytesRead < bytesToRead && m_bufferFilled > 0)
     {
         size_t chunkSize = std::min(bytesToRead - bytesRead, m_bufferFilled);
@@ -84,6 +89,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         m_bufferFilled -= firstChunkSize;
         bytesRead += firstChunkSize;
 
+        // Handle buffer wrap-around
         if (firstChunkSize < chunkSize)
         {
             size_t secondChunkSize = chunkSize - firstChunkSize;
@@ -95,26 +101,25 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         }
     }
 
-    // Handle FileEntry tracking
+    // Check if we've reached the end of the current file
     if (!m_fileList.empty() && m_currentPlaybackFileIndex < m_fileList.size())
     {
         FileEntry &currentEntry = m_fileList[m_currentPlaybackFileIndex];
 
-        // Check if we've reached the end of the current file
         if (currentEntry.bufferEndPos != BUFFER_END_POS_UNDEFINED && m_readPos >= currentEntry.bufferEndPos)
         {
             handleEndOfFile();
         }
     }
 
-    fillBuffer();
+    fillBuffer(); // Refill the buffer after reading
 
     // Update playback status and time
     m_isAudioPlaying = (bytesRead > 0 || m_bufferFilled > 0);
 
     if (m_muted)
     {
-        memset(frame, 0, frame_count * sizeof(Frame));
+        memset(frame, 0, frame_count * sizeof(Frame)); // Mute audio if necessary
     }
 
     updatePlaybackTime();
@@ -125,10 +130,10 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         m_audioFramesProvidedCallback(m_currentFilePath, frame, frame_count);
     }
 
-    // No need to explicitly release radio access
     return frame_count;
 }
 
+// Handle the end of the current audio file
 void AudioPlayer::handleEndOfFile()
 {
     // Check if we're within bounds of the file list
@@ -173,7 +178,7 @@ void AudioPlayer::handleEndOfFile()
     }
 }
 
-// New helper method to update playback time
+// Update the current playback time
 void AudioPlayer::updatePlaybackTime()
 {
     unsigned long now = millis();
@@ -184,7 +189,7 @@ void AudioPlayer::updatePlaybackTime()
     }
     m_lastFrameTime = now;
     
-    // Only print every second
+    // Only print every second to reduce log spam
     if (m_currentPlaybackTime / 1000 != lastPrintedSecond)
     {
         lastPrintedSecond = m_currentPlaybackTime / 1000;
@@ -192,6 +197,7 @@ void AudioPlayer::updatePlaybackTime()
     }
 }
 
+// Fill the audio buffer with data from the current file or start the next file
 void AudioPlayer::fillBuffer()
 {
     while (m_bufferFilled < AUDIO_BUFFER_SIZE)
@@ -213,7 +219,7 @@ void AudioPlayer::fillBuffer()
             // Start the next file
             if (!startNextFile())
             {
-                break;
+                break; // No more files to play
             }
             String currentFilePath = getFilePath(m_currentBufferFileIndex);
             Serial.printf("AudioPlayer::fillBuffer() starting from NEW FILE: fileIndex: %d, filePath: %s\n",
@@ -229,7 +235,8 @@ void AudioPlayer::fillBuffer()
             }
             else
             {
-                // What is this section? Another end of file? Why?
+                // Handle unexpected end of file
+                // TODO why do we have TWO end of file handlers?
                 String currentFilePath = getFilePath(m_currentBufferFileIndex);
                 Serial.printf("AudioPlayer::fillBuffer() found END OF FILE (2) for fileIndex: %d, writePos: %zu, filePath: %s\n",
                               m_currentBufferFileIndex, m_writePos, currentFilePath.c_str());
@@ -242,6 +249,7 @@ void AudioPlayer::fillBuffer()
     }
 }
 
+// Write audio data to the circular buffer
 void AudioPlayer::writeToBuffer(const uint8_t *audioData, size_t dataSize)
 {
     size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
@@ -255,6 +263,7 @@ void AudioPlayer::writeToBuffer(const uint8_t *audioData, size_t dataSize)
         m_writePos = (m_writePos + firstChunkSize) % AUDIO_BUFFER_SIZE;
         m_bufferFilled += firstChunkSize;
 
+        // Handle buffer wrap-around
         if (firstChunkSize < bytesToWrite)
         {
             size_t secondChunkSize = bytesToWrite - firstChunkSize;
@@ -265,6 +274,7 @@ void AudioPlayer::writeToBuffer(const uint8_t *audioData, size_t dataSize)
     }
 }
 
+// Start playing the next file in the queue
 bool AudioPlayer::startNextFile()
 {
     if (audioFile)
@@ -288,7 +298,7 @@ bool AudioPlayer::startNextFile()
         return startNextFile(); // Try the next file in the queue
     }
 
-    // Skip WAV header.
+    // Skip WAV header (simplified approach)
     // 44 bytes is minimum, the skull files have closer to 128 bytes, and skipping a bit more just skips some blank audio at the start.
     // Not skipping enough header will cause the header to be played, often rewsulting in a click at the start of the audio.
     // There's a proper way to parse out the header, but it's involved and this is good enough.
@@ -301,16 +311,19 @@ bool AudioPlayer::startNextFile()
     return true;
 }
 
+// Set the muted state of the audio player
 void AudioPlayer::setMuted(bool muted)
 {
     m_muted = muted;
 }
 
+// Get the index of a file in the file list, adding it if it doesn't exist
 uint16_t AudioPlayer::getFileIndex(const String &filePath)
 {
     return addFileToList(filePath); // This now both adds (if new) and returns the index
 }
 
+// Get the file path for a given file index
 String AudioPlayer::getFilePath(uint16_t fileIndex)
 {
     if (fileIndex < m_fileList.size())
@@ -323,6 +336,7 @@ String AudioPlayer::getFilePath(uint16_t fileIndex)
     }
 }
 
+// Add a file to the file list if it doesn't exist, and return its index
 uint16_t AudioPlayer::addFileToList(const String &filePath)
 {
     auto it = std::find_if(m_fileList.begin(), m_fileList.end(),
@@ -337,11 +351,14 @@ uint16_t AudioPlayer::addFileToList(const String &filePath)
     return std::distance(m_fileList.begin(), it);
 }
 
+// Check if audio is currently playing
 bool AudioPlayer::isAudioPlaying() const
 {
     return m_isAudioPlaying;
 }
 
+// Get the current playback time
+// TODO playbackTime is currently "time since audio started playing," not "time since track started" which I THINK it should be?
 unsigned long AudioPlayer::getPlaybackTime() const
 {
     if (!m_isAudioPlaying)
@@ -352,11 +369,13 @@ unsigned long AudioPlayer::getPlaybackTime() const
     return m_currentPlaybackTime;
 }
 
+// Get the file path of the currently playing audio
 String AudioPlayer::getCurrentlyPlayingFilePath() const
 {
     return m_currentFilePath;
 }
 
+// Check if there is remaining audio data in the current file
 bool AudioPlayer::hasRemainingAudioData()
 {
     return audioFile && audioFile.available();
