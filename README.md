@@ -170,7 +170,6 @@ ISSUES
     ** BUGS
       ** skit timing not quite right; it clips by 500ms or so at skit line boundaries
         - not sure if this is audioPlayer or skullAudioAnimator. Try more rapid debug lines in SAA
-      ** fix eye brightness: it's too dim. PWN at max is NOT as bright as direct control.
 
 
 20231022: Created.

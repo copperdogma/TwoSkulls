@@ -14,6 +14,8 @@ class LightController
 {
 public:
     // Brightness constants
+    // NOTE: I can't get PWM to go to full brightness, so these constants don't really do much.
+    //       See LightController::setEyeBrightness() for actual implementation.
     static const uint8_t BRIGHTNESS_MAX = PWM_MAX; // Maximum brightness level
     static const uint8_t BRIGHTNESS_DIM = 100;     // Dimmed brightness level
     static const uint8_t BRIGHTNESS_OFF = 0;       // Lights off

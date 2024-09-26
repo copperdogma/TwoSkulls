@@ -28,17 +28,41 @@ void LightController::begin()
 
 // Sets the brightness of both eyes
 // @param brightness: uint8_t value between 0 (off) and 255 (max brightness)
+// NOTE: I can't get PWM to go to full brightness, so we're setting the pin value to HIGH
+//       when brightness is set to BRIGHTNESS_MAX, and using BRIGHTNESS_MAX as "dim".
 void LightController::setEyeBrightness(uint8_t brightness)
 {
     // Ensure brightness is within valid range (0-255)
-    brightness = max(BRIGHTNESS_OFF, min(brightness, BRIGHTNESS_MAX));
+    brightness = constrain(brightness, BRIGHTNESS_OFF, BRIGHTNESS_MAX);
 
-    // Update LEDs only if the brightness has changed
     if (brightness != _currentBrightness)
     {
-        // Set PWM duty cycle for both eyes
-        ledcWrite(PWM_CHANNEL_LEFT, brightness);
-        ledcWrite(PWM_CHANNEL_RIGHT, brightness);
+        if (brightness == BRIGHTNESS_MAX)
+        {
+            // Detach PWM from pins
+            ledcDetachPin(_leftEyePin);
+            ledcDetachPin(_rightEyePin);
+
+            // Set pins to HIGH
+            pinMode(_leftEyePin, OUTPUT);
+            pinMode(_rightEyePin, OUTPUT);
+            digitalWrite(_leftEyePin, HIGH);
+            digitalWrite(_rightEyePin, HIGH);
+        }
+        else
+        {
+            if (_currentBrightness == BRIGHTNESS_DIM)
+            {
+                _currentBrightness = BRIGHTNESS_MAX;
+            }
+            // Reattach PWM to pins
+            ledcAttachPin(_leftEyePin, PWM_CHANNEL_LEFT);
+            ledcAttachPin(_rightEyePin, PWM_CHANNEL_RIGHT);
+
+            // Set PWM duty cycle
+            ledcWrite(PWM_CHANNEL_LEFT, _currentBrightness);
+            ledcWrite(PWM_CHANNEL_RIGHT, _currentBrightness);
+        }
         _currentBrightness = brightness;
     }
 }
