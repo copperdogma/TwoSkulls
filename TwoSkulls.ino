@@ -21,11 +21,9 @@
 #include "esp_bt_device.h"
 #include <esp_coexist.h>
 #include "nvs_flash.h"
-#include "skull_communication.h"
 #include "esp_sleep.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
-#include "radio_manager.h"
 
 const int LEFT_EYE_PIN = 32;  // GPIO pin for left eye LED
 const int RIGHT_EYE_PIN = 33; // GPIO pin for right eye LED
@@ -45,7 +43,6 @@ bool isBleInitializationStarted = false;
 ServoController servoController;
 bluetooth_controller bluetoothController;
 AudioPlayer *audioPlayer = nullptr;
-RadioManager radioManager;
 static unsigned long lastCharacteristicUpdateMillis = 0;
 static unsigned long lastServerScanMillis = 0;
 
@@ -222,7 +219,7 @@ void setup()
   // Initialize AudioPlayer
   esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
 
-  audioPlayer = new AudioPlayer(*sdCardManager, radioManager);
+  audioPlayer = new AudioPlayer(*sdCardManager);
 
   // Initialize Bluetooth A2DP only
   bluetoothController.initializeA2DP(bluetoothSpeakerName, [](Frame *frame, int32_t frame_count)

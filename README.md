@@ -165,10 +165,7 @@ ISSUES
   ** NEXT:
     ** finish refactoring of proper architecture (see paper scrap)
       - refactor skull_audio_animator.. it's a mess
-    ** audio sync code for playing the same file on both (with prep/ack/deny/etc)
-    ** add comments to major files
-    ** kill radioManger and SkullCommunication (it's integrated in a bunch of places still)
-      ** remove radioManager from audioPlayer
+      ** audio sync code for playing the same file on both (with prep/ack/deny/etc)
     ** future: ultrasonic distance needs to be done from multiple averages shots because the sensors results are noisy
     ** BUGS
       ** audioPlayer not returning correct playback time. It starts when it starts playing but never resets when a new file starts.

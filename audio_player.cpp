@@ -26,7 +26,6 @@
 #include <esp_task_wdt.h>
 #include <mutex>
 #include <thread>
-#include "radio_manager.h"
 
 // Define a constant for an undefined buffer end position
 constexpr size_t AudioPlayer::BUFFER_END_POS_UNDEFINED;
@@ -34,12 +33,12 @@ constexpr size_t AudioPlayer::BUFFER_END_POS_UNDEFINED;
 static unsigned long lastPrintedSecond = 0;
 
 // Constructor for AudioPlayer class
-AudioPlayer::AudioPlayer(SDCardManager &sdCardManager, RadioManager &radioManager)
+AudioPlayer::AudioPlayer(SDCardManager &sdCardManager)
     : m_writePos(0), m_readPos(0), m_bufferFilled(0),
       m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
       m_currentPlaybackTime(0), m_lastFrameTime(0),
       m_currentBufferFileIndex(0), m_currentPlaybackFileIndex(0),
-      m_sdCardManager(sdCardManager), m_radioManager(radioManager)
+      m_sdCardManager(sdCardManager)
 {
 }
 
@@ -65,13 +64,6 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     {
         m_isAudioPlaying = false;
         fillBuffer(); // Try to fill the buffer
-        return 0;
-    }
-
-    // Request radio access with a timeout
-    if (!m_radioManager.requestAccess(IDENTIFIER, RADIO_ACCESS_TIMEOUT_MS))
-    {
-        Serial.println("AudioPlayer::provideAudioFrames() Couldn't get radio access");
         return 0;
     }
 

@@ -10,14 +10,13 @@
 #include <mutex>
 #include <stdint.h>
 #include <Arduino.h>
-#include "radio_manager.h"
 
 // AudioPlayer class manages audio playback from SD card files
 class AudioPlayer
 {
 public:
-    // Constructor initializes the AudioPlayer with SDCardManager and RadioManager
-    AudioPlayer(SDCardManager &sdCardManager, RadioManager &radioManager);
+    // Constructor initializes the AudioPlayer with SDCardManager
+    AudioPlayer(SDCardManager &sdCardManager);
 
     // Add a new audio file to the playback queue
     void playNext(String filePath);
@@ -53,7 +52,6 @@ private:
     static constexpr const char* IDENTIFIER = "AudioPlayer";
     static constexpr size_t BUFFER_END_POS_UNDEFINED = static_cast<size_t>(-1);
     static constexpr size_t AUDIO_BUFFER_SIZE = 8192; // Size of the circular audio buffer
-    static constexpr unsigned long RADIO_ACCESS_TIMEOUT_MS = 500; // 500ms timeout for radio access
 
     // FileEntry struct to manage file information
     struct FileEntry
@@ -117,8 +115,6 @@ private:
     PlaybackCallback m_playbackStartCallback;
     PlaybackCallback m_playbackEndCallback;
     AudioFramesProvidedCallback m_audioFramesProvidedCallback;
-
-    RadioManager& m_radioManager;
 
     void handleEndOfFile();
     void updatePlaybackTime();
