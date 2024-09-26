@@ -28,8 +28,8 @@
 #include <thread>
 #include "radio_manager.h"
 
-// Add this line at the global scope, outside of any function
 constexpr size_t AudioPlayer::BUFFER_END_POS_UNDEFINED;
+static unsigned long lastPrintedSecond = 0;
 
 AudioPlayer::AudioPlayer(SDCardManager &sdCardManager, RadioManager &radioManager)
     : m_writePos(0), m_readPos(0), m_bufferFilled(0),
@@ -183,6 +183,13 @@ void AudioPlayer::updatePlaybackTime()
         m_currentPlaybackTime += elapsedTime;
     }
     m_lastFrameTime = now;
+    
+    // Only print every second
+    if (m_currentPlaybackTime / 1000 != lastPrintedSecond)
+    {
+        lastPrintedSecond = m_currentPlaybackTime / 1000;
+        Serial.printf("AudioPlayer::updatePlaybackTime() m_currentPlaybackTime: %lu\n", m_currentPlaybackTime);
+    }
 }
 
 void AudioPlayer::fillBuffer()

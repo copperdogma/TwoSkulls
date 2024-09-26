@@ -8,6 +8,7 @@
 #include <vector>
 #include <Arduino.h>
 #include "SoundData.h" // Include this to get the Frame struct definition
+#include <functional>
 
 // TODO: Should probably be defined by the audioPlayer and passed in from it, either during init or via processAudioFrames()
 #define SAMPLES 256
@@ -25,10 +26,10 @@ public:
     ParsedSkit findSkitByName(const std::vector<ParsedSkit> &skits, const String &name);
     bool isCurrentlySpeaking() { return m_isCurrentlySpeaking; }
 
-    void onPlaybackStart(const String &filePath);
-    void onPlaybackEnd(const String &filePath);
-
     void processAudioFrames(const Frame* frames, int32_t frameCount, const String& currentFile, unsigned long playbackTime);
+
+    using SpeakingStateCallback = std::function<void(bool)>;
+    void setSpeakingStateCallback(SpeakingStateCallback callback);
 
 private:
     ServoController &m_servoController;
@@ -58,6 +59,9 @@ private:
 
     int m_servoMinDegrees;
     int m_servoMaxDegrees;
+
+    SpeakingStateCallback m_speakingStateCallback;
+    void setSpeakingState(bool isSpeaking);
 };
 
 #endif // SKULL_AUDIO_ANIMATOR_H

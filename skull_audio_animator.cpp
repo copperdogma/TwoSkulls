@@ -49,6 +49,106 @@ void SkullAudioAnimator::processAudioFrames(const Frame *frames, int32_t frameCo
     updateJawPosition(frames, frameCount);
 }
 
+void SkullAudioAnimator::updateSkit()
+{
+    if (m_wasAudioPlaying && !m_isAudioPlaying)
+    {
+        Serial.printf("SkullAudioAnimator: Finished playing audio file: %s\n", m_currentAudioFilePath.c_str());
+        m_currentAudioFilePath = "";
+        m_currentSkit = ParsedSkit();
+        m_currentSkitLineNumber = -1;
+    }
+    m_wasAudioPlaying = m_isAudioPlaying;
+
+    if (!m_isAudioPlaying)
+    {
+        setSpeakingState(false);
+        return;
+    }
+
+    if (m_currentFile.isEmpty())
+    {
+        Serial.println("SkullAudioAnimator: currentFile is empty; setting m_isCurrentlySpeaking to false");
+        setSpeakingState(false);
+        return;
+    }
+
+    // If we're playing a new file, parse the skit and reset the line number
+    if (m_currentFile != m_currentAudioFilePath)
+    {
+        m_currentAudioFilePath = m_currentFile;
+        m_currentSkitLineNumber = -1;
+
+        m_currentSkit = findSkitByName(m_skits, m_currentFile);
+        if (m_currentSkit.lines.empty())
+        {
+            Serial.printf("SkullAudioAnimator: Playing non-skit audio file: %s\n", m_currentFile.c_str());
+            setSpeakingState(true);
+            return;
+        }
+
+        Serial.printf("SkullAudioAnimator: Playing new skit: %s\n", m_currentSkit.audioFile.c_str());
+
+        std::vector<ParsedSkitLine> lines;
+        for (const auto &line : m_currentSkit.lines)
+        {
+            if ((line.speaker == 'A' && m_isPrimary) || (line.speaker == 'B' && !m_isPrimary))
+            {
+                lines.push_back(line);
+            }
+        }
+        Serial.printf("SkullAudioAnimator: Parsed skit '%s' with %d lines. %d lines for us.\n",
+                      m_currentSkit.audioFile.c_str(), m_currentSkit.lines.size(), lines.size());
+        m_currentSkit.lines = lines;
+    }
+
+    // Find the line we're currently speaking
+    size_t originalLineNumber = m_currentSkitLineNumber;
+    bool foundLine = false;
+    for (const auto &line : m_currentSkit.lines)
+    {
+        if (m_currentPlaybackTime >= line.timestamp && m_currentPlaybackTime < line.timestamp + line.duration)
+        {
+            m_currentSkitLineNumber = line.lineNumber;
+            foundLine = true;
+            break;
+        }
+    }
+
+    if (m_currentSkitLineNumber != originalLineNumber && !m_currentSkit.lines.empty())
+    {
+        Serial.printf("SkullAudioAnimator: Now speaking line %d\n", m_currentSkitLineNumber);
+    }
+
+    if (m_isCurrentlySpeaking && !foundLine && !m_currentSkit.lines.empty())
+    {
+        Serial.printf("SkullAudioAnimator: Ended speaking line %d\n", m_currentSkitLineNumber);
+    }
+
+    // If we're playing a non-skit, we're speaking
+    if (m_currentSkit.lines.empty())
+    {
+        setSpeakingState(true);
+    }
+    // Otherwise we're playing a skit and only speaking when playing a line meant for us
+    else
+    {
+        setSpeakingState(foundLine);
+    }
+}
+
+void SkullAudioAnimator::updateEyes()
+{
+    if (m_isCurrentlySpeaking)
+    {
+        m_lightController.setEyeBrightness(LightController::BRIGHTNESS_MAX);
+    }
+    else
+    {
+        m_lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
+    }
+}
+
 void SkullAudioAnimator::updateJawPosition(const Frame *frames, int32_t frameCount)
 {
     if (frameCount > 0)
@@ -72,101 +172,6 @@ void SkullAudioAnimator::updateJawPosition(const Frame *frames, int32_t frameCou
     }
 }
 
-void SkullAudioAnimator::updateSkit()
-{
-    if (m_wasAudioPlaying && !m_isAudioPlaying)
-    {
-        Serial.printf("SkullAudioAnimator: Finished playing audio file: %s\n", m_currentAudioFilePath.c_str());
-        m_currentAudioFilePath = "";
-        m_currentSkit = ParsedSkit();
-        m_currentSkitLineNumber = -1;
-    }
-    m_wasAudioPlaying = m_isAudioPlaying;
-
-    if (!m_isAudioPlaying)
-    {
-        m_isCurrentlySpeaking = false;
-        return;
-    }
-
-    if (m_currentFile.isEmpty())
-    {
-        Serial.println("SkullAudioAnimator: currentFile is empty; setting m_isCurrentlySpeaking to false");
-        m_isCurrentlySpeaking = false;
-        return;
-    }
-
-    if (m_currentFile != m_currentAudioFilePath)
-    {
-        m_currentAudioFilePath = m_currentFile;
-        m_currentSkitLineNumber = -1;
-
-        m_currentSkit = findSkitByName(m_skits, m_currentFile);
-        if (m_currentSkit.lines.empty())
-        {
-            Serial.printf("SkullAudioAnimator: Playing non-skit audio file: %s\n", m_currentFile.c_str());
-            m_isCurrentlySpeaking = true;
-            return;
-        }
-
-        Serial.printf("SkullAudioAnimator: Playing new skit: %s\n", m_currentSkit.audioFile.c_str());
-
-        std::vector<ParsedSkitLine> lines;
-        for (const auto &line : m_currentSkit.lines)
-        {
-            if ((line.speaker == 'A' && m_isPrimary) || (line.speaker == 'B' && !m_isPrimary))
-            {
-                lines.push_back(line);
-            }
-        }
-        Serial.printf("SkullAudioAnimator: Parsed skit '%s' with %d lines. %d lines for us.\n",
-                      m_currentSkit.audioFile.c_str(), m_currentSkit.lines.size(), lines.size());
-        m_currentSkit.lines = lines;
-    }
-
-    size_t originalLineNumber = m_currentSkitLineNumber;
-    bool foundLine = false;
-    for (const auto &line : m_currentSkit.lines)
-    {
-        if (m_currentPlaybackTime >= line.timestamp && m_currentPlaybackTime < line.timestamp + line.duration)
-        {
-            m_currentSkitLineNumber = line.lineNumber;
-            foundLine = true;
-            break;
-        }
-    }
-
-    if (m_currentSkitLineNumber != originalLineNumber && !m_currentSkit.lines.empty())
-    {
-        Serial.printf("SkullAudioAnimator: Now speaking line %d\n", m_currentSkitLineNumber);
-    }
-
-    if (m_isCurrentlySpeaking && !foundLine && !m_currentSkit.lines.empty())
-    {
-        Serial.printf("SkullAudioAnimator: Ended speaking line %d\n", m_currentSkitLineNumber);
-    }
-
-    if (!m_currentSkit.lines.empty())
-    {
-        m_isCurrentlySpeaking = foundLine;
-    }
-    else
-    {
-        m_isCurrentlySpeaking = true;
-    }
-}
-
-void SkullAudioAnimator::updateEyes()
-{
-    if (m_isCurrentlySpeaking)
-    {
-        m_lightController.setEyeBrightness(LightController::BRIGHTNESS_MAX);
-    }
-    else
-    {
-        m_lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
-    }
-}
 
 ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &skits, const String &name)
 {
@@ -180,6 +185,7 @@ ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &ski
     return ParsedSkit();
 }
 
+// Called from processAudioFrames() but doesn't actually affect anything (yet). Keep for now.
 void SkullAudioAnimator::performFFT(const Frame *frames, int32_t frameCount)
 {
     if (frameCount < SAMPLES)
@@ -196,6 +202,7 @@ void SkullAudioAnimator::performFFT(const Frame *frames, int32_t frameCount)
     FFT.ComplexToMagnitude();
 }
 
+// Not currently used. But keep for now.
 double SkullAudioAnimator::getFFTResult(int index)
 {
     if (index >= 0 && index < SAMPLES / 2)
@@ -205,6 +212,7 @@ double SkullAudioAnimator::getFFTResult(int index)
     return 0;
 }
 
+// Not currently used. But keep for now.
 double SkullAudioAnimator::calculateRMS(const int16_t *samples, int numSamples)
 {
     double sum = 0;
@@ -215,12 +223,19 @@ double SkullAudioAnimator::calculateRMS(const int16_t *samples, int numSamples)
     return sqrt(sum / numSamples);
 }
 
-void SkullAudioAnimator::onPlaybackStart(const String &filePath)
+void SkullAudioAnimator::setSpeakingStateCallback(SpeakingStateCallback callback)
 {
-    // Implementation if needed
+    m_speakingStateCallback = std::move(callback);
 }
 
-void SkullAudioAnimator::onPlaybackEnd(const String &filePath)
+void SkullAudioAnimator::setSpeakingState(bool isSpeaking)
 {
-    // Implementation if needed
+    if (m_isCurrentlySpeaking != isSpeaking)
+    {
+        m_isCurrentlySpeaking = isSpeaking;
+        if (m_speakingStateCallback)
+        {
+            m_speakingStateCallback(m_isCurrentlySpeaking);
+        }
+    }
 }

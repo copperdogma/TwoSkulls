@@ -164,12 +164,16 @@ ISSUES
           file and Secondary doesn't ack until the same. Then they're both ready for playFile().
   ** NEXT:
     ** finish refactoring of proper architecture (see paper scrap)
-      - pull frames into INO via callback and feed to skull_audio_animator
       - refactor skull_audio_animator.. it's a mess
     ** audio sync code for playing the same file on both (with prep/ack/deny/etc)
     ** kill radioManger (it's integrated in a bunch of places still)
       ** remove radioManager from audioPlayer
     ** future: ultrasonic distance needs to be done from multiple averages shots because the sensors results are noisy
+    ** BUGS
+      ** audioPlayer not returning correct playback time. It starts when it starts playing but never resets when a new file starts.
+         However, there's also a m_lastFrameTime in there as well.
+          ** muting works, but doesn't do it at the right times. PRETTY sure it's from the above timing issue.
+          ** what all uses these time variables? Anything?
 
 
 20231022: Created.

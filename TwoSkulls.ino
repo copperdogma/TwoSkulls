@@ -131,6 +131,17 @@ void onCharacteristicChange(const std::string &newValue)
   }
 }
 
+// This is called whenever SkullAudioAnimator determines this skull is speaking or not speaking.
+// If it's not speaking we want to mute the audio. That way, although both skulls are playing the same audio
+// in sync, they'll only be speaking their individual parts.
+void onSpeakingStateChange(bool isSpeaking)
+{
+    if (audioPlayer)
+    {
+        audioPlayer->setMuted(!isSpeaking);
+    }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -278,6 +289,7 @@ void setup()
   // Initialize SkullAudioAnimator
   skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits, *sdCardManager,
                                               servoMinDegrees, servoMaxDegrees);
+  skullAudioAnimator->setSpeakingStateCallback(onSpeakingStateChange);
 }
 
 void loop()
