@@ -68,6 +68,7 @@ void SkullAudioAnimator::updateSkit()
     // If no audio is playing, set speaking state to false
     if (!m_isAudioPlaying)
     {
+        Serial.println("SkullAudioAnimator: No audio is playing; setting m_isCurrentlySpeaking to false");
         setSpeakingState(false);
         return;
     }
@@ -91,6 +92,7 @@ void SkullAudioAnimator::updateSkit()
         if (m_currentSkit.lines.empty())
         {
             Serial.printf("SkullAudioAnimator: Playing non-skit audio file: %s\n", m_currentFile.c_str());
+            Serial.println("SkullAudioAnimator: No skit lines found; setting m_isCurrentlySpeaking to true");
             setSpeakingState(true);
             return;
         }
@@ -111,12 +113,14 @@ void SkullAudioAnimator::updateSkit()
         m_currentSkit.lines = lines;
     }
 
-    // Find the current speaking line based on playback time
+    // Find the current speaking line in the skit based on playback time
     size_t originalLineNumber = m_currentSkitLineNumber;
     bool foundLine = false;
     for (const auto &line : m_currentSkit.lines)
     {
-        if (m_currentPlaybackTime >= line.timestamp && m_currentPlaybackTime < line.timestamp + line.duration)
+        // We need to clip the end of the line to avoid overlap with the next line.
+        // Even if you get the timings exactly right in the skit file, I believe this is taking the buffer into account.
+        if (m_currentPlaybackTime >= line.timestamp && m_currentPlaybackTime < line.timestamp + line.duration - SKIT_AUDIO_LINE_OFFSET)
         {
             m_currentSkitLineNumber = line.lineNumber;
             foundLine = true;
@@ -127,18 +131,20 @@ void SkullAudioAnimator::updateSkit()
     // Log when a new line starts speaking
     if (m_currentSkitLineNumber != originalLineNumber && !m_currentSkit.lines.empty())
     {
-        Serial.printf("SkullAudioAnimator: Now speaking line %d\n", m_currentSkitLineNumber);
+        Serial.printf("SkullAudioAnimator: Now speaking line %d at time %lu\n", m_currentSkitLineNumber, m_currentPlaybackTime);
     }
 
     // Log when a line finishes speaking
     if (m_isCurrentlySpeaking && !foundLine && !m_currentSkit.lines.empty())
     {
-        Serial.printf("SkullAudioAnimator: Ended speaking line %d\n", m_currentSkitLineNumber);
+        Serial.printf("SkullAudioAnimator: Ended speaking line %d at time %lu\n", m_currentSkitLineNumber, m_currentPlaybackTime);
     }
 
     // If we're playing a non-skit, we're speaking
     if (m_currentSkit.lines.empty())
     {
+        // TODO: we do this above... do we need to do it here?
+        Serial.println("SkullAudioAnimator: No skit lines found; setting m_isCurrentlySpeaking to true (2)");
         setSpeakingState(true);
     }
     // Otherwise we're playing a skit and only speaking when playing a line meant for us

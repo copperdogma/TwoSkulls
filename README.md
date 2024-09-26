@@ -170,6 +170,8 @@ ISSUES
     ** BUGS
       ** skit timing not quite right; it clips by 500ms or so at skit line boundaries
         - not sure if this is audioPlayer or skullAudioAnimator. Try more rapid debug lines in SAA
+      ** There's a flutter in audioPlayer where m_isCurrentlySpeaking and m_isAudioPlaying switch back and forth rapidly
+         at the end of a file. I can't figure out why but it doesn't seem to affect anything, so I'm going to leave it for now.
 
 
 20231022: Created.

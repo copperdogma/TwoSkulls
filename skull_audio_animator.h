@@ -84,6 +84,8 @@ private:
 
     // Updates the speaking state and triggers the callback if changed
     void setSpeakingState(bool isSpeaking);
+
+    static const unsigned long SKIT_AUDIO_LINE_OFFSET = 200; // Milliseconds to clip off the end of a skit audio line to avoid overlap
 };
 
 #endif // SKULL_AUDIO_ANIMATOR_H
