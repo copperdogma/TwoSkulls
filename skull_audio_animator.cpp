@@ -16,19 +16,24 @@
 
 #include "skull_audio_animator.h"
 #include <cmath>
+#include <algorithm>
+#include <cstdlib>
 
 SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController& servoController, LightController& lightController, 
-    std::vector<ParsedSkit>& skits, SDCardManager& sdCardManager)
+    std::vector<ParsedSkit>& skits, SDCardManager& sdCardManager, int servoMinDegrees, int servoMaxDegrees)
     : m_servoController(servoController),
       m_lightController(lightController),
       m_sdCardManager(sdCardManager),
       m_isPrimary(isPrimary),
       m_skits(skits),
+      m_servoMinDegrees(servoMinDegrees),
+      m_servoMaxDegrees(servoMaxDegrees),
       m_isCurrentlySpeaking(false),
       m_currentSkitLineNumber(0),
       m_wasAudioPlaying(false),
       FFT(vReal, vImag, SAMPLES, SAMPLE_RATE)
 {
+    // Constructor body (if needed)
 }
 
 void SkullAudioAnimator::update()
@@ -243,4 +248,37 @@ void SkullAudioAnimator::onPlaybackStart(const String &filePath)
 void SkullAudioAnimator::onPlaybackEnd(const String &filePath)
 {
     // ... existing code ...
+}
+
+void SkullAudioAnimator::processAudioFrames(const Frame* frames, int32_t frameCount, const String& currentFile, unsigned long playbackTime)
+{
+    m_currentFile = currentFile;
+    m_currentPlaybackTime = playbackTime;
+    m_isAudioPlaying = (frameCount > 0);
+
+    // Basic jaw position calculation based on audio amplitude
+    if (frameCount > 0)
+    {
+        int16_t maxAmplitude = 0;
+        for (int32_t i = 0; i < frameCount; ++i)
+        {
+            maxAmplitude = std::max(maxAmplitude, static_cast<int16_t>(std::abs(frames[i].channel1)));
+            maxAmplitude = std::max(maxAmplitude, static_cast<int16_t>(std::abs(frames[i].channel2)));
+        }
+
+        // Map the amplitude to jaw position
+        int jawPosition = map(maxAmplitude, 0, 32767, m_servoMinDegrees, m_servoMaxDegrees);
+        m_servoController.setPosition(jawPosition);
+    }
+    else
+    {
+        // If no frames, close the jaw
+        m_servoController.setPosition(m_servoMinDegrees);
+    }
+
+    // Update skit information
+    updateSkit();
+
+    // Update eyes based on speaking state
+    updateEyes();
 }

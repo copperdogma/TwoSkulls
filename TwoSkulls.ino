@@ -72,8 +72,6 @@ const int CHUNKS_NEEDED = 17; // Number of chunks needed for 100ms (34)
 
 // Servo
 const int SERVO_PIN = 15; // Servo control pin
-const int SERVO_MIN_DEGREES = 0;
-const int SERVO_MAX_DEGREES = 80; // Anything past this will grind the servo horn into the interior of the skull, probably breaking something.
 
 esp_adc_cal_characteristics_t adc_chars;
 
@@ -145,9 +143,6 @@ void setup()
   // Initialize light controller first for blinking
   lightController.begin();
 
-  // Initialize servo
-  servoController.initialize(SERVO_PIN, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-
   // Initialize SD Card Manager
   sdCardManager = new SDCardManager();
 
@@ -186,6 +181,11 @@ void setup()
   String role = config.getRole();
   int ultrasonicTriggerDistance = config.getUltrasonicTriggerDistance();
   int speakerVolume = config.getSpeakerVolume();
+  int servoMinDegrees = config.getServoMinDegrees();
+  int servoMaxDegrees = config.getServoMaxDegrees();
+
+  // Initialize servo
+  servoController.initialize(SERVO_PIN, servoMinDegrees, servoMaxDegrees);
 
   // Determine role based on settings.txt
   if (role.equals("primary"))
@@ -263,8 +263,11 @@ void setup()
 
   audioPlayer->setAudioFramesProvidedCallback([](const String &filePath, const Frame *frames, int32_t frameCount)
                                               {
-                                                // CAMKILL: Serial.printf("Provided %d frames for %s\n", frameCount, filePath.c_str());
-                                              });
+                                                if (skullAudioAnimator != nullptr)
+                                                {
+                                                    unsigned long playbackTime = audioPlayer->getPlaybackTime();
+                                                    skullAudioAnimator->processAudioFrames(frames, frameCount, filePath, playbackTime);
+                                                } });
 
   // Set the connection state change callback
   bluetoothController.setConnectionStateChangeCallback(onConnectionStateChange);
@@ -273,7 +276,8 @@ void setup()
   bluetoothController.setCharacteristicChangeCallback(onCharacteristicChange);
 
   // Initialize SkullAudioAnimator
-  skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits, *sdCardManager);
+  skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits, *sdCardManager,
+                                              servoMinDegrees, servoMaxDegrees);
 }
 
 void loop()
