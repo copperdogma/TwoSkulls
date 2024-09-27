@@ -347,11 +347,6 @@ void loop()
       lastCharacteristicUpdateMillis = currentMillis + 30000; // extra delay so it doens't play them back to back
   }
 
-
-// NEXT:
-// - kill extra comments in skull_audio_animator.cpp
-// - profit!
-
   // // SKULL_AUDIO_ANIMATOR TEST CODE: play the Names skit after A2DP is properly initialized
   // if (bluetoothController.isA2dpConnected() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
   // {

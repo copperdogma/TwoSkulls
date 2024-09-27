@@ -163,15 +163,13 @@ ISSUES
         - do we maybe need a better sync? Like readyfile(file) then playFile(file). readyFile() has primary ensure it can read the
           file and Secondary doesn't ack until the same. Then they're both ready for playFile().
   ** NEXT:
-    ** finish refactoring of proper architecture (see paper scrap)
-      - refactor skull_audio_animator.. it's a mess
-      ** audio sync code for playing the same file on both (with prep/ack/deny/etc)
+      ** name skit txt files for remaining skits
+      ** make ultrasonic trigger + random skit selection (with weighted probabilities)
+      ** audio sync code for playing the same file on both (with prep/ack/deny/etc)?
     ** future: ultrasonic distance needs to be done from multiple averages shots because the sensors results are noisy
     ** BUGS
-      ** skit timing not quite right; it clips by 500ms or so at skit line boundaries
-        - not sure if this is audioPlayer or skullAudioAnimator. Try more rapid debug lines in SAA
-      ** There's a flutter in audioPlayer where m_isCurrentlySpeaking and m_isAudioPlaying switch back and forth rapidly
-         at the end of a file. I can't figure out why but it doesn't seem to affect anything, so I'm going to leave it for now.
+      ** - SOMETIMES clips the starting 100-200ms off Secondary audio for some reason
+
 
 
 20231022: Created.
