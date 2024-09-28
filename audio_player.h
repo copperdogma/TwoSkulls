@@ -105,6 +105,9 @@ private:
     String m_fileEndPath;
 
     size_t m_bytesPlayed;  // Total bytes played for the current file
+
+    // New method to reset byte counters
+    void resetByteCounters();
 };
 
 #endif // AUDIO_PLAYER_H

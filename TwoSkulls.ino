@@ -258,6 +258,11 @@ void setup()
   // Set the initial state of the eyes to dim
   lightController.setEyeBrightness(LightController::BRIGHTNESS_DIM);
 
+  // ADC initialization (used in loop() to calculate voltage)
+  adc1_config_width(ADC_WIDTH_BIT_12);
+  adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
+  esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
+
   audioPlayer->setPlaybackStartCallback([](const String &filePath)
                                         { Serial.printf("MAIN: Started playing audio: %s\n", filePath.c_str()); });
 
@@ -364,7 +369,6 @@ void loop()
   {
     if (currentMillis - lastScanLogMillis >= 5000)
     {
-      lightController.blinkEyes(1); // 1 blink for wifi connection request
       if (bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
       {
         audioPlayer->playNext("/audio/Marco.wav");

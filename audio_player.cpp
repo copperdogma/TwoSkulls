@@ -158,7 +158,7 @@ void AudioPlayer::fillBuffer()
 
             if (!startNextFile())
             {
-                break; // No more files to buffer
+                break;
             }
         }
         else
@@ -224,6 +224,7 @@ bool AudioPlayer::startNextFile()
     if (audioQueue.empty())
     {
         m_currentBufferingFilePath = "";
+        m_bytesPlayed = 0; // Reset byte counter to avoid overflows
         return false;
     }
 
@@ -268,7 +269,8 @@ bool AudioPlayer::isAudioPlaying() const
 // Basing it on the actual bytes read adjusts for a lot of these issues.
 unsigned long AudioPlayer::getPlaybackTime() const
 {
-    if (!m_isAudioPlaying) {
+    if (!m_isAudioPlaying)
+    {
         return 0;
     }
 

@@ -169,7 +169,6 @@ ISSUES
     ** future: ultrasonic distance needs to be done from multiple averages shots because the sensors results are noisy
     ** BUGS
       ** <sigh> what happened to the voltage debug in loop()? it's always showing zero
-      ** zero out total bytes read when no files are left to avoid variable overflow
 
 
 
