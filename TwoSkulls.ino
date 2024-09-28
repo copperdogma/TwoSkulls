@@ -24,15 +24,21 @@
 #include "esp_sleep.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
+#include "skit_selector.h"
 
 const int LEFT_EYE_PIN = 32;  // GPIO pin for left eye LED
 const int RIGHT_EYE_PIN = 33; // GPIO pin for right eye LED
 LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
 
+const int VOLUME_DIVISOR = 1; // FOR DEBUGGING: divide volume by this amount to set volume lower
+
 // Ultrasonic sensor
-UltraSonicDistanceSensor *distanceSensor = nullptr; // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
-const int TRIGGER_PIN = 2;                          // Pin number ultrasonic pulse trigger
-const int ECHO_PIN = 22;                            // Pin number ultrasonic echo detection
+UltraSonicDistanceSensor *distanceSensor = nullptr;  // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
+const unsigned long ULTRASONIC_SAMPLES = 5;          // Take multiple samples to filter out noise
+const unsigned long ULTRASONIC_DEBOUNCE_TIME = 5000; // 5 seconds between triggers
+const float TRIGGER_DISTANCE = 100.0;                // 100 cm, adjust as needed
+const int TRIGGER_PIN = 2;                           // Pin number ultrasonic pulse trigger
+const int ECHO_PIN = 22;                             // Pin number ultrasonic echo detection
 
 SDCardManager *sdCardManager = nullptr;
 SDCardContent sdCardContent;
@@ -70,6 +76,8 @@ const int CHUNKS_NEEDED = 17;         // Chunks requested per call. Note: it's 3
 const int SERVO_PIN = 15; // Servo control pin
 
 esp_adc_cal_characteristics_t adc_chars;
+
+SkitSelector *skitSelector = nullptr;
 
 // Custom crash handler to provide debug information and restart the device
 void custom_crash_handler()
@@ -139,6 +147,32 @@ void onSpeakingStateChange(bool isSpeaking)
   }
 }
 
+// Get filtered ultrasonic distance using median filtering
+float getFilteredUltrasonicDistance()
+{
+  float samples[ULTRASONIC_SAMPLES];
+
+  // Take multiple samples to filter out noise
+  for (int i = 0; i < ULTRASONIC_SAMPLES; i++)
+  {
+    samples[i] = distanceSensor->measureDistanceCm();
+    delay(10);
+  }
+
+  // Use median value to further reduce the effect of outliers
+  std::sort(samples, samples + ULTRASONIC_SAMPLES);
+
+  // Serial.printf("MAIN::getFilteredUltrasonicDistance(): Median distance: %f cm\n", samples[ULTRASONIC_SAMPLES / 2]);
+
+  // If median sample is -1, return max float value to indicate no distance was detected
+  if (samples[ULTRASONIC_SAMPLES / 2] == -1)
+  {
+    return std::numeric_limits<float>::max();
+  }
+
+  return samples[ULTRASONIC_SAMPLES / 2]; // Return median value
+}
+
 // Main setup function
 void setup()
 {
@@ -189,9 +223,12 @@ void setup()
   String bluetoothSpeakerName = config.getBluetoothSpeakerName();
   String role = config.getRole();
   int ultrasonicTriggerDistance = config.getUltrasonicTriggerDistance();
-  int speakerVolume = config.getSpeakerVolume();
+  int speakerVolume = config.getSpeakerVolume() / VOLUME_DIVISOR;
   int servoMinDegrees = config.getServoMinDegrees();
   int servoMaxDegrees = config.getServoMaxDegrees();
+
+  // Initialize SkitSelector with parsed skits
+  skitSelector = new SkitSelector(sdCardContent.skits);
 
   // Initialize servo
   servoController.initialize(SERVO_PIN, servoMinDegrees, servoMaxDegrees);
@@ -276,6 +313,9 @@ void setup()
                                         if (skullAudioAnimator != nullptr)
                                         {
                                           skullAudioAnimator->setPlaybackEnded(filePath);
+                                        }
+                                        if (skitSelector != nullptr) {
+                                            skitSelector->updateSkitPlayCount(filePath);
                                         } });
 
   audioPlayer->setAudioFramesProvidedCallback([](const String &filePath, const Frame *frames, int32_t frameCount)
@@ -336,25 +376,25 @@ void loop()
     lastStateLoggingMillis = currentMillis;
   }
 
-  // A2DP + BLE TEST TEST CODE: play the Names skit after everything is properly initialized
-  if (isPrimary && currentMillis - lastCharacteristicUpdateMillis >= 10000 && bluetoothController.clientIsConnectedToServer() &&
-      bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
-  {
-    String message = "/audio/Skit - names.wav";
-    bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
-    if (success)
-    {
-      Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", message.c_str());
+  // // A2DP + BLE TEST TEST CODE: play the Names skit after everything is properly initialized
+  // if (isPrimary && currentMillis - lastCharacteristicUpdateMillis >= 10000 && bluetoothController.clientIsConnectedToServer() &&
+  //     bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
+  // {
+  //   String message = "/audio/Skit - milkshakes.wav";
+  //   bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
+  //   if (success)
+  //   {
+  //     Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", message.c_str());
 
-      // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
-      audioPlayer->playNext(message);
-    }
-    else
-    {
-      Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", message.c_str());
-    }
-    lastCharacteristicUpdateMillis = currentMillis + 30000; // extra delay so it doens't play them back to back
-  }
+  //     // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
+  //     audioPlayer->playNext(message);
+  //   }
+  //   else
+  //   {
+  //     Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", message.c_str());
+  //   }
+  //   lastCharacteristicUpdateMillis = currentMillis + 30000; // extra delay so it doens't play them back to back
+  // }
 
   // // SKULL_AUDIO_ANIMATOR TEST CODE: play the Names skit after A2DP is properly initialized
   // if (bluetoothController.isA2dpConnected() && currentMillis - lastCharacteristicUpdateMillis >= 10000)
@@ -392,7 +432,36 @@ void loop()
     isBleInitializationStarted = true;
   }
 
+  static unsigned long lastUltrasonicTriggerTime = 0;
+
+  // Primary Only: If connected to bluetooth speakers and the other skull, check if the ultrasonic sensor has been triggered.
+  // If so, play a random skit.
+  if (isPrimary && (currentMillis - lastUltrasonicTriggerTime > ULTRASONIC_DEBOUNCE_TIME) && bluetoothController.clientIsConnectedToServer() && bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
+  {
+    float distance = getFilteredUltrasonicDistance();
+    if (distance < TRIGGER_DISTANCE && !audioPlayer->isAudioPlaying())
+    {
+      // Select and play a new skit when triggered
+      ParsedSkit selectedSkit = skitSelector->selectNextSkit();
+      String filePath = selectedSkit.audioFile;
+
+      bool success = bluetoothController.setRemoteCharacteristicValue(filePath.c_str());
+      if (success)
+      {
+        Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", filePath.c_str());
+
+        // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
+        audioPlayer->playNext(filePath);
+      }
+      else
+      {
+        Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", filePath.c_str());
+      }
+
+      lastUltrasonicTriggerTime = currentMillis;
+    }
+  }
+
   // Delay to allow for other componeents to update.
-  // TODO: remove? I think this was a guess at fixing an issue but I don't think it's necessary.
   delay(1);
 }

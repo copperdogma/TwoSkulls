@@ -167,8 +167,6 @@ ISSUES
       ** make ultrasonic trigger + random skit selection (with weighted probabilities)
       ** audio sync code for playing the same file on both (with prep/ack/deny/etc)?
     ** future: ultrasonic distance needs to be done from multiple averages shots because the sensors results are noisy
-    ** BUGS
-      ** <sigh> what happened to the voltage debug in loop()? it's always showing zero
 
 
 
