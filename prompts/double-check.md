@@ -1,7 +1,6 @@
 Double check the code you've written:
-- Will it compile?
+- Does it meet the requirements we stated?
 - Is it properly commented?
-- Does it meet the requirements I stated?
 
 Pull in any additional files you need to verify.
 

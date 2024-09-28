@@ -27,17 +27,17 @@
 #include <mutex>
 #include <thread>
 
-// Define a constant for an undefined buffer end position
-constexpr size_t AudioPlayer::BUFFER_END_POS_UNDEFINED;
+// Define a constant for an undefined buffer position
+constexpr size_t AudioPlayer::BUFFER_POS_UNDEFINED;
+
 // Keep track of the last printed second for logging purposes
 static unsigned long lastPrintedSecond = 0;
 
-// Constructor for AudioPlayer class
 AudioPlayer::AudioPlayer(SDCardManager &sdCardManager)
-    : m_writePos(0), m_readPos(0), m_bufferFilled(0),
-      m_currentFilePath(""), m_isAudioPlaying(false), m_muted(false),
-      m_playbackStartTime(0),
-      m_currentBufferFileIndex(0), m_currentPlaybackFileIndex(0),
+    : m_writePos(0), m_readPos(0), m_bufferFilled(0), m_totalBufferWritePos(0), m_totalBufferReadPos(0),
+      m_currentBufferingFilePath(""),
+      m_fileStartBufferPos(BUFFER_POS_UNDEFINED), m_fileStartPath(""), m_fileEndBufferPos(BUFFER_POS_UNDEFINED), m_fileEndPath(""),
+      m_isAudioPlaying(false), m_muted(false), m_playbackStartTime(0), m_currentPlayingFilePath(""),
       m_sdCardManager(sdCardManager)
 {
 }
@@ -47,21 +47,21 @@ void AudioPlayer::playNext(String filePath)
 {
     if (filePath.length() > 0)
     {
-        std::lock_guard<std::mutex> lock(m_mutex);       // Ensure thread-safe access to shared resources
-        uint16_t newFileIndex = addFileToList(filePath); // Add the file to the list and get its index
+        std::lock_guard<std::mutex> lock(m_mutex); // Ensure thread-safe access to shared resources
         audioQueue.push(filePath.c_str());
-        Serial.printf("AudioPlayer::playNext() Added file (index: %d) to queue: %s ...\n", newFileIndex, filePath.c_str());
+        Serial.printf("AudioPlayer::playNext() Added file to queue: %s ...\n", filePath.c_str());
     }
 }
 
 // Provide audio frames to the audio output stream
 int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
 {
-    std::lock_guard<std::mutex> lock(m_mutex); // Ensure thread-safe access to shared resources
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     // Exit if there's no data available to read
     if (m_bufferFilled == 0)
     {
+        m_currentPlayingFilePath = "";
         m_isAudioPlaying = false;
         fillBuffer(); // Try to fill the buffer
         return 0;
@@ -93,16 +93,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
         }
     }
 
-    // Check if we've reached the end of the current file
-    if (!m_fileList.empty() && m_currentPlaybackFileIndex < m_fileList.size())
-    {
-        FileEntry &currentEntry = m_fileList[m_currentPlaybackFileIndex];
-
-        if (currentEntry.bufferEndPos != BUFFER_END_POS_UNDEFINED && m_readPos >= currentEntry.bufferEndPos)
-        {
-            handleEndOfFile();
-        }
-    }
+    m_totalBufferReadPos += bytesRead;
 
     fillBuffer(); // Refill the buffer after reading
 
@@ -117,59 +108,35 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     // Call the frames provided callback if set
     if (m_audioFramesProvidedCallback)
     {
-        m_audioFramesProvidedCallback(m_currentFilePath, frame, frame_count);
+        m_audioFramesProvidedCallback(m_currentPlayingFilePath, frame, frame_count);
+    }
+
+    // Check for and handle file transitions
+    if (m_totalBufferReadPos >= m_fileStartBufferPos)
+    {
+        m_playbackStartTime = millis();
+        m_currentPlayingFilePath = m_fileStartPath;
+        if (m_playbackStartCallback)
+        {
+            m_playbackStartCallback(m_fileStartPath);
+        }
+        // Keep: for debuug: Serial.printf("AudioPlayer::provideAudioFrames() FOUND FILE START MARKER: m_totalBufferReadPos (%zu) >= m_fileStartBufferPos (%zu), starting playback of file: %s\n", m_totalBufferReadPos, m_fileStartBufferPos, m_fileStartPath.c_str());
+        m_fileStartBufferPos = BUFFER_POS_UNDEFINED;
+        m_fileStartPath = "";
+    }
+
+    if (m_totalBufferReadPos >= m_fileEndBufferPos)
+    {
+        if (m_playbackEndCallback)
+        {
+            m_playbackEndCallback(m_fileEndPath);
+        }
+        // Keep: for debuug: Serial.printf("AudioPlayer::provideAudioFrames() FOUND FILE END MARKER: m_totalBufferReadPos (%zu) >= m_fileEndBufferPos (%zu), ending playback of file: %s\n", m_totalBufferReadPos, m_fileEndBufferPos, m_fileEndPath.c_str());
+        m_fileEndBufferPos = BUFFER_POS_UNDEFINED;
+        m_fileEndPath = "";
     }
 
     return frame_count;
-}
-
-// Handle the end of the current audio file
-void AudioPlayer::handleEndOfFile()
-{
-    // Check if we're within bounds of the file list
-    if (m_currentPlaybackFileIndex >= m_fileList.size())
-    {
-        Serial.println("AudioPlayer::handleEndOfFile() No more files to play");
-        m_isAudioPlaying = false;
-        m_currentFilePath = "";
-        m_playbackStartTime = 0; // Reset playback start time
-        return;
-    }
-
-    FileEntry &currentEntry = m_fileList[m_currentPlaybackFileIndex];
-    Serial.printf("AudioPlayer::handleEndOfFile() found END OF FILE at m_readPos (%zu) >= currentEntry.bufferEndPos (%zu) for file: %s\n",
-                  m_readPos, currentEntry.bufferEndPos, currentEntry.filePath.c_str());
-
-    // Trigger playbackEndCallback for the current file
-    if (m_playbackEndCallback)
-    {
-        m_playbackEndCallback(currentEntry.filePath);
-    }
-
-    // Move to the next file in the list
-    m_currentPlaybackFileIndex++;
-    if (m_currentPlaybackFileIndex < m_fileList.size())
-    {
-        // Trigger playbackStartCallback for the next file
-        if (m_playbackStartCallback)
-        {
-            m_playbackStartCallback(m_fileList[m_currentPlaybackFileIndex].filePath);
-        }
-
-        // Start playback of the next file
-        m_isAudioPlaying = true;
-        m_currentFilePath = m_fileList[m_currentPlaybackFileIndex].filePath;
-        m_playbackStartTime = millis(); // Set the playback start time for the new file
-        Serial.printf("AudioPlayer::handleEndOfFile() Starting playback of next file: %s\n", m_currentFilePath.c_str());
-    }
-    else
-    {
-        // No more files to play
-        m_isAudioPlaying = false;
-        m_currentFilePath = "";
-        m_playbackStartTime = 0; // Reset playback start time
-        Serial.println("AudioPlayer::handleEndOfFile() No more files to play");
-    }
 }
 
 // Fill the audio buffer with data from the current file or start the next file
@@ -179,26 +146,19 @@ void AudioPlayer::fillBuffer()
     {
         if (!audioFile || !audioFile.available())
         {
-            // We're on the last data from the current file
             if (audioFile)
             {
-                String currentFilePath = getFilePath(m_currentBufferFileIndex);
-                Serial.printf("AudioPlayer::fillBuffer() found END OF FILE (1) for fileIndex: %d, writePos: %zu, filePath: %s\n",
-                              m_currentBufferFileIndex, m_writePos, currentFilePath.c_str());
-
-                m_fileList[m_currentBufferFileIndex].bufferEndPos = m_writePos;
-
+                // Add end-of-file transition for the current file
+                m_fileEndBufferPos = m_totalBufferWritePos;
+                m_fileEndPath = m_currentBufferingFilePath;
+                // Keep: for debuug: Serial.printf("AudioPlayer::fillBuffer() ADDING FILE END MARKER: m_fileEndBufferPos: %zu, m_fileEndPath: %s\n", m_fileEndBufferPos, m_fileEndPath.c_str());
                 audioFile.close();
             }
 
-            // Start the next file
             if (!startNextFile())
             {
-                break; // No more files to play
+                break; // No more files to buffer
             }
-            String currentFilePath = getFilePath(m_currentBufferFileIndex);
-            Serial.printf("AudioPlayer::fillBuffer() starting from NEW FILE: fileIndex: %d, filePath: %s\n",
-                          m_currentBufferFileIndex, currentFilePath.c_str());
         }
         else
         {
@@ -211,13 +171,11 @@ void AudioPlayer::fillBuffer()
             else
             {
                 // Handle unexpected end of file
-                // TODO why do we have TWO end of file handlers?
-                String currentFilePath = getFilePath(m_currentBufferFileIndex);
-                Serial.printf("AudioPlayer::fillBuffer() found END OF FILE (2) for fileIndex: %d, writePos: %zu, filePath: %s\n",
-                              m_currentBufferFileIndex, m_writePos, currentFilePath.c_str());
 
-                m_fileList[m_currentBufferFileIndex].bufferEndPos = m_writePos;
-
+                // Add end-of-file transition for the current file
+                m_fileEndBufferPos = m_totalBufferWritePos;
+                m_fileEndPath = m_currentBufferingFilePath;
+                // Keep: for debuug: Serial.printf("AudioPlayer::fillBuffer() ADDING FILE END MARKER (2): m_fileEndBufferPos: %zu, m_fileEndPath: %s\n", m_fileEndBufferPos, m_fileEndPath.c_str());
                 audioFile.close();
             }
         }
@@ -227,6 +185,9 @@ void AudioPlayer::fillBuffer()
 // Write audio data to the circular buffer
 void AudioPlayer::writeToBuffer(const uint8_t *audioData, size_t dataSize)
 {
+    // The circular buffer allows for continuous writing and reading without shuffling data.
+    // When the end of the buffer is reached, it wraps around to the beginning.
+
     size_t spaceAvailable = AUDIO_BUFFER_SIZE - m_bufferFilled;
 
     // Write audio data if available
@@ -246,10 +207,12 @@ void AudioPlayer::writeToBuffer(const uint8_t *audioData, size_t dataSize)
             m_writePos = secondChunkSize;
             m_bufferFilled += secondChunkSize;
         }
+
+        m_totalBufferWritePos += bytesToWrite;
     }
 }
 
-// Start playing the next file in the queue
+// Start buffering the next file in the queue
 bool AudioPlayer::startNextFile()
 {
     if (audioFile)
@@ -259,7 +222,7 @@ bool AudioPlayer::startNextFile()
 
     if (audioQueue.empty())
     {
-        m_currentFilePath = "";
+        m_currentBufferingFilePath = "";
         return false;
     }
 
@@ -279,13 +242,10 @@ bool AudioPlayer::startNextFile()
     // There's a proper way to parse out the header, but it's involved and this is good enough.
     audioFile.seek(128);
 
-    m_currentFilePath = String(nextFile.c_str());
-    m_currentBufferFileIndex = getFileIndex(m_currentFilePath);
-
-    // Set the playback start time
-    m_playbackStartTime = millis();
-
-    Serial.printf("AudioPlayer::startNextFile() Started buffering new file: %s (index: %d)\n", m_currentFilePath.c_str(), m_currentBufferFileIndex);
+    m_currentBufferingFilePath = String(nextFile.c_str());
+    m_fileStartBufferPos = m_totalBufferWritePos;
+    m_fileStartPath = m_currentBufferingFilePath;
+    // Keep: for debuug: Serial.printf("AudioPlayer::startNextFile() ADDING FILE START MARKER: m_fileStartBufferPos: %zu, m_fileStartPath: %s\n", m_fileStartBufferPos, m_fileStartPath.c_str());
     return true;
 }
 
@@ -293,40 +253,6 @@ bool AudioPlayer::startNextFile()
 void AudioPlayer::setMuted(bool muted)
 {
     m_muted = muted;
-}
-
-// Get the index of a file in the file list, adding it if it doesn't exist
-uint16_t AudioPlayer::getFileIndex(const String &filePath)
-{
-    return addFileToList(filePath); // This now both adds (if new) and returns the index
-}
-
-// Get the file path for a given file index
-String AudioPlayer::getFilePath(uint16_t fileIndex)
-{
-    if (fileIndex < m_fileList.size())
-    {
-        return m_fileList[fileIndex].filePath;
-    }
-    else
-    {
-        return "";
-    }
-}
-
-// Add a file to the file list if it doesn't exist, and return its index
-uint16_t AudioPlayer::addFileToList(const String &filePath)
-{
-    auto it = std::find_if(m_fileList.begin(), m_fileList.end(),
-                           [&filePath](const FileEntry &entry)
-                           { return entry.filePath == filePath; });
-    if (it == m_fileList.end())
-    {
-        m_fileList.emplace_back(filePath, BUFFER_END_POS_UNDEFINED); // Initialize bufferEndPos to undefined
-        return m_fileList.size() - 1;
-    }
-
-    return std::distance(m_fileList.begin(), it);
 }
 
 // Check if audio is currently playing
@@ -349,11 +275,5 @@ unsigned long AudioPlayer::getPlaybackTime() const
 // Get the file path of the currently playing audio
 String AudioPlayer::getCurrentlyPlayingFilePath() const
 {
-    return m_currentFilePath;
-}
-
-// Check if there is remaining audio data in the current file
-bool AudioPlayer::hasRemainingAudioData()
-{
-    return audioFile && audioFile.available();
+    return m_currentPlayingFilePath;
 }

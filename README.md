@@ -168,7 +168,10 @@ ISSUES
       ** audio sync code for playing the same file on both (with prep/ack/deny/etc)?
     ** future: ultrasonic distance needs to be done from multiple averages shots because the sensors results are noisy
     ** BUGS
-      ** - SOMETIMES clips the starting 100-200ms off Secondary audio for some reason
+      ** SOMETIMES clips the starting 100-200ms off Secondary audio for some reasonm, even Polo. RARELY Primary plays too long.
+         I feel like it's all related to getting the start time correct.
+          ** debug the muting?
+      ** <sigh> what happened to the voltage debug in loop()? it's always showing zero
 
 
 

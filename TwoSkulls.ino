@@ -133,10 +133,10 @@ void onCharacteristicChange(const std::string &newValue)
 // in sync, they'll only be speaking their individual parts.
 void onSpeakingStateChange(bool isSpeaking)
 {
-    if (audioPlayer)
-    {
-        audioPlayer->setMuted(!isSpeaking);
-    }
+  if (audioPlayer)
+  {
+    audioPlayer->setMuted(!isSpeaking);
+  }
 }
 
 // Main setup function
@@ -158,7 +158,7 @@ void setup()
   // Attempt to initialize the SD card until successful
   while (!sdCardManager->begin())
   {
-    Serial.println("SD Card: Mount Failed! Retrying...");
+    Serial.println("MAIN: SD Card: Mount Failed! Retrying...");
     lightController.blinkEyes(3); // 3 blinks for SD card failure
     delay(500);
   }
@@ -167,7 +167,7 @@ void setup()
   sdCardContent = sdCardManager->loadContent();
   if (sdCardContent.skits.empty())
   {
-    Serial.println("No skits found on SD card.");
+    Serial.println("MAIN: No skits found on SD card.");
   }
 
   // Now that SD card is initialized, load configuration
@@ -179,7 +179,7 @@ void setup()
     configLoaded = config.loadConfig();
     if (!configLoaded)
     {
-      Serial.println("Failed to load configuration. Retrying...");
+      Serial.println("MAIN: Failed to load configuration. Retrying...");
       lightController.blinkEyes(5); // 5 blinks for config file failure
       delay(500);
     }
@@ -201,18 +201,18 @@ void setup()
   {
     isPrimary = true;
     lightController.blinkEyes(4); // Blink eyes 4 times for Primary
-    Serial.println("This skull is configured as PRIMARY");
+    Serial.println("MAIN: This skull is configured as PRIMARY");
   }
   else if (role.equals("secondary"))
   {
     isPrimary = false;
     lightController.blinkEyes(2); // Blink eyes twice for Secondary
-    Serial.println("This skull is configured as SECONDARY");
+    Serial.println("MAIN: This skull is configured as SECONDARY");
   }
   else
   {
     lightController.blinkEyes(2); // Blink eyes twice for Secondary
-    Serial.printf("Invalid role in settings.txt ('%s'). Defaulting to SECONDARY\n", role.c_str());
+    Serial.printf("MAIN: Invalid role in settings.txt ('%s'). Defaulting to SECONDARY\n", role.c_str());
     isPrimary = false;
   }
 
@@ -230,8 +230,8 @@ void setup()
   audioPlayer->playNext(initAudioFilePath);
 
   // Announce "System initialized" and role
-  Serial.printf("Playing initialization audio: %s\n", initAudioFilePath.c_str());
-  Serial.printf("Queued initialization audio: %s\n", initAudioFilePath.c_str());
+  Serial.printf("MAIN: Playing initialization audio: %s\n", initAudioFilePath.c_str());
+  Serial.printf("MAIN: Queued initialization audio: %s\n", initAudioFilePath.c_str());
 
   // TESTING CODE:
   // Queue the "Skit - names" skit to play next
@@ -246,7 +246,7 @@ void setup()
   for (int i = 0; i < 10; i++)
   {
     float distance = distanceSensor->measureDistanceCm();
-    Serial.println("Ultrasonic distance: " + String(distance) + "cm");
+    Serial.println("MAIN: Ultrasonic distance: " + String(distance) + "cm");
     delay(50); // Wait between readings
   }
 
@@ -267,6 +267,10 @@ void setup()
                                         if (filePath.endsWith("/audio/Initialized - Primary.wav") || filePath.endsWith("/audio/Initialized - Secondary.wav"))
                                         {
                                           isDonePlayingInitializationAudio = true;
+                                        } 
+                                        if (skullAudioAnimator != nullptr)
+                                        {
+                                          skullAudioAnimator->setPlaybackEnded(filePath);
                                         } });
 
   audioPlayer->setAudioFramesProvidedCallback([](const String &filePath, const Frame *frames, int32_t frameCount)
@@ -311,8 +315,8 @@ void loop()
     uint32_t adc_reading = adc1_get_raw(ADC1_CHANNEL_0);
     uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_chars);
 
-    Serial.printf("%lu loop() running. Free memory: %d bytes, ", currentMillis, freeHeap);
-    Serial.printf("Bluetooth connected: %s, ", bluetoothController.isA2dpConnected() ? "true" : "false");
+    Serial.printf("%lu loop(): Free mem: %d bytes, ", currentMillis, freeHeap);
+    Serial.printf("BT connected: %s, ", bluetoothController.isA2dpConnected() ? "true" : "false");
     Serial.printf("isAudioPlaying: %s, ", isAudioPlaying ? "true" : "false");
     Serial.printf("BLE clientIsConnectedToServer: %s, ", bluetoothController.clientIsConnectedToServer() ? "true" : "false");
     Serial.printf("BLE serverHasClientConnected: %s, ", bluetoothController.serverHasClientConnected() ? "true" : "false");
@@ -328,23 +332,23 @@ void loop()
   }
 
   // A2DP + BLE TEST TEST CODE: play the Names skit after everything is properly initialized
-  if (isPrimary && currentMillis - lastCharacteristicUpdateMillis >= 10000 && bluetoothController.clientIsConnectedToServer() && 
-  bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
+  if (isPrimary && currentMillis - lastCharacteristicUpdateMillis >= 10000 && bluetoothController.clientIsConnectedToServer() &&
+      bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
   {
-      String message = "/audio/Skit - names.wav";
-      bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
-      if (success)
-      {
-          Serial.printf("Successfully updated BLE characteristic with message: %s\n", message.c_str());
+    String message = "/audio/Skit - names.wav";
+    bool success = bluetoothController.setRemoteCharacteristicValue(message.c_str());
+    if (success)
+    {
+      Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", message.c_str());
 
-          // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
-          audioPlayer->playNext(message);
-      }
-      else
-      {
-          Serial.printf("Failed to update BLE characteristic with message: %s\n", message.c_str());
-      }
-      lastCharacteristicUpdateMillis = currentMillis + 30000; // extra delay so it doens't play them back to back
+      // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
+      audioPlayer->playNext(message);
+    }
+    else
+    {
+      Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", message.c_str());
+    }
+    lastCharacteristicUpdateMillis = currentMillis + 30000; // extra delay so it doens't play them back to back
   }
 
   // // SKULL_AUDIO_ANIMATOR TEST CODE: play the Names skit after A2DP is properly initialized
