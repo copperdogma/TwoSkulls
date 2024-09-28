@@ -50,6 +50,12 @@ private:
     static constexpr size_t BUFFER_POS_UNDEFINED = static_cast<size_t>(-1);
     static constexpr size_t AUDIO_BUFFER_SIZE = 8192; // Size of the circular audio buffer
 
+    // Hardcoded audio format specifications
+    static constexpr uint32_t AUDIO_SAMPLE_RATE = 44100;
+    static constexpr uint8_t AUDIO_BIT_DEPTH = 16;
+    static constexpr uint8_t AUDIO_NUM_CHANNELS = 2;
+    static constexpr double AUDIO_BYTES_PER_SECOND = AUDIO_SAMPLE_RATE * (AUDIO_BIT_DEPTH / 8.0) * AUDIO_NUM_CHANNELS;
+
     // Fill the audio buffer with data from the current file or start the next file
     void fillBuffer();
 
@@ -66,7 +72,7 @@ private:
     size_t m_readPos;
     size_t m_bufferFilled;
      
-     // Total number of bytes filled in the buffer since start
+    // Total number of bytes filled in the buffer since start
     size_t m_totalBufferWritePos;
     size_t m_totalBufferReadPos;
 
@@ -93,14 +99,12 @@ private:
     PlaybackCallback m_playbackEndCallback;
     AudioFramesProvidedCallback m_audioFramesProvidedCallback;
 
-    void updatePlaybackTime();
-
     size_t m_fileStartBufferPos;
     String m_fileStartPath;
     size_t m_fileEndBufferPos;
     String m_fileEndPath;
 
-    void updatePlaybackStatus(size_t bytesRead);
+    size_t m_bytesPlayed;  // Total bytes played for the current file
 };
 
 #endif // AUDIO_PLAYER_H

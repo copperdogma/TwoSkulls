@@ -38,7 +38,7 @@ AudioPlayer::AudioPlayer(SDCardManager &sdCardManager)
       m_currentBufferingFilePath(""),
       m_fileStartBufferPos(BUFFER_POS_UNDEFINED), m_fileStartPath(""), m_fileEndBufferPos(BUFFER_POS_UNDEFINED), m_fileEndPath(""),
       m_isAudioPlaying(false), m_muted(false), m_playbackStartTime(0), m_currentPlayingFilePath(""),
-      m_sdCardManager(sdCardManager)
+      m_sdCardManager(sdCardManager), m_bytesPlayed(0)
 {
 }
 
@@ -94,6 +94,7 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     }
 
     m_totalBufferReadPos += bytesRead;
+    m_bytesPlayed += bytesRead;
 
     fillBuffer(); // Refill the buffer after reading
 
@@ -227,7 +228,7 @@ bool AudioPlayer::startNextFile()
     }
 
     std::string nextFile = audioQueue.front();
-    audioQueue.pop();
+    audioQueue.pop(); // Remove the file from the queue after retrieving it
 
     audioFile = m_sdCardManager.openFile(nextFile.c_str());
     if (!audioFile)
@@ -261,15 +262,19 @@ bool AudioPlayer::isAudioPlaying() const
     return m_isAudioPlaying;
 }
 
-// Get the current playback time
+// Get the current playback time based on bytes played
+// Calculated based on bytes played and not wall clock time becasue various things like the speed of the
+// calls to provideAudioFrames, playback rate, latency, etc can cause the wall clock time to be inaccurate.
+// Basing it on the actual bytes read adjusts for a lot of these issues.
 unsigned long AudioPlayer::getPlaybackTime() const
 {
-    if (!m_isAudioPlaying || m_playbackStartTime == 0)
-    {
+    if (!m_isAudioPlaying) {
         return 0;
     }
 
-    return millis() - m_playbackStartTime;
+    double secondsPlayed = static_cast<double>(m_bytesPlayed) / AUDIO_BYTES_PER_SECOND;
+
+    return static_cast<unsigned long>(secondsPlayed * 1000.0);
 }
 
 // Get the file path of the currently playing audio
