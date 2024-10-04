@@ -79,6 +79,10 @@ esp_adc_cal_characteristics_t adc_chars;
 
 SkitSelector *skitSelector = nullptr;
 
+// Declare these static variables outside the loop
+static unsigned long lastAudioEndTime = 0;
+static const unsigned long AUDIO_COOLDOWN_TIME = 10000; // 10 seconds cooldown after audio ends
+
 // Custom crash handler to provide debug information and restart the device
 void custom_crash_handler()
 {
@@ -305,7 +309,8 @@ void setup()
 
   audioPlayer->setPlaybackEndCallback([](const String &filePath)
                                       { 
-                                        Serial.printf("MAIN: Finished playing audio: %s\n", filePath.c_str());
+                                        lastAudioEndTime = millis(); // Set the last audio end time
+                                        Serial.printf("MAIN: Finished playing audio: %s at time %lu\n", filePath.c_str(), lastAudioEndTime);
                                         if (filePath.endsWith("/audio/Initialized - Primary.wav") || filePath.endsWith("/audio/Initialized - Secondary.wav"))
                                         {
                                           isDonePlayingInitializationAudio = true;
@@ -432,14 +437,16 @@ void loop()
     isBleInitializationStarted = true;
   }
 
-  static unsigned long lastUltrasonicTriggerTime = 0;
-
   // Primary Only: If connected to bluetooth speakers and the other skull, check if the ultrasonic sensor has been triggered.
   // If so, play a random skit.
-  if (isPrimary && (currentMillis - lastUltrasonicTriggerTime > ULTRASONIC_DEBOUNCE_TIME) && bluetoothController.clientIsConnectedToServer() && bluetoothController.isA2dpConnected() && !audioPlayer->isAudioPlaying())
+  if (isPrimary && 
+      bluetoothController.clientIsConnectedToServer() && 
+      bluetoothController.isA2dpConnected() && 
+      !audioPlayer->isAudioPlaying() &&
+      (currentMillis - lastAudioEndTime > AUDIO_COOLDOWN_TIME))
   {
     float distance = getFilteredUltrasonicDistance();
-    if (distance < TRIGGER_DISTANCE && !audioPlayer->isAudioPlaying())
+    if (distance < TRIGGER_DISTANCE)
     {
       // Select and play a new skit when triggered
       ParsedSkit selectedSkit = skitSelector->selectNextSkit();
@@ -450,15 +457,13 @@ void loop()
       {
         Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", filePath.c_str());
 
-        // Play the same file immediatly outselves. It should be fast enough to be in sync with Secondary.
+        // Play the same file immediately ourselves. It should be fast enough to be in sync with Secondary.
         audioPlayer->playNext(filePath);
       }
       else
       {
         Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", filePath.c_str());
       }
-
-      lastUltrasonicTriggerTime = currentMillis;
     }
   }
 

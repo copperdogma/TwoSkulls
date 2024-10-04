@@ -156,7 +156,6 @@ ISSUES
     ** test battery pack life
     ** test battery packs closing down if no power drawn often enough
   ** ISSUES
-    ** need longer delay after playing a skit before it plays another
     ** I've seen it play a skit with only Primary talking.. trace the code, how can this happen? I thought we got an ack
     ** redo jaw animation cuz it's pretty poor
 
