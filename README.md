@@ -150,9 +150,15 @@ ISSUES
       - wall wart + usb cable: I really don't want to have to plug in the skulls
       - battery pack: ISSUE: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
       - power board, providing power to both the ESP32 board and the servo: I think I only have one
-  ** rebuild secondary perfboard with dupont connectors
   ** staging: mount on sticks, make name signs, put electronics in bag under their fun hats, figure out where/how to hide speakers
   ** create name skit txt files for remaining skits
+  ** do stress test; run them for an hour
+    ** test battery pack life
+    ** test battery packs closing down if no power drawn often enough
+  ** ISSUES
+    ** need longer delay after playing a skit before it plays another
+    ** I've seen it play a skit with only Primary talking.. trace the code, how can this happen? I thought we got an ack
+    ** redo jaw animation cuz it's pretty poor
 
 
 
