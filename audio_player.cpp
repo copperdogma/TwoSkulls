@@ -117,6 +117,8 @@ int32_t AudioPlayer::provideAudioFrames(Frame *frame, int32_t frame_count)
     {
         m_playbackStartTime = millis();
         m_currentPlayingFilePath = m_fileStartPath;
+        m_bytesPlayed = 0; // Reset m_bytesPlayed to zero when starting a new file
+
         if (m_playbackStartCallback)
         {
             m_playbackStartCallback(m_fileStartPath);

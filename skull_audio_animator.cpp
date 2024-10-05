@@ -31,7 +31,7 @@ SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController &servoCon
       m_servoMinDegrees(servoMinDegrees),
       m_servoMaxDegrees(servoMaxDegrees),
       m_isCurrentlySpeaking(false),
-      m_currentSkitLineNumber(0),
+      m_currentSkitLineNumber(-1),
       FFT(vReal, vImag, SAMPLES, SAMPLE_RATE)
 {
 }
@@ -101,12 +101,12 @@ void SkullAudioAnimator::updateSkit()
         m_currentSkit = findSkitByName(m_skits, m_currentFile);
         if (m_currentSkit.lines.empty())
         {
-            Serial.printf("SkullAudioAnimator::updateSkit() Playing non-skit audio file (m_currentFile): %s, (m_currentAudioFilePath): %s\n", m_currentFile.c_str(), m_currentAudioFilePath.c_str());
+            Serial.printf("SkullAudioAnimator::updateSkit() Playing non-skit audio file (m_currentFile): %s, m_currentPlaybackTime: %lu, (m_currentAudioFilePath): %s\n", m_currentFile.c_str(), m_currentPlaybackTime, m_currentAudioFilePath.c_str());
             setSpeakingState(true);
             return;
         }
 
-        Serial.printf("SkullAudioAnimator::updateSkit() Playing new skit: %s\n", m_currentSkit.audioFile.c_str());
+        Serial.printf("SkullAudioAnimator::updateSkit() Playing new skit at m_currentPlaybackTime: %lu, %s\n", m_currentPlaybackTime, m_currentSkit.audioFile.c_str());
 
         // Filter skit lines for the current skull (primary or secondary)
         std::vector<ParsedSkitLine> lines;

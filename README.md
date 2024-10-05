@@ -140,24 +140,18 @@ TROUBLESHOOTING:
 ISSUES
 
   TODO
-  ** start overall log to document these issues/components
   ** jaw animation
     ** try ArduinoFFT as simple audio analysis we can use to sync skull jaw motion to audi.o
     ** do a pre-pass on the audio to get max volume so we can peg that at max jaw movement. PER SKULL. Should be doable cuz we can do it on startup and save with the skit/skitline info. So it can be slowish.
-    ** fix primary skull's servo seat; carve out jawbone a bit more so it catches better
-    ** external 5v, 1A power needed for servo
-      - original issue was it would crash when servo would run, because it was drawing too many amps (.8 at stall whereas esp32 supplied max .4?), which dropped the voltage enough to crash SD reader
-      - wall wart + usb cable: I really don't want to have to plug in the skulls
-      - battery pack: ISSUE: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
-      - power board, providing power to both the ESP32 board and the servo: I think I only have one
   ** staging: mount on sticks, make name signs, put electronics in bag under their fun hats, figure out where/how to hide speakers
   ** create name skit txt files for remaining skits
-  ** do stress test; run them for an hour
+  ** stress test: run them for an hour
     ** test battery pack life
     ** test battery packs closing down if no power drawn often enough
   ** ISSUES
     ** I've seen it play a skit with only Primary talking.. trace the code, how can this happen? I thought we got an ack
     ** redo jaw animation cuz it's pretty poor
+      ** battery pack: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
 
 
 
