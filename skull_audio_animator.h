@@ -56,10 +56,34 @@ private:
     double vReal[SAMPLES];
     double vImag[SAMPLES];
     arduinoFFT FFT;
+    double m_smoothedAmplitude; // Exponential smoothing of amplitude
+    int m_previousJawPosition;  // Previous jaw position for smoothing
 
     String m_currentFile;
     unsigned long m_currentPlaybackTime;
     bool m_isAudioPlaying;
+
+    // Constants for jaw position calculation
+
+    // Controls how much weight is given to new amplitude vs. previous smoothed value.
+    // Lower value (e.g., 0.1) results in more smoothing, reducing sensitivity to transient peaks.
+    static constexpr double AMPLITUDE_SMOOTHING_FACTOR = 0.1;
+
+    // Controls the smoothing of jaw movements.
+    // Helps create fluid transitions between positions, reducing jitter.
+    static constexpr double JAW_POSITION_SMOOTHING_FACTOR = 0.2;
+
+    // Amplifies the smoothed amplitude to utilize the full range of the servo.
+    // Adjust based on testing to achieve desired jaw movement range.
+    static constexpr double AMPLITUDE_GAIN = 5.0;
+
+    // Sets the upper limit for mapping amplitudes to servo positions.
+    // Adjust based on your audio levels to prevent over-extension of the jaw.
+    static constexpr double MAX_EXPECTED_AMPLITUDE = 15000.0;
+
+    // Determines the minimum amplitude required to start moving the jaw.
+    // Helps achieve "mostly open" and "mostly closed" effect by ignoring minor fluctuations.
+    static constexpr double AMPLITUDE_THRESHOLD = 1000.0;
 
     // Updates the jaw position based on the audio amplitude
     void updateJawPosition(const Frame *frames, int32_t frameCount);
@@ -79,6 +103,9 @@ private:
     // Returns the FFT result for a specific index (not currently used)
     double getFFTResult(int index);
 
+    double calculateRMSFromFrames(const Frame *frames, int32_t frameCount);
+    int mapFloat(double x, double in_min, double in_max, int out_min, int out_max);
+
     int m_servoMinDegrees;
     int m_servoMaxDegrees;
 
@@ -88,6 +115,8 @@ private:
     void setSpeakingState(bool isSpeaking);
 
     static const unsigned long SKIT_AUDIO_LINE_OFFSET = 0; // Milliseconds to clip off the end of a skit audio line to avoid overlap
+
+    static constexpr int32_t MAX_AUDIO_AMPLITUDE = 500; // Maximum value for an int16_t = 32767
 };
 
 #endif // SKULL_AUDIO_ANIMATOR_H

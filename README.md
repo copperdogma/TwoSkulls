@@ -140,18 +140,15 @@ TROUBLESHOOTING:
 ISSUES
 
   TODO
-  ** jaw animation
-    ** try ArduinoFFT as simple audio analysis we can use to sync skull jaw motion to audi.o
-    ** do a pre-pass on the audio to get max volume so we can peg that at max jaw movement. PER SKULL. Should be doable cuz we can do it on startup and save with the skit/skitline info. So it can be slowish.
   ** staging: mount on sticks, make name signs, put electronics in bag under their fun hats, figure out where/how to hide speakers
   ** create name skit txt files for remaining skits
   ** stress test: run them for an hour
     ** test battery pack life
     ** test battery packs closing down if no power drawn often enough
   ** ISSUES
+    ** battery pack: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
     ** I've seen it play a skit with only Primary talking.. trace the code, how can this happen? I thought we got an ack
-    ** redo jaw animation cuz it's pretty poor
-      ** battery pack: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
+    ** does jaw animation lag sometimes? Does eye animation lag at the same time in the same way?
 
 
 
@@ -162,3 +159,4 @@ ISSUES
 20240925: Full BLE communication working, Marco/Polo server connection, only attempts comms after Initialized wav played,
           and can play audio file in sync.
 20240928: Animation (eyes only) synced to skit playback, ultrasonic sensor triggers random skit playback
+20241005: Jaw animation works pretty well now.

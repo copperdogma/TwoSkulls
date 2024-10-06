@@ -32,6 +32,8 @@ SkullAudioAnimator::SkullAudioAnimator(bool isPrimary, ServoController &servoCon
       m_servoMaxDegrees(servoMaxDegrees),
       m_isCurrentlySpeaking(false),
       m_currentSkitLineNumber(-1),
+      m_smoothedAmplitude(0.0),
+      m_previousJawPosition(servoMinDegrees),
       FFT(vReal, vImag, SAMPLES, SAMPLE_RATE)
 {
 }
@@ -44,12 +46,13 @@ void SkullAudioAnimator::processAudioFrames(const Frame *frames, int32_t frameCo
     m_currentPlaybackTime = playbackTime;
     m_isAudioPlaying = (frameCount > 0);
 
-    //Serial.printf("SkullAudioAnimator::processAudioFrames() m_currentFile: %s, m_isAudioPlaying: %s, frameCount: %d, isSpeaking: %s\n", m_currentFile.c_str(), m_isAudioPlaying ? "true" : "false", frameCount, m_isCurrentlySpeaking ? "true" : "false");
+    // Serial.printf("SkullAudioAnimator::processAudioFrames() m_currentFile: %s, m_isAudioPlaying: %s, frameCount: %d, isSpeaking: %s\n", m_currentFile.c_str(), m_isAudioPlaying ? "true" : "false", frameCount, m_isCurrentlySpeaking ? "true" : "false");
 
     // Process audio frames for various animations
     updateSkit();
     updateEyes();
-    performFFT(frames, frameCount);
+    // Not using FFT for now, but keeping it for future use
+    // performFFT(frames, frameCount);
     updateJawPosition(frames, frameCount);
 }
 
@@ -172,29 +175,101 @@ void SkullAudioAnimator::updateEyes()
     }
 }
 
-// Updates the jaw position based on the audio amplitude
 void SkullAudioAnimator::updateJawPosition(const Frame *frames, int32_t frameCount)
 {
     if (frameCount > 0)
     {
-        // Find the maximum amplitude in the current frame set
-        int16_t maxAmplitude = 0;
-        for (int32_t i = 0; i < frameCount; ++i)
+        // Compute RMS amplitude over the frames
+        double rmsAmplitude = calculateRMSFromFrames(frames, frameCount);
+
+        // Apply exponential smoothing to the amplitude
+        m_smoothedAmplitude = AMPLITUDE_SMOOTHING_FACTOR * rmsAmplitude + (1 - AMPLITUDE_SMOOTHING_FACTOR) * m_smoothedAmplitude;
+
+        // Apply gain and adjust amplitude
+        double adjustedAmplitude = m_smoothedAmplitude * AMPLITUDE_GAIN;
+        adjustedAmplitude = std::min(adjustedAmplitude, MAX_EXPECTED_AMPLITUDE);
+
+        // Implement a threshold to avoid small movements
+        if (adjustedAmplitude < AMPLITUDE_THRESHOLD)
         {
-            maxAmplitude = std::max(maxAmplitude, static_cast<int16_t>(std::abs(frames[i].channel1)));
-            maxAmplitude = std::max(maxAmplitude, static_cast<int16_t>(std::abs(frames[i].channel2)));
+            adjustedAmplitude = 0.0;
         }
 
-        // Map the amplitude to jaw position
-        int jawPosition = map(maxAmplitude, 0, 32767, m_servoMinDegrees, m_servoMaxDegrees);
+        // Map the adjusted amplitude to jaw position
+        int targetJawPosition = mapFloat(adjustedAmplitude, 0.0, MAX_EXPECTED_AMPLITUDE, m_servoMinDegrees, m_servoMaxDegrees);
+
+        // Smooth the jaw position to reduce jitter
+        int jawPosition = static_cast<int>(JAW_POSITION_SMOOTHING_FACTOR * targetJawPosition + (1 - JAW_POSITION_SMOOTHING_FACTOR) * m_previousJawPosition);
+
+        // Update the servo position
         m_servoController.setPosition(jawPosition);
+
+        // Store the previous jaw position for the next iteration
+        m_previousJawPosition = jawPosition;
+
+        // For debugging purposes
+        //Serial.printf("RMS Amplitude: %.2f, Adjusted Amplitude: %.2f, Jaw Position: %d\n", rmsAmplitude, adjustedAmplitude, jawPosition);
     }
     else
     {
         // Close the jaw when there's no audio
         m_servoController.setPosition(m_servoMinDegrees);
+        m_previousJawPosition = m_servoMinDegrees;
+        m_smoothedAmplitude = 0.0;
     }
 }
+
+double SkullAudioAnimator::calculateRMSFromFrames(const Frame *frames, int32_t frameCount)
+{
+    double sum = 0.0;
+    for (int32_t i = 0; i < frameCount; i++)
+    {
+        int32_t sample1 = frames[i].channel1;
+        int32_t sample2 = frames[i].channel2;
+        sum += sample1 * sample1;
+        sum += sample2 * sample2;
+    }
+    int numSamples = frameCount * 2; // Two channels
+    return sqrt(sum / numSamples);
+}
+
+int SkullAudioAnimator::mapFloat(double x, double in_min, double in_max, int out_min, int out_max)
+{
+    return static_cast<int>((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
+}
+
+// CAMKILL: original
+//  // Updates the jaw position based on the audio amplitude
+//  void SkullAudioAnimator::updateJawPosition(const Frame *frames, int32_t frameCount)
+//  {
+//      if (frameCount > 0)
+//      {
+//          // Find the maximum amplitude in the current frame set
+//          int32_t maxAmplitude = 0;  // Changed to int32_t
+//          for (int32_t i = 0; i < frameCount; ++i)
+//          {
+//              maxAmplitude = std::max(maxAmplitude, static_cast<int32_t>(std::abs(frames[i].channel1)));
+//              maxAmplitude = std::max(maxAmplitude, static_cast<int32_t>(std::abs(frames[i].channel2)));
+//          }
+
+//         // Apply gain
+//         float gain = 3.0f; // Adjust this value based on testing
+//         int32_t adjustedAmplitude = static_cast<int32_t>(maxAmplitude * gain);
+
+//         // Prevent overflow
+//         adjustedAmplitude = std::min(adjustedAmplitude, MAX_AUDIO_AMPLITUDE);
+
+//         // Map the amplitude to jaw position
+//         int jawPosition = map(adjustedAmplitude, 0, MAX_AUDIO_AMPLITUDE, m_servoMinDegrees, m_servoMaxDegrees);
+//         Serial.printf("SkullAudioAnimator::updateJawPosition() maxAmplitude: %d, adjustedAmplitude: %d, jawPosition: %d\n", maxAmplitude, adjustedAmplitude, jawPosition);
+//         m_servoController.setPosition(jawPosition);
+//     }
+//     else
+//     {
+//         // Close the jaw when there's no audio
+//         m_servoController.setPosition(m_servoMinDegrees);
+//     }
+// }
 
 // Finds a skit by its name in the list of parsed skits
 ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &skits, const String &name)
