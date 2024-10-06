@@ -94,15 +94,7 @@ private:
     // Updates the current skit state and speaking status based on audio playback
     void updateSkit();
 
-    // Calculates the Root Mean Square (RMS) of the audio samples (not currently used)
-    double calculateRMS(const int16_t *samples, int numSamples);
-
-    // Performs Fast Fourier Transform on the audio frames (not currently used for animation)
-    void performFFT(const Frame *frames, int32_t frameCount);
-
-    // Returns the FFT result for a specific index (not currently used)
-    double getFFTResult(int index);
-
+    // Calculates the Root Mean Square (RMS) of the audio samples
     double calculateRMSFromFrames(const Frame *frames, int32_t frameCount);
     int mapFloat(double x, double in_min, double in_max, int out_min, int out_max);
 

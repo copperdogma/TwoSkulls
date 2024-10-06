@@ -51,8 +51,6 @@ void SkullAudioAnimator::processAudioFrames(const Frame *frames, int32_t frameCo
     // Process audio frames for various animations
     updateSkit();
     updateEyes();
-    // Not using FFT for now, but keeping it for future use
-    // performFFT(frames, frameCount);
     updateJawPosition(frames, frameCount);
 }
 
@@ -282,47 +280,6 @@ ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &ski
         }
     }
     return ParsedSkit();
-}
-
-// Performs Fast Fourier Transform on the audio frames
-// Currently not used for animation, but kept for potential future use
-void SkullAudioAnimator::performFFT(const Frame *frames, int32_t frameCount)
-{
-    if (frameCount < SAMPLES)
-        return;
-
-    for (uint16_t i = 0; i < SAMPLES; i++)
-    {
-        vReal[i] = (double)frames[i].channel1;
-        vImag[i] = 0;
-    }
-
-    FFT.Windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-    FFT.Compute(FFT_FORWARD);
-    FFT.ComplexToMagnitude();
-}
-
-// Returns the FFT result for a specific index
-// Not currently used, but kept for potential future use
-double SkullAudioAnimator::getFFTResult(int index)
-{
-    if (index >= 0 && index < SAMPLES / 2)
-    {
-        return vReal[index];
-    }
-    return 0;
-}
-
-// Calculates the Root Mean Square (RMS) of the audio samples
-// Not currently used, but kept for potential future use
-double SkullAudioAnimator::calculateRMS(const int16_t *samples, int numSamples)
-{
-    double sum = 0;
-    for (int i = 0; i < numSamples; i++)
-    {
-        sum += samples[i] * samples[i];
-    }
-    return sqrt(sum / numSamples);
 }
 
 // Sets the callback function for speaking state changes
