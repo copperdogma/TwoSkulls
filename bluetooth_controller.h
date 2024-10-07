@@ -142,6 +142,11 @@ public:
     // New method to check if both A2DP and BLE are initialized
     bool isFullyInitialized() const;
 
+    void setCharacteristicChangeRequestCallback(std::function<bool(const std::string&)> callback);
+    std::string getRemoteCharacteristicValue();
+
+    std::function<bool(const std::string&)> m_characteristicChangeRequestCallback = nullptr;
+
 private:
     BLEScan *pBLEScanner;
     BLEClient *pClient;

@@ -69,12 +69,25 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks
             Serial.print("New value: ");
             Serial.println(value.c_str());
             Serial.println("*********");
-            pCharacteristic->notify(); // Notify the client
 
-            // Trigger the characteristic change callback using the public method
-            if (bluetooth_controller::instance)
+            // Call the callback to check if the change is acceptable
+            bool canAcceptChange = true;
+            if (bluetooth_controller::instance && bluetooth_controller::instance->m_characteristicChangeRequestCallback)
             {
+                canAcceptChange = bluetooth_controller::instance->m_characteristicChangeRequestCallback(value);
+            }
+
+            if (canAcceptChange)
+            {
+                pCharacteristic->notify(); // Notify the client
                 bluetooth_controller::instance->triggerCharacteristicChangeCallback(value);
+            }
+            else
+            {
+                // If change is not acceptable, set an error message
+                std::string errorMsg = "Error: Cannot play " + value;
+                pCharacteristic->setValue(errorMsg);
+                pCharacteristic->notify();
             }
         }
     }
@@ -87,14 +100,14 @@ class MyServerCallbacks : public BLEServerCallbacks
     {
         bluetooth_controller::instance->setBLEServerConnectionStatus(true);
         bluetooth_controller::instance->setConnectionState(ConnectionState::CONNECTED);
-        
+
         // Log client address and connection details
         char remoteAddress[18];
         sprintf(remoteAddress, "%02x:%02x:%02x:%02x:%02x:%02x",
                 param->connect.remote_bda[0], param->connect.remote_bda[1],
                 param->connect.remote_bda[2], param->connect.remote_bda[3],
                 param->connect.remote_bda[4], param->connect.remote_bda[5]);
-        
+
         Serial.println("BT-BLE: Client connected!");
         Serial.printf("BT-BLE: Client Address: %s\n", remoteAddress);
         Serial.printf("BT-BLE: Connection ID: %d\n", param->connect.conn_id);
@@ -131,7 +144,8 @@ bluetooth_controller::bluetooth_controller()
     instance = this; // Ensure proper initialization of the static instance
 }
 
-void bluetooth_controller::initializeA2DP(const String& speaker_name, std::function<int32_t(Frame*, int32_t)> audioProviderCallback) {
+void bluetooth_controller::initializeA2DP(const String &speaker_name, std::function<int32_t(Frame *, int32_t)> audioProviderCallback)
+{
     Serial.println("BT: Initializing Bluetooth A2DP...");
 
     m_speaker_name = speaker_name;
@@ -149,15 +163,19 @@ void bluetooth_controller::initializeA2DP(const String& speaker_name, std::funct
     Serial.println("BT: Bluetooth A2DP initialization complete.");
 }
 
-void bluetooth_controller::initializeBLE(bool isPrimary) {
+void bluetooth_controller::initializeBLE(bool isPrimary)
+{
     Serial.println("BT: Initializing Bluetooth BLE...");
 
     m_isPrimary = isPrimary;
 
     // Initialize BLE based on whether this is the primary or secondary skull
-    if (m_isPrimary) {
+    if (m_isPrimary)
+    {
         initializeBLEClient();
-    } else {
+    }
+    else
+    {
         initializeBLEServer();
     }
 
@@ -301,7 +319,7 @@ void bluetooth_controller::update()
             {
                 Serial.println("BT-BLE: Scan timed out. Restarting scan.");
                 pBLEScan->stop();
-                delay(100);  // Give some time for the scan to stop
+                delay(100); // Give some time for the scan to stop
                 startScan();
             }
             // Scanning is handled in the BLEAdvertisedDeviceCallbacks
@@ -318,8 +336,8 @@ void bluetooth_controller::update()
                 Serial.println("BT-BLE: Connection attempt timed out. Restarting scan immediately.");
                 disconnectFromServer();
                 m_connectionState = ConnectionState::DISCONNECTED;
-                m_lastReconnectAttempt = currentTime;  // Reset the last reconnect attempt time
-                startScan();  // Start a new scan immediately
+                m_lastReconnectAttempt = currentTime; // Reset the last reconnect attempt time
+                startScan();                          // Start a new scan immediately
             }
             else if (connectToServer())
             {
@@ -329,7 +347,7 @@ void bluetooth_controller::update()
             else
             {
                 Serial.println("BT-BLE: Connection attempt failed, but not timed out yet. Retrying...");
-                delay(1000);  // Wait a bit before retrying
+                delay(1000); // Wait a bit before retrying
             }
             break;
 
@@ -390,7 +408,7 @@ public:
             Serial.println(advertisedDevice.toString().c_str());
             m_controller->setMyDevice(new BLEAdvertisedDevice(advertisedDevice));
             m_controller->setConnectionState(ConnectionState::CONNECTING);
-            m_controller->setConnectionStartTime(millis());  // Reset the connection start time
+            m_controller->setConnectionStartTime(millis()); // Reset the connection start time
             BLEDevice::getScan()->stop();
         }
     }
@@ -411,7 +429,7 @@ void bluetooth_controller::startScan()
 
     Serial.println("BT-BLE: Starting scan...");
     m_connectionState = ConnectionState::SCANNING;
-    scanStartTime = millis();  // Initialize scanStartTime here
+    scanStartTime = millis(); // Initialize scanStartTime here
 
     if (pBLEScan == nullptr)
     {
@@ -484,7 +502,8 @@ bool bluetooth_controller::connectToServer()
             return false;
         }
 
-        if (pRemoteCharacteristic->canIndicate()) {
+        if (pRemoteCharacteristic->canIndicate())
+        {
             pRemoteCharacteristic->registerForNotify(notifyCallback);
             Serial.println("BT-BLE: Registered for notifications/indications");
         }
@@ -573,8 +592,21 @@ bool bluetooth_controller::setRemoteCharacteristicValue(const std::string &value
 
         if (indicationReceived)
         {
-            Serial.println("BT-BLE: Successfully set characteristic value and received indication");
-            return true;
+            // Check if the final value matches what we set
+            std::string finalValue = getRemoteCharacteristicValue();
+            if (finalValue == value)
+            {
+                Serial.println("BT-BLE: Successfully set characteristic value and received indication");
+                return true;
+            }
+            else
+            {
+                Serial.print("BT-BLE: Characteristic value mismatch. Expected: ");
+                Serial.print(value.c_str());
+                Serial.print(", Actual: ");
+                Serial.println(finalValue.c_str());
+                return false;
+            }
         }
         else
         {
@@ -694,6 +726,21 @@ std::string bluetooth_controller::getConnectionStateString(ConnectionState state
     }
 }
 
-bool bluetooth_controller::isFullyInitialized() const {
+bool bluetooth_controller::isFullyInitialized() const
+{
     return m_a2dpInitialized && m_bleInitialized;
+}
+
+void bluetooth_controller::setCharacteristicChangeRequestCallback(std::function<bool(const std::string &)> callback)
+{
+    m_characteristicChangeRequestCallback = callback;
+}
+
+std::string bluetooth_controller::getRemoteCharacteristicValue()
+{
+    if (pRemoteCharacteristic)
+    {
+        return pRemoteCharacteristic->readValue();
+    }
+    return "";
 }

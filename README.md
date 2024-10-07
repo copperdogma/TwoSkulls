@@ -147,7 +147,6 @@ ISSUES
     ** test battery packs closing down if no power drawn often enough
   ** ISSUES
     ** battery pack: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
-    ** I've seen it play a skit with only Primary talking.. trace the code, how can this happen? I thought we got an ack
     ** does jaw animation lag sometimes? Does eye animation lag at the same time in the same way?
 
 

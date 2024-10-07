@@ -177,6 +177,25 @@ float getFilteredUltrasonicDistance()
   return samples[ULTRASONIC_SAMPLES / 2]; // Return median value
 }
 
+bool onCharacteristicChangeRequest(const std::string& value) {
+    // Check if we can play the audio file
+    if (audioPlayer->isAudioPlaying()) {
+        Serial.println("Cannot play new audio: Already playing");
+        return false;
+    }
+    
+    if (!sdCardManager->fileExists(value.c_str())) {
+        Serial.printf("Cannot play new audio: File not found: %s\n", value.c_str());
+        return false;
+    }
+    
+    // Add any other necessary checks here
+    // For example, you might want to check if the file is a valid audio format,
+    // or if there's enough free memory to play the file, etc.
+    
+    return true;
+}
+
 // Main setup function
 void setup()
 {
@@ -341,6 +360,9 @@ void setup()
   skullAudioAnimator = new SkullAudioAnimator(isPrimary, servoController, lightController, sdCardContent.skits, *sdCardManager,
                                               servoMinDegrees, servoMaxDegrees);
   skullAudioAnimator->setSpeakingStateCallback(onSpeakingStateChange);
+
+  // Set the characteristic change request callback
+  bluetoothController.setCharacteristicChangeRequestCallback(onCharacteristicChangeRequest);
 }
 
 // Main loop function
@@ -448,22 +470,30 @@ void loop()
     float distance = getFilteredUltrasonicDistance();
     if (distance < TRIGGER_DISTANCE)
     {
-      // Select and play a new skit when triggered
-      ParsedSkit selectedSkit = skitSelector->selectNextSkit();
-      String filePath = selectedSkit.audioFile;
+        ParsedSkit selectedSkit = skitSelector->selectNextSkit();
+        String filePath = selectedSkit.audioFile;
 
-      bool success = bluetoothController.setRemoteCharacteristicValue(filePath.c_str());
-      if (success)
-      {
-        Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", filePath.c_str());
-
-        // Play the same file immediately ourselves. It should be fast enough to be in sync with Secondary.
-        audioPlayer->playNext(filePath);
-      }
-      else
-      {
-        Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", filePath.c_str());
-      }
+        // Attempt to set the characteristic value and verify the result
+        // This new process ensures both skulls agree on the audio to be played
+        bool success = bluetoothController.setRemoteCharacteristicValue(filePath.c_str());
+        if (success)
+        {
+            std::string finalValue = bluetoothController.getRemoteCharacteristicValue();
+            if (finalValue == filePath.c_str())
+            {
+                Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", filePath.c_str());
+                audioPlayer->playNext(filePath);
+            }
+            else
+            {
+                Serial.printf("MAIN: BLE characteristic value mismatch. Expected: %s, Actual: %s\n", filePath.c_str(), finalValue.c_str());
+                // Do not play audio if there's a mismatch
+            }
+        }
+        else
+        {
+            Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", filePath.c_str());
+        }
     }
   }
 
