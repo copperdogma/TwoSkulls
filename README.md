@@ -148,14 +148,7 @@ ISSUES
   ** create name skit txt files for remaining skits
   ** stress test: run them for an hour
     ** test battery pack life
-    ** test battery packs closing down if no power drawn often enough
   ** ISSUES
-    ** battery pack: shuts off after a couple of seconds of zero current draw, soln: take 100mA of power every <2 seconds to keep it active
-    ** yellow battery shuts down just after init. It's load is ultrasonic sensor + servo. Black battery works fine.
-      - Black: PocketJuice Endurance: 8000mAh output 5v/3.4A max
-      - Yellow: OC-H01(PD): 10000mAh output 5v/2A max
-      - I'm guessing the simultaneous load is too much for the yellow pack. It must be exceeding 2A for the short duration of the ultrasonic sensor + servo load, but the black pack can handle it because it can handle 3.4A.
-
     ** does jaw animation lag sometimes? Does eye animation lag at the same time in the same way?
 
 

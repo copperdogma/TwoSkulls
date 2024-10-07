@@ -110,3 +110,22 @@ void ServoController::updatePosition(int targetPosition, double alpha, int minMo
         lastPosition = newPosition;
     }
 }
+
+// Add this new method implementation
+void ServoController::smoothMove(int targetPosition, int duration) {
+    int startPosition = currentPosition;
+    unsigned long startTime = millis();
+    unsigned long endTime = startTime + duration;
+    
+    while (millis() < endTime) {
+        unsigned long currentTime = millis();
+        float progress = static_cast<float>(currentTime - startTime) / duration;
+        int newPosition = startPosition + (targetPosition - startPosition) * progress;
+        
+        setPosition(newPosition);
+        delay(20); // Small delay to prevent overwhelming the servo
+    }
+    
+    // Ensure we reach the final position
+    setPosition(targetPosition);
+}

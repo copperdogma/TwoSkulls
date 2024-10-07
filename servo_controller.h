@@ -13,6 +13,7 @@ public:
     void setMinMaxDegrees(int minDegrees, int maxDegrees);
     int mapRMSToPosition(double rms, double silenceThreshold);
     void updatePosition(int targetPosition, double alpha, int minMovementThreshold);
+    void smoothMove(int targetPosition, int duration);
 
 private:
     Servo servo;
