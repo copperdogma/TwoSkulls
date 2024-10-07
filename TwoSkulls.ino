@@ -83,6 +83,11 @@ SkitSelector *skitSelector = nullptr;
 static unsigned long lastAudioEndTime = 0;
 static const unsigned long AUDIO_COOLDOWN_TIME = 10000; // 10 seconds cooldown after audio ends
 
+// Add these variables near the top of the file, with other global variables
+unsigned long lastJawMovementTime = 0;
+const unsigned long JAW_MOVEMENT_INTERVAL = 5000; // 20 seconds in milliseconds
+const int KEEP_ALIVE_JAW_ANGLE = 5; // 5 degrees should be a small, subtle movement
+
 // Custom crash handler to provide debug information and restart the device
 void custom_crash_handler()
 {
@@ -497,6 +502,20 @@ void loop()
     }
   }
 
+  // Check if it's time to move the jaw for keep-alive
+  unsigned long currentTime = millis();
+  if (currentTime - lastJawMovementTime >= JAW_MOVEMENT_INTERVAL && !isAudioPlaying) {
+    keepAliveJawMovement();
+    lastJawMovementTime = currentTime;
+  }
+
   // Delay to allow for other componeents to update.
   delay(1);
+}
+
+// Add this new function to perform the keep-alive jaw movement
+void keepAliveJawMovement() {
+  servoController.setPosition(KEEP_ALIVE_JAW_ANGLE);
+  delay(100); // Wait a short moment
+  servoController.setPosition(0); // Close the jaw
 }

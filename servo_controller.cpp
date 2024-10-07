@@ -1,6 +1,5 @@
 #include "servo_controller.h"
 #include <algorithm>
-#include <cmath>
 
 // ServoController class constructor
 // Initializes member variables with default values
@@ -13,16 +12,12 @@ void ServoController::initialize(int pin, int minDeg, int maxDeg)
 {
     // Set member variables with provided values
     servoPin = pin;
-    minDegrees = minDeg;
-    maxDegrees = maxDeg;
-    currentPosition = minDeg;
+    servo.attach(servoPin);
+    setMinMaxDegrees(minDeg, maxDeg);
+    setPosition(0); // Initialize to closed position
 
     // Log initialization details
     Serial.printf("Initializing servo on pin %d (min: %d, max: %d)\n", servoPin, minDegrees, maxDegrees);
-
-    // Attach servo to the specified pin and set initial position
-    servo.attach(servoPin);
-    setPosition(currentPosition);
 
     // Perform an initialization animation to demonstrate servo range
     Serial.printf("Servo animation init: %d (min) degrees\n", minDegrees);
@@ -42,10 +37,23 @@ void ServoController::setPosition(int degrees)
     int constrainedDegrees = constrain(degrees, minDegrees, maxDegrees);
 
     // Write the position to the servo
-    servo.write(servoPin, constrainedDegrees);
+    servo.write(servoPin, constrainedDegrees); // Corrected: Added servoPin as first argument
 
-    // Update the current position (thread-safe)
-    currentPosition.store(constrainedDegrees, std::memory_order_relaxed);
+    // Update the current position
+    currentPosition = constrainedDegrees;
+}
+
+// Get the current servo position
+int ServoController::getPosition() const
+{
+    return currentPosition;
+}
+
+// Set the minimum and maximum degrees for the servo
+void ServoController::setMinMaxDegrees(int minDeg, int maxDeg)
+{
+    minDegrees = minDeg;
+    maxDegrees = maxDeg;
 }
 
 // Map RMS (Root Mean Square) audio level to servo position
@@ -80,25 +88,25 @@ int ServoController::mapRMSToPosition(double rms, double silenceThreshold)
 void ServoController::updatePosition(int targetPosition, double alpha, int minMovementThreshold)
 {
     // Load current smoothed position
-    double current = smoothedPosition.load(std::memory_order_relaxed);
+    double current = smoothedPosition;
 
     // Apply exponential smoothing
     double updated = alpha * targetPosition + (1 - alpha) * current;
 
     // Store updated smoothed position
-    smoothedPosition.store(updated, std::memory_order_relaxed);
+    smoothedPosition = updated;
 
     // Round and constrain the new position
     int newPosition = round(updated);
     newPosition = constrain(newPosition, minDegrees, maxDegrees);
 
     // Load last position
-    int last = lastPosition.load(std::memory_order_relaxed);
+    int last = lastPosition;
 
     // Only update position if change exceeds minimum movement threshold
     if (abs(newPosition - last) > minMovementThreshold)
     {
         setPosition(newPosition);
-        lastPosition.store(newPosition, std::memory_order_relaxed);
+        lastPosition = newPosition;
     }
 }
