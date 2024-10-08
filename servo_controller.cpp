@@ -5,7 +5,7 @@
 // Initializes member variables with default values
 ServoController::ServoController()
     : servoPin(-1), currentPosition(0), minDegrees(0), maxDegrees(0),
-      smoothedPosition(0), lastPosition(0), maxObservedRMS(0) {}
+      smoothedPosition(0), lastPosition(0), maxObservedRMS(0), shouldInterruptMovement(false) {}
 
 // Initialize the servo controller with specified parameters
 void ServoController::initialize(int pin, int minDeg, int maxDeg)
@@ -117,7 +117,14 @@ void ServoController::smoothMove(int targetPosition, int duration) {
     unsigned long startTime = millis();
     unsigned long endTime = startTime + duration;
     
+    shouldInterruptMovement = false;  // Reset the interrupt flag at the start of movement
+    
     while (millis() < endTime) {
+        if (shouldInterruptMovement) {
+            shouldInterruptMovement = false;  // Reset the flag
+            return;  // Exit the loop if interrupted
+        }
+        
         unsigned long currentTime = millis();
         float progress = static_cast<float>(currentTime - startTime) / duration;
         int newPosition = startPosition + (targetPosition - startPosition) * progress;
@@ -126,6 +133,10 @@ void ServoController::smoothMove(int targetPosition, int duration) {
         delay(20); // Small delay to prevent overwhelming the servo
     }
     
-    // Ensure we reach the final position
+    // Ensure we reach the final position if not interrupted
     setPosition(targetPosition);
+}
+
+void ServoController::interruptMovement() {
+    shouldInterruptMovement = true;
 }

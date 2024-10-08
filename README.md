@@ -149,7 +149,7 @@ ISSUES
   ** stress test: run them for an hour
     ** test battery pack life
   ** ISSUES
-    ** does jaw animation lag sometimes? Does eye animation lag at the same time in the same way?
+    ** clicking before/after audio
 
 
 

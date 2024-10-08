@@ -175,6 +175,9 @@ void SkullAudioAnimator::updateEyes()
 
 void SkullAudioAnimator::updateJawPosition(const Frame *frames, int32_t frameCount)
 {
+    // Interrupt any ongoing smooth movement
+    m_servoController.interruptMovement();
+
     if (frameCount > 0)
     {
         // Compute RMS amplitude over the frames
