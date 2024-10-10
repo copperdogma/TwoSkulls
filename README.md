@@ -150,6 +150,8 @@ ISSUES
     ** test battery pack life
   ** ISSUES
     ** clicking before/after audio
+    ** if ultrasonic distance has object within it's max distance (300cm) when it starts, it'll just trigger over and over
+      - FIX: initialize with 10-sample check to see what exists in that range, and only trigger if it's something that shouldn't interfere with normal operation
 
 
 
@@ -161,3 +163,13 @@ ISSUES
           and can play audio file in sync.
 20240928: Animation (eyes only) synced to skit playback, ultrasonic sensor triggers random skit playback
 20241005: Jaw animation works pretty well now.
+
+## Ultrasonic Sensor Calibration
+
+The project now includes an automatic calibration for the ultrasonic sensor at startup. This calibration sets a baseline distance, and object detection is based on deviations from this baseline. The system uses a tolerance of ±10cm from the baseline to determine if an object is detected.
+
+Key points:
+- Calibration occurs once at startup
+- Baseline distance is an average of 20 readings
+- Object detection threshold: baseline ± 10cm
+- No periodic recalibration required

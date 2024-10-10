@@ -40,6 +40,13 @@ const int TRIGGER_PIN = 2;                           // Pin number ultrasonic pu
 const int ECHO_PIN = 22;                             // Pin number ultrasonic echo detection
 int ultrasonicTriggerDistance;
 
+// Add these new constants near the other ultrasonic-related constants
+const float ULTRASONIC_TOLERANCE_CM = 10.0; // +/- 10cm tolerance
+const int CALIBRATION_SAMPLES = 20;         // Number of samples for initial calibration
+
+// Add this new global variable with other global variables
+float ultrasonicBaselineDistance = 0;
+
 SDCardManager *sdCardManager = nullptr;
 SDCardContent sdCardContent;
 
@@ -88,7 +95,6 @@ unsigned long lastJawMovementTime = 0;
 const unsigned long BREATHING_INTERVAL = 7000; // 7 seconds in milliseconds
 const int BREATHING_JAW_ANGLE = 30;            // 30 degrees opening
 const int BREATHING_MOVEMENT_DURATION = 2000;  // 2 seconds for the movement
-
 
 // Custom crash handler to provide debug information and restart the device
 void custom_crash_handler()
@@ -217,6 +223,18 @@ void breathingJawMovement()
   }
 }
 
+// Add this new function before the setup() function
+float calibrateUltrasonicSensor()
+{
+  float totalDistance = 0;
+  for (int i = 0; i < CALIBRATION_SAMPLES; i++)
+  {
+    totalDistance += getFilteredUltrasonicDistance();
+    delay(50); // Short delay between readings
+  }
+  return totalDistance / CALIBRATION_SAMPLES;
+}
+
 // Main setup function
 void setup()
 {
@@ -322,6 +340,10 @@ void setup()
 
   // Initialize ultrasonic sensor (for both primary and secondary)
   distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
+
+  // Calibrate ultrasonic sensor
+  ultrasonicBaselineDistance = calibrateUltrasonicSensor();
+  Serial.printf("MAIN: Ultrasonic baseline distance: %.2f cm\n", ultrasonicBaselineDistance);
 
   // Ping ultrasonic sensor 10 times for initialization and logging
   for (int i = 0; i < 10; i++)
@@ -485,9 +507,12 @@ void loop()
   if (isPrimary)
   {
     float distance = getFilteredUltrasonicDistance();
-    if (distance < ultrasonicTriggerDistance)
+    bool objectDetected = (distance < ultrasonicBaselineDistance - ULTRASONIC_TOLERANCE_CM) ||
+                          (distance > ultrasonicBaselineDistance + ULTRASONIC_TOLERANCE_CM);
+
+    if (objectDetected)
     {
-      Serial.printf("MAIN: Ultrasonic distance is less than ultrasonicTriggerDistance (%dcm): %.2fcm\n", ultrasonicTriggerDistance, distance);
+      Serial.printf("MAIN: Object detected at %.2f cm (baseline: %.2f cm)\n", distance, ultrasonicBaselineDistance);
       if (bluetoothController.clientIsConnectedToServer() &&
           bluetoothController.isA2dpConnected() &&
           !audioPlayer->isAudioPlaying() &&
