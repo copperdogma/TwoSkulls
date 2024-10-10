@@ -4,25 +4,29 @@
   Two Chatting Skulls with Skull Jaws Synced to Audio
 
   On startup:
-  - decides it's Primary if it has the ultrasonic sensor attached, otherwise it decides it's the Secondary
-  - each skull will play their individual (Primary/Secondary) "initialized" audio so we know they've found their role properly and that they've connected to their individual bluetooth speaker
-  - Primary: plays "Marco" every 5 seconds until connnected to Secondary
-  - Secondary: plays "Polo" every 5 seconds until conencted to Primary
-  - Once both connected, they'll play skit: "Morning, Jeff." "Morning, Tony."
-  - Then Primary starts monitoring ultrasonic sensor.
+  - Initializes serial communication via BLE
+  - Initializes light controller for LED eyes
+  - Mounts SD card, loads content, loads settings from config.txt file
+  - Loads configuration from settings file
+  - Determines skull role (primary or secondary) from config.txt file
+  - Sets up AudioPlayer
+  - Initializes Bluetooth A2DP (audio playback via bluetooth speakers)
+  - Queues initialization audio (Primary or Secondary)
+  - Primary attempts to find Secondary, playing "Marco" audio every 5 seconds until connected
+  - Secondary responds with "Polo" audio when connected to Primary
+  - Primary starts monitoring ultrasonic sensor
+  
+  When ultrasonic sensor triggered (Primary Only):
+  - Ignore if already playing sequence
+  - Ignore if skit ended less than 10 seconds ago
+  - Choose random skit to play, weighted to those least played. Never play same skit twice in a row.
 
-  System Operation:
-
-   - Primary connects to Seondary via WiFi to confirm presence
-   - Primary has two modes:
-     a. Listening: 
-        - Waits for ultrasonic sensor trigger
-        - Selects random audio file
-        - Instructs Secondary to play that file (Priamry plays it at the exact same time)
-     b. Playing: 
-        - Ignores triggers until playback completes
-
-  Wifi/Bluetooth Radio: Should have minimal overlap. When playing audio there is no wifi communication and vice versa.
+  Skit Chosen
+  - Primary sends which skit they're playing to Secondary
+  - Secondary sends ACK if it's ready to play
+  - If Primary receives ACK it starts playing immediately, otherwise it does nothing and waits for another ultrasonic trigger
+  - Both skulls load audio and associated txt file and play/execute animations
+  - Each analyzes the audio they're playing in real-time, syncing their servo jaw motions to the audio
 
 
   LED Blinking Legend
@@ -32,24 +36,8 @@
   3 - SD card mount failed; retrying
   5 - failed to load config.txt; retrying
 
-  Ongoing:
-  - heartbeat between skulls every second to ensure they're still responding
 
-  When ultrasonic sensor triggered (Primary Only):
-  - Ignore if already playing sequence
-  - Ignore if skit ended less than 5 seconds ago
-  - Choose random skit to play, weighted to those least played. Never play same skit twice in a row.
-
-  Skit Chosen
-  - Primary sends START: which skit they're playing to Secondary with 2-second countdown
-  - Secondary sends ACK
-  - If Primary receives ACK within the 2 seconds, it starts playing when countdown ends, otherwise it sends another START request
-  - Both skulls load audio and associated txt file, ready to play, in advance
-  - When countdown ends they start executing the skit, playing the sections of audio assigned to them by the associated txt file
-  - Each analyzes the audio they're playing in real-time, syncing their servo jaw motions to the audio
-
-
-  Based off: Death_With_Skull_Synced_to_Audio
+  Code originall based off: Death_With_Skull_Synced_to_Audio
 
 SETUP:
 Board: "ESP32 Wrover Module"
@@ -68,8 +56,6 @@ v5.0.2 : ESP32 ESP32S2 AnalogWrite
 v2.0.0 : HCSR04
 v1.6.1 : arduinoFFT
 v1.8.3 : ESP32-A2DP
-
-** TODO: UPDATE LIBRARIES, but beware, ESP32-A2DP have breaking changes 
 
 SD CARD CONTENTS
 /config.txt - config info, should be something like (role = primary or secondary):
@@ -100,11 +86,14 @@ A,36000,300,.9    - Primary (300ms): opens jaw most of the way
 A,37000,0,0       - Primary (0s): snaps jaw closed
 B,47000,2000      - Secondary (2s): sorry, I was on the phone... you were saying?
 
-
-Hardware is powered by 2 x USB-C cables.
-- One connects directly to the ESP32. This powers the ESP32 itself (logic, bluetooth, etc.), the LEDs, and the SD card reader.
-- The other powers the servo and the ultrasonic sensor, both of which require 5v.
-- The dual power is necessary because the servo draws too much current for the ESP32 to supply and was crashing the SD card reader.
+Power
+- Hardware is powered by 2 x USB-C cables.
+  - One connects directly to the ESP32. This powers the ESP32 itself (logic, bluetooth, etc.), the LEDs, and the SD card reader.
+  - The other powers the servo and the ultrasonic sensor, both of which require 5v.
+  - The dual power is necessary because the servo draws too much current for the ESP32 to supply and was crashing the SD card reader.
+- Battery Packs
+  - PocketJuice Endurance: 8000mAh, output 5v/3.4A max
+  - GTOCE N6 Portable Charger: 40000mAh, output (depends on port): max USB-A port 2: 4.5V/5A
 
 LEDs (x2, red, for eyes)
 - connect to GPIO 32 and 33, plus single ground 
@@ -124,14 +113,12 @@ Ultrasonic Sensor HC-SR04
  - VCC: 5v
  - TRIG: PIN 2
  - ECHO: PIN 22
+ - Distance trigger (set on SD card's config.txt file): 300cm
 
 Servo: Power HD HD-1160A
 - 4.8v-6v, stall torque: 3.0kg.com, max current: 0.8A, 0.12s/60deg speed, Pulse width Modulation
 - speed = 0.12s/60deg = 500 deg/s max speed
 
-Battery Packs
-- Black: PocketJuice Endurance: 8000mAh output 5v/3.4A max
-- Yellow: OC-H01(PD): 10000mAh output 5v/2A max
 
 
 TROUBLESHOOTING:
@@ -140,10 +127,23 @@ TROUBLESHOOTING:
   back to the actual board and recompile.
 
 
+FUTURE FEATURES
+- phone control: make Primary into a BLE server as well, allowing phone to query skits, play specific ones, etc.
+- speaker mode: let user use a microphone to play audio through the skulls, like a PA system. Ideally with one user controlling
+  Primary and another controlling Secondary. This would require hardware changes (separate wifi module) as the ESP32 can't
+  simultaneously drive bluetooth and wifi.
+- remote monitoring
+  - hook up the ESP32 cameras to a phone app so we can watch the skulls over wifi
+  - take photos now and then when speaking to get spectator reactions
+- AI integration
+  - call out to OpenAI for dynamic skit generation and use ElevenLabs for AI voices
+  - capture live camera footage to feed into AI for context when generating skits so it can comment on the people it can see
+
 
 ISSUES
 
   TODO
+  ** UPDATE LIBRARIES, but beware, ESP32-A2DP have breaking changes
   ** staging: mount on sticks, make name signs, put electronics in bag under their fun hats, figure out where/how to hide speakers
   ** create name skit txt files for remaining skits
   ** stress test: run them for an hour

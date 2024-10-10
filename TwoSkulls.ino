@@ -36,9 +36,9 @@ const int VOLUME_DIVISOR = 3; // FOR DEBUGGING: divide volume by this amount to 
 UltraSonicDistanceSensor *distanceSensor = nullptr;  // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
 const unsigned long ULTRASONIC_SAMPLES = 5;          // Take multiple samples to filter out noise
 const unsigned long ULTRASONIC_DEBOUNCE_TIME = 5000; // 5 seconds between triggers
-const float TRIGGER_DISTANCE = 100.0;                // 100 cm, adjust as needed
 const int TRIGGER_PIN = 2;                           // Pin number ultrasonic pulse trigger
 const int ECHO_PIN = 22;                             // Pin number ultrasonic echo detection
+int ultrasonicTriggerDistance;
 
 SDCardManager *sdCardManager = nullptr;
 SDCardContent sdCardContent;
@@ -86,8 +86,9 @@ static const unsigned long AUDIO_COOLDOWN_TIME = 10000; // 10 seconds cooldown a
 // Add these variables near the top of the file, with other global variables
 unsigned long lastJawMovementTime = 0;
 const unsigned long BREATHING_INTERVAL = 7000; // 7 seconds in milliseconds
-const int BREATHING_JAW_ANGLE = 30; // 30 degrees opening
-const int BREATHING_MOVEMENT_DURATION = 2000; // 2 seconds for the movement
+const int BREATHING_JAW_ANGLE = 30;            // 30 degrees opening
+const int BREATHING_MOVEMENT_DURATION = 2000;  // 2 seconds for the movement
+
 
 // Custom crash handler to provide debug information and restart the device
 void custom_crash_handler()
@@ -183,23 +184,37 @@ float getFilteredUltrasonicDistance()
   return samples[ULTRASONIC_SAMPLES / 2]; // Return median value
 }
 
-bool onCharacteristicChangeRequest(const std::string& value) {
-    // Check if we can play the audio file
-    if (audioPlayer->isAudioPlaying()) {
-        Serial.println("Cannot play new audio: Already playing");
-        return false;
-    }
-    
-    if (!sdCardManager->fileExists(value.c_str())) {
-        Serial.printf("Cannot play new audio: File not found: %s\n", value.c_str());
-        return false;
-    }
-    
-    // Add any other necessary checks here
-    // For example, you might want to check if the file is a valid audio format,
-    // or if there's enough free memory to play the file, etc.
-    
-    return true;
+bool onCharacteristicChangeRequest(const std::string &value)
+{
+  // Check if we can play the audio file
+  if (audioPlayer->isAudioPlaying())
+  {
+    Serial.println("Cannot play new audio: Already playing");
+    return false;
+  }
+
+  if (!sdCardManager->fileExists(value.c_str()))
+  {
+    Serial.printf("Cannot play new audio: File not found: %s\n", value.c_str());
+    return false;
+  }
+
+  // Add any other necessary checks here
+  // For example, you might want to check if the file is a valid audio format,
+  // or if there's enough free memory to play the file, etc.
+
+  return true;
+}
+
+// Update the breathing jaw movement function
+void breathingJawMovement()
+{
+  if (!audioPlayer->isAudioPlaying())
+  {
+    servoController.smoothMove(BREATHING_JAW_ANGLE, BREATHING_MOVEMENT_DURATION);
+    delay(100); // Short pause at the open position
+    servoController.smoothMove(0, BREATHING_MOVEMENT_DURATION);
+  }
 }
 
 // Main setup function
@@ -251,7 +266,7 @@ void setup()
   // Configuration loaded successfully, now we can use it
   String bluetoothSpeakerName = config.getBluetoothSpeakerName();
   String role = config.getRole();
-  int ultrasonicTriggerDistance = config.getUltrasonicTriggerDistance();
+  ultrasonicTriggerDistance = config.getUltrasonicTriggerDistance();
   int speakerVolume = config.getSpeakerVolume() / VOLUME_DIVISOR;
   int servoMinDegrees = config.getServoMinDegrees();
   int servoMaxDegrees = config.getServoMaxDegrees();
@@ -467,15 +482,17 @@ void loop()
 
   // Primary Only: If connected to bluetooth speakers and the other skull, check if the ultrasonic sensor has been triggered.
   // If so, play a random skit.
-  if (isPrimary && 
-      bluetoothController.clientIsConnectedToServer() && 
-      bluetoothController.isA2dpConnected() && 
-      !audioPlayer->isAudioPlaying() &&
-      (currentMillis - lastAudioEndTime > AUDIO_COOLDOWN_TIME))
+  if (isPrimary)
   {
     float distance = getFilteredUltrasonicDistance();
-    if (distance < TRIGGER_DISTANCE)
+    if (distance < ultrasonicTriggerDistance)
     {
+      Serial.printf("MAIN: Ultrasonic distance is less than ultrasonicTriggerDistance (%dcm): %.2fcm\n", ultrasonicTriggerDistance, distance);
+      if (bluetoothController.clientIsConnectedToServer() &&
+          bluetoothController.isA2dpConnected() &&
+          !audioPlayer->isAudioPlaying() &&
+          (currentMillis - lastAudioEndTime > AUDIO_COOLDOWN_TIME))
+      {
         ParsedSkit selectedSkit = skitSelector->selectNextSkit();
         String filePath = selectedSkit.audioFile;
 
@@ -484,40 +501,33 @@ void loop()
         bool success = bluetoothController.setRemoteCharacteristicValue(filePath.c_str());
         if (success)
         {
-            std::string finalValue = bluetoothController.getRemoteCharacteristicValue();
-            if (finalValue == filePath.c_str())
-            {
-                Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", filePath.c_str());
-                audioPlayer->playNext(filePath);
-            }
-            else
-            {
-                Serial.printf("MAIN: BLE characteristic value mismatch. Expected: %s, Actual: %s\n", filePath.c_str(), finalValue.c_str());
-                // Do not play audio if there's a mismatch
-            }
+          std::string finalValue = bluetoothController.getRemoteCharacteristicValue();
+          if (finalValue == filePath.c_str())
+          {
+            Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", filePath.c_str());
+            audioPlayer->playNext(filePath);
+          }
+          else
+          {
+            Serial.printf("MAIN: BLE characteristic value mismatch. Expected: %s, Actual: %s\n", filePath.c_str(), finalValue.c_str());
+            // Do not play audio if there's a mismatch
+          }
         }
         else
         {
-            Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", filePath.c_str());
+          Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", filePath.c_str());
         }
+      }
     }
   }
 
   // Check if it's time to move the jaw for breathing
-  if (currentMillis - lastJawMovementTime >= BREATHING_INTERVAL && !isAudioPlaying) {
+  if (currentMillis - lastJawMovementTime >= BREATHING_INTERVAL && !isAudioPlaying)
+  {
     breathingJawMovement();
     lastJawMovementTime = currentMillis;
   }
 
   // Delay to allow for other componeents to update.
   delay(1);
-}
-
-// Update the breathing jaw movement function
-void breathingJawMovement() {
-    if (!audioPlayer->isAudioPlaying()) {
-        servoController.smoothMove(BREATHING_JAW_ANGLE, BREATHING_MOVEMENT_DURATION);
-        delay(100); // Short pause at the open position
-        servoController.smoothMove(0, BREATHING_MOVEMENT_DURATION);
-    }
 }
