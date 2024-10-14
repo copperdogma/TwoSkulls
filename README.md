@@ -146,12 +146,12 @@ ISSUES
   ** UPDATE LIBRARIES, but beware, ESP32-A2DP have breaking changes
   ** staging: mount on sticks, make name signs, put electronics in bag under their fun hats, figure out where/how to hide speakers
   ** create name skit txt files for remaining skits
+  ** move the volume divisor onto the SD card?
+    - maybe just get rid of it, seeing as we already have a volume level in the config.txt file...
   ** stress test: run them for an hour
     ** test battery pack life
   ** ISSUES
     ** clicking before/after audio
-    ** if ultrasonic distance has object within it's max distance (300cm) when it starts, it'll just trigger over and over
-      - FIX: initialize with 10-sample check to see what exists in that range, and only trigger if it's something that shouldn't interfere with normal operation
 
 
 
