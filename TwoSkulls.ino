@@ -30,7 +30,7 @@ const int LEFT_EYE_PIN = 32;  // GPIO pin for left eye LED
 const int RIGHT_EYE_PIN = 33; // GPIO pin for right eye LED
 LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
 
-const int VOLUME_DIVISOR = 3; // FOR DEBUGGING: divide volume by this amount to set volume lower
+const int VOLUME_DIVISOR = 1; // FOR DEBUGGING: divide volume by this amount to set volume lower
 
 // Ultrasonic sensor
 UltraSonicDistanceSensor *distanceSensor = nullptr;  // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);

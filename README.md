@@ -14,6 +14,7 @@
   - Queues initialization audio (Primary or Secondary)
   - Primary attempts to find Secondary, playing "Marco" audio every 5 seconds until connected
   - Secondary responds with "Polo" audio when connected to Primary
+  - Primary initializes ultrasonic sensor, assuming anything it can "see" now is baseline and should be ignored in normal operation
   - Primary starts monitoring ultrasonic sensor
   
   When ultrasonic sensor triggered (Primary Only):
@@ -92,7 +93,8 @@ Power
   - The other powers the servo and the ultrasonic sensor, both of which require 5v.
   - The dual power is necessary because the servo draws too much current for the ESP32 to supply and was crashing the SD card reader.
 - Battery Packs
-  - PocketJuice Endurance: 8000mAh, output 5v/3.4A max
+  - PocketJuice Endurance: 8000mAh, output 5v/3.4A max:
+    - runs breathing animation w/no speaker connection for 30 hours
   - GTOCE N6 Portable Charger: 40000mAh, output (depends on port): max USB-A port 2: 4.5V/5A
 
 LEDs (x2, red, for eyes)
@@ -163,13 +165,3 @@ ISSUES
           and can play audio file in sync.
 20240928: Animation (eyes only) synced to skit playback, ultrasonic sensor triggers random skit playback
 20241005: Jaw animation works pretty well now.
-
-## Ultrasonic Sensor Calibration
-
-The project now includes an automatic calibration for the ultrasonic sensor at startup. This calibration sets a baseline distance, and object detection is based on deviations from this baseline. The system uses a tolerance of ±10cm from the baseline to determine if an object is detected.
-
-Key points:
-- Calibration occurs once at startup
-- Baseline distance is an average of 20 readings
-- Object detection threshold: baseline ± 10cm
-- No periodic recalibration required
