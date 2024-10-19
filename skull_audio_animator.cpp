@@ -209,7 +209,7 @@ void SkullAudioAnimator::updateJawPosition(const Frame *frames, int32_t frameCou
         m_previousJawPosition = jawPosition;
 
         // For debugging purposes
-        //Serial.printf("RMS Amplitude: %.2f, Adjusted Amplitude: %.2f, Jaw Position: %d\n", rmsAmplitude, adjustedAmplitude, jawPosition);
+        // Serial.printf("RMS Amplitude: %.2f, Adjusted Amplitude: %.2f, Jaw Position: %d\n", rmsAmplitude, adjustedAmplitude, jawPosition);
     }
     else
     {
@@ -238,39 +238,6 @@ int SkullAudioAnimator::mapFloat(double x, double in_min, double in_max, int out
 {
     return static_cast<int>((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
 }
-
-// CAMKILL: original
-//  // Updates the jaw position based on the audio amplitude
-//  void SkullAudioAnimator::updateJawPosition(const Frame *frames, int32_t frameCount)
-//  {
-//      if (frameCount > 0)
-//      {
-//          // Find the maximum amplitude in the current frame set
-//          int32_t maxAmplitude = 0;  // Changed to int32_t
-//          for (int32_t i = 0; i < frameCount; ++i)
-//          {
-//              maxAmplitude = std::max(maxAmplitude, static_cast<int32_t>(std::abs(frames[i].channel1)));
-//              maxAmplitude = std::max(maxAmplitude, static_cast<int32_t>(std::abs(frames[i].channel2)));
-//          }
-
-//         // Apply gain
-//         float gain = 3.0f; // Adjust this value based on testing
-//         int32_t adjustedAmplitude = static_cast<int32_t>(maxAmplitude * gain);
-
-//         // Prevent overflow
-//         adjustedAmplitude = std::min(adjustedAmplitude, MAX_AUDIO_AMPLITUDE);
-
-//         // Map the amplitude to jaw position
-//         int jawPosition = map(adjustedAmplitude, 0, MAX_AUDIO_AMPLITUDE, m_servoMinDegrees, m_servoMaxDegrees);
-//         Serial.printf("SkullAudioAnimator::updateJawPosition() maxAmplitude: %d, adjustedAmplitude: %d, jawPosition: %d\n", maxAmplitude, adjustedAmplitude, jawPosition);
-//         m_servoController.setPosition(jawPosition);
-//     }
-//     else
-//     {
-//         // Close the jaw when there's no audio
-//         m_servoController.setPosition(m_servoMinDegrees);
-//     }
-// }
 
 // Finds a skit by its name in the list of parsed skits
 ParsedSkit SkullAudioAnimator::findSkitByName(const std::vector<ParsedSkit> &skits, const String &name)

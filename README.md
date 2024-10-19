@@ -118,7 +118,7 @@ Ultrasonic Sensor HC-SR04
  - Distance trigger (set on SD card's config.txt file): 300cm
 
 Servo: Power HD HD-1160A
-- 4.8v-6v, stall torque: 3.0kg.com, max current: 0.8A, 0.12s/60deg speed, Pulse width Modulation
+- 4.8v-6v, stall torque: 3.0kg.com, max current: 0.8A, 0.12s/60deg speed, Pulse width Modulation, 28 x 13.2 x 29.6 mm
 - speed = 0.12s/60deg = 500 deg/s max speed
 
 

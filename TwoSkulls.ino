@@ -86,8 +86,8 @@ esp_adc_cal_characteristics_t adc_chars;
 
 SkitSelector *skitSelector = nullptr;
 
-// Declare these static variables outside the loop
-static unsigned long lastAudioEndTime = 0;
+// Declare these variables outside the loop
+static unsigned long lastTimeAudioPlayed = 0;
 static const unsigned long AUDIO_COOLDOWN_TIME = 10000; // 10 seconds cooldown after audio ends
 
 // Add these variables near the top of the file, with other global variables
@@ -371,8 +371,8 @@ void setup()
 
   audioPlayer->setPlaybackEndCallback([](const String &filePath)
                                       { 
-                                        lastAudioEndTime = millis(); // Set the last audio end time
-                                        Serial.printf("MAIN: Finished playing audio: %s at time %lu\n", filePath.c_str(), lastAudioEndTime);
+                                        lastTimeAudioPlayed = millis(); // Set the last time audio played
+                                        Serial.printf("MAIN: Finished playing audio: %s at time %lu\n", filePath.c_str(), lastTimeAudioPlayed);
                                         if (filePath.endsWith("/audio/Initialized - Primary.wav") || filePath.endsWith("/audio/Initialized - Secondary.wav"))
                                         {
                                           isDonePlayingInitializationAudio = true;
@@ -419,6 +419,11 @@ void loop()
 
   // Update audio player state
   bool isAudioPlaying = audioPlayer->isAudioPlaying();
+
+  if (isAudioPlaying)
+  {
+    lastTimeAudioPlayed = millis(); // Set the last time audio played
+  }
 
   // Periodic logging of system state (every 5 seconds)
   if (currentMillis - lastStateLoggingMillis >= 5000)
@@ -516,8 +521,10 @@ void loop()
       if (bluetoothController.clientIsConnectedToServer() &&
           bluetoothController.isA2dpConnected() &&
           !audioPlayer->isAudioPlaying() &&
-          (currentMillis - lastAudioEndTime > AUDIO_COOLDOWN_TIME))
+          (millis() - lastTimeAudioPlayed > AUDIO_COOLDOWN_TIME))
       {
+        Serial.printf("MAIN: Object detected (currentMillis: %lu, lastTimeAudioPlayed: %lu). Playing random skit...\n", 
+                      currentMillis, lastTimeAudioPlayed);
         ParsedSkit selectedSkit = skitSelector->selectNextSkit();
         String filePath = selectedSkit.audioFile;
 
@@ -531,6 +538,7 @@ void loop()
           {
             Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", filePath.c_str());
             audioPlayer->playNext(filePath);
+            lastTimeAudioPlayed = currentMillis; // Update the time immediately when we start playing
           }
           else
           {
