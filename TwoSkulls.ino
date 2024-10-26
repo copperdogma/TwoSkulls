@@ -179,15 +179,7 @@ float getFilteredUltrasonicDistance()
   // Use median value to further reduce the effect of outliers
   std::sort(samples, samples + ULTRASONIC_SAMPLES);
 
-  // Serial.printf("MAIN::getFilteredUltrasonicDistance(): Median distance: %f cm\n", samples[ULTRASONIC_SAMPLES / 2]);
-
-  // If median sample is -1, return max float value to indicate no distance was detected
-  if (samples[ULTRASONIC_SAMPLES / 2] == -1)
-  {
-    return std::numeric_limits<float>::max();
-  }
-
-  return samples[ULTRASONIC_SAMPLES / 2]; // Return median value
+  return samples[ULTRASONIC_SAMPLES / 2]; // Return median value, even if it's -1
 }
 
 bool onCharacteristicChangeRequest(const std::string &value)
@@ -512,45 +504,44 @@ void loop()
   if (isPrimary)
   {
     float distance = getFilteredUltrasonicDistance();
-    bool objectDetected = (distance < ultrasonicBaselineDistance - ULTRASONIC_TOLERANCE_CM) ||
-                          (distance > ultrasonicBaselineDistance + ULTRASONIC_TOLERANCE_CM);
-
-    if (objectDetected)
-    {
-      Serial.printf("MAIN: Object detected at %.2f cm (baseline: %.2f cm)\n", distance, ultrasonicBaselineDistance);
-      if (bluetoothController.clientIsConnectedToServer() &&
-          bluetoothController.isA2dpConnected() &&
-          !audioPlayer->isAudioPlaying() &&
-          (millis() - lastTimeAudioPlayed > AUDIO_COOLDOWN_TIME))
-      {
-        Serial.printf("MAIN: Object detected (currentMillis: %lu, lastTimeAudioPlayed: %lu). Playing random skit...\n", 
-                      currentMillis, lastTimeAudioPlayed);
-        ParsedSkit selectedSkit = skitSelector->selectNextSkit();
-        String filePath = selectedSkit.audioFile;
-
-        // Attempt to set the characteristic value and verify the result
-        // This new process ensures both skulls agree on the audio to be played
-        bool success = bluetoothController.setRemoteCharacteristicValue(filePath.c_str());
-        if (success)
+    bool objectDetected = false;
+    
+    if (distance > 0) {  // Only consider positive readings as valid detections
+        Serial.printf("MAIN: Object detected at %.2f cm (baseline: %.2f cm)\n", 
+                     distance, ultrasonicBaselineDistance);
+        if (bluetoothController.clientIsConnectedToServer() &&
+            bluetoothController.isA2dpConnected() &&
+            !audioPlayer->isAudioPlaying() &&
+            (millis() - lastTimeAudioPlayed > AUDIO_COOLDOWN_TIME))
         {
-          std::string finalValue = bluetoothController.getRemoteCharacteristicValue();
-          if (finalValue == filePath.c_str())
-          {
-            Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", filePath.c_str());
-            audioPlayer->playNext(filePath);
-            lastTimeAudioPlayed = currentMillis; // Update the time immediately when we start playing
-          }
-          else
-          {
-            Serial.printf("MAIN: BLE characteristic value mismatch. Expected: %s, Actual: %s\n", filePath.c_str(), finalValue.c_str());
-            // Do not play audio if there's a mismatch
-          }
+            Serial.printf("MAIN: Object detected (currentMillis: %lu, lastTimeAudioPlayed: %lu). Playing random skit...\n", 
+                          currentMillis, lastTimeAudioPlayed);
+            ParsedSkit selectedSkit = skitSelector->selectNextSkit();
+            String filePath = selectedSkit.audioFile;
+
+            // Attempt to set the characteristic value and verify the result
+            // This new process ensures both skulls agree on the audio to be played
+            bool success = bluetoothController.setRemoteCharacteristicValue(filePath.c_str());
+            if (success)
+            {
+              std::string finalValue = bluetoothController.getRemoteCharacteristicValue();
+              if (finalValue == filePath.c_str())
+              {
+                Serial.printf("MAIN: Successfully updated BLE characteristic with message: %s\n", filePath.c_str());
+                audioPlayer->playNext(filePath);
+                lastTimeAudioPlayed = currentMillis; // Update the time immediately when we start playing
+              }
+              else
+              {
+                Serial.printf("MAIN: BLE characteristic value mismatch. Expected: %s, Actual: %s\n", filePath.c_str(), finalValue.c_str());
+                // Do not play audio if there's a mismatch
+              }
+            }
+            else
+            {
+              Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", filePath.c_str());
+            }
         }
-        else
-        {
-          Serial.printf("MAIN: Failed to update BLE characteristic with message: %s\n", filePath.c_str());
-        }
-      }
     }
   }
 
