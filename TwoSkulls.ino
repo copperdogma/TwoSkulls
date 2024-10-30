@@ -506,7 +506,8 @@ void loop()
     float distance = getFilteredUltrasonicDistance();
     bool objectDetected = false;
     
-    if (distance > 0) {  // Only consider positive readings as valid detections
+    // Only consider positive readings as valid detections, and it must be outside the tolerance range.
+    if (distance > 0 && (distance > (ultrasonicBaselineDistance + ULTRASONIC_TOLERANCE_CM) || distance < (ultrasonicBaselineDistance - ULTRASONIC_TOLERANCE_CM))) {
         Serial.printf("MAIN: Object detected at %.2f cm (baseline: %.2f cm)\n", 
                      distance, ultrasonicBaselineDistance);
         if (bluetoothController.clientIsConnectedToServer() &&
@@ -516,6 +517,7 @@ void loop()
         {
             Serial.printf("MAIN: Object detected (currentMillis: %lu, lastTimeAudioPlayed: %lu). Playing random skit...\n", 
                           currentMillis, lastTimeAudioPlayed);
+            lightController.blinkEyes(1);
             ParsedSkit selectedSkit = skitSelector->selectNextSkit();
             String filePath = selectedSkit.audioFile;
 
