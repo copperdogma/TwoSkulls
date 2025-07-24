@@ -92,11 +92,6 @@ String ConfigManager::getSecondaryMacAddress() const
     return getValue("secondary_mac_address", "unknown");
 }
 
-int ConfigManager::getUltrasonicTriggerDistance() const
-{
-    return getValue("ultrasonic_trigger_distance", "100").toInt();
-}
-
 int ConfigManager::getServoMinDegrees() const
 {
     return m_servoMinDegrees;

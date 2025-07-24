@@ -9,7 +9,6 @@
 #include "bluetooth_controller.h"
 #include "FS.h"     // Ensure ESP32 board package is installed
 #include "SD.h"     // Ensure ESP32 board package is installed
-#include <HCSR04.h> // Install HCSR04 library via Arduino Library Manager
 #include "light_controller.h"
 #include "servo_controller.h"
 #include "sd_card_manager.h"
@@ -32,20 +31,9 @@ LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
 
 const int VOLUME_DIVISOR = 1; // FOR DEBUGGING: divide volume by this amount to set volume lower
 
-// Ultrasonic sensor
-UltraSonicDistanceSensor *distanceSensor = nullptr;  // NOTE: you can set a max distance with third param, e.g. (100cm cutoff): distanceSensor(TRIGGER_PIN, ECHO_PIN, 100);
-const unsigned long ULTRASONIC_SAMPLES = 5;          // Take multiple samples to filter out noise
-const unsigned long ULTRASONIC_DEBOUNCE_TIME = 5000; // 5 seconds between triggers
-const int TRIGGER_PIN = 2;                           // Pin number ultrasonic pulse trigger
-const int ECHO_PIN = 22;                             // Pin number ultrasonic echo detection
-int ultrasonicTriggerDistance;
-
-// Add these new constants near the other ultrasonic-related constants
-const float ULTRASONIC_TOLERANCE_CM = 10.0; // +/- 10cm tolerance
-const int CALIBRATION_SAMPLES = 20;         // Number of samples for initial calibration
-
-// Add this new global variable with other global variables
-float ultrasonicBaselineDistance = 0;
+// GPIO trigger constants and variables
+const int MATTER_TRIGGER_PIN = 2;  // GPIO 2 for Matter controller trigger
+volatile bool matterTriggerDetected = false;  // Flag for interrupt handler
 
 SDCardManager *sdCardManager = nullptr;
 SDCardContent sdCardContent;
@@ -122,6 +110,11 @@ void custom_crash_handler()
   esp_restart();
 }
 
+// GPIO interrupt handler for Matter controller trigger
+void IRAM_ATTR matterTriggerInterrupt() {
+  matterTriggerDetected = true;
+}
+
 // Secondary (server) only: Handle connection state changes
 void onConnectionStateChange(ConnectionState newState)
 {
@@ -164,24 +157,6 @@ void onSpeakingStateChange(bool isSpeaking)
   }
 }
 
-// Get filtered ultrasonic distance using median filtering
-float getFilteredUltrasonicDistance()
-{
-  float samples[ULTRASONIC_SAMPLES];
-
-  // Take multiple samples to filter out noise
-  for (int i = 0; i < ULTRASONIC_SAMPLES; i++)
-  {
-    samples[i] = distanceSensor->measureDistanceCm();
-    delay(10);
-  }
-
-  // Use median value to further reduce the effect of outliers
-  std::sort(samples, samples + ULTRASONIC_SAMPLES);
-
-  return samples[ULTRASONIC_SAMPLES / 2]; // Return median value, even if it's -1
-}
-
 bool onCharacteristicChangeRequest(const std::string &value)
 {
   // Check if we can play the audio file
@@ -215,18 +190,6 @@ void breathingJawMovement()
   }
 }
 
-// Add this new function before the setup() function
-float calibrateUltrasonicSensor()
-{
-  float totalDistance = 0;
-  for (int i = 0; i < CALIBRATION_SAMPLES; i++)
-  {
-    totalDistance += getFilteredUltrasonicDistance();
-    delay(50); // Short delay between readings
-  }
-  return totalDistance / CALIBRATION_SAMPLES;
-}
-
 // Main setup function
 void setup()
 {
@@ -235,7 +198,7 @@ void setup()
   // Register custom crash handler
   esp_register_shutdown_handler((shutdown_handler_t)custom_crash_handler);
 
-  Serial.println("\n\n\n\n\n\nStarting setup ... ");
+  Serial.println("\n\n\n\n\n\nStarting setup 20250723 ... ");
 
   // Initialize light controller first for blinking
   lightController.begin();
@@ -276,7 +239,6 @@ void setup()
   // Configuration loaded successfully, now we can use it
   String bluetoothSpeakerName = config.getBluetoothSpeakerName();
   String role = config.getRole();
-  ultrasonicTriggerDistance = config.getUltrasonicTriggerDistance();
   int speakerVolume = config.getSpeakerVolume() / VOLUME_DIVISOR;
   int servoMinDegrees = config.getServoMinDegrees();
   int servoMaxDegrees = config.getServoMaxDegrees();
@@ -330,20 +292,10 @@ void setup()
   // audioPlayer->playNext(namesSkit.audioFile.c_str());
   // Serial.printf("'Skit - names' found; queueing audio: %s\n", namesSkit.audioFile.c_str());
 
-  // Initialize ultrasonic sensor (for both primary and secondary)
-  distanceSensor = new UltraSonicDistanceSensor(TRIGGER_PIN, ECHO_PIN, ultrasonicTriggerDistance);
-
-  // Calibrate ultrasonic sensor
-  ultrasonicBaselineDistance = calibrateUltrasonicSensor();
-  Serial.printf("MAIN: Ultrasonic baseline distance: %.2f cm\n", ultrasonicBaselineDistance);
-
-  // Ping ultrasonic sensor 10 times for initialization and logging
-  for (int i = 0; i < 10; i++)
-  {
-    float distance = distanceSensor->measureDistanceCm();
-    Serial.println("MAIN: Ultrasonic distance: " + String(distance) + "cm");
-    delay(50); // Wait between readings
-  }
+  // Initialize GPIO trigger pin
+  pinMode(MATTER_TRIGGER_PIN, INPUT_PULLDOWN);
+  attachInterrupt(digitalPinToInterrupt(MATTER_TRIGGER_PIN), matterTriggerInterrupt, RISING);
+  Serial.println("MAIN: GPIO trigger initialized on pin " + String(MATTER_TRIGGER_PIN));
 
   // Initialize Bluetooth after AudioPlayer.
   // Include the callback so that the bluetooth_controller library can call the AudioPlayer's
@@ -499,23 +451,20 @@ void loop()
     isBleInitializationStarted = true;
   }
 
-  // Primary Only: If connected to bluetooth speakers and the other skull, check if the ultrasonic sensor has been triggered.
+  // Primary Only: If connected to bluetooth speakers and the other skull, check if the Matter controller has been triggered.
   // If so, play a random skit.
   if (isPrimary)
   {
-    float distance = getFilteredUltrasonicDistance();
-    bool objectDetected = false;
-    
-    // Only consider positive readings as valid detections, and it must be outside the tolerance range.
-    if (distance > 0 && (distance > (ultrasonicBaselineDistance + ULTRASONIC_TOLERANCE_CM) || distance < (ultrasonicBaselineDistance - ULTRASONIC_TOLERANCE_CM))) {
-        Serial.printf("MAIN: Object detected at %.2f cm (baseline: %.2f cm)\n", 
-                     distance, ultrasonicBaselineDistance);
+    if (matterTriggerDetected) {
+        Serial.printf("MAIN: Matter trigger detected on pin %d\n", MATTER_TRIGGER_PIN);
+        matterTriggerDetected = false; // Reset the flag
+        
         if (bluetoothController.clientIsConnectedToServer() &&
             bluetoothController.isA2dpConnected() &&
             !audioPlayer->isAudioPlaying() &&
             (millis() - lastTimeAudioPlayed > AUDIO_COOLDOWN_TIME))
         {
-            Serial.printf("MAIN: Object detected (currentMillis: %lu, lastTimeAudioPlayed: %lu). Playing random skit...\n", 
+            Serial.printf("MAIN: Matter trigger detected (currentMillis: %lu, lastTimeAudioPlayed: %lu). Playing random skit...\n", 
                           currentMillis, lastTimeAudioPlayed);
             lightController.blinkEyes(1);
             ParsedSkit selectedSkit = skitSelector->selectNextSkit();
