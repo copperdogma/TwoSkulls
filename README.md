@@ -40,6 +40,14 @@
 
   Code originaly based off: Death_With_Skull_Synced_to_Audio
 
+## Development Workflow
+
+This project uses a hybrid development approach:
+- **Development**: Done in Cursor (or any preferred IDE) for better code editing, git integration, and development experience
+- **Compilation/Flashing**: Done in Arduino IDE where ESP-IDF configuration is handled automatically
+
+**Note**: You can also do full development, compilation, and flashing entirely in Arduino IDE if preferred. The hybrid approach is optional and chosen for better development experience.
+
 SETUP:
 Board: "ESP32 Wrover Module"
 Port: "/dev/cu.usbserial-1430" (you'll need to figure out what port your ESP32 is on)
@@ -94,6 +102,35 @@ Power
     - runs breathing animation w/no speaker connection for 30 hours
   - GTOCE N6 Portable Charger: 40000mAh, output (depends on port): max USB-A port 2: 4.5V/5A
 
+## Hardware Assembly Sequence
+
+The following sequence should be followed when building each skull board, testing after each step:
+
+1. **Power Converter Setup**
+   - Solder power converter and test
+   
+2. **ESP32 WROVER Headers**
+   - Solder female headers for ESP32 WROVER (main controller)
+   - Solder 5v/GND from power converter to WROVER headers and test
+   
+3. **Main Controller**
+   - Add WROVER and test to make sure it comes on
+   
+4. **LED Eyes**
+   - Solder LED eye male header pins to GND/GPIOs and test
+   
+5. **Servo**
+   - Solder servo male header pins to GND/5v/GPIO and test
+   
+6. **SD Card Module**
+   - Solder SD card male header pins to GND/3.3v/GPIOs and test
+   
+7. **Matter Controller**
+   - Solder ESP32 mini (matter controller) to GND/5v/GPIO and test
+   
+8. **Final Components**
+   - Solder capacitors and test
+
 LEDs (x2, red, for eyes)
 - connect to GPIO 32 and 33, plus single ground 
   - the two LED black wires are combined with a 100ohm resistor to stop them from drawing too many amps and burning out, which leads to a single black ground wire
@@ -108,7 +145,7 @@ SD Card pins (from  FZ0829-micro-sd-card-module-with-ESP32.docx):
     GND       GND
 
 Matter Controller (ESP32-C3)
- - GPIO 2: Connected to main ESP32 GPIO 2 for trigger signal
+ - GPIO 1: Connected to main ESP32 GPIO 1 for trigger signal
  - When activated, sends HIGH pulse to trigger random skit playback
 
 Servo: Power HD HD-1160A

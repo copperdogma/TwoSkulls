@@ -32,7 +32,7 @@ LightController lightController(LEFT_EYE_PIN, RIGHT_EYE_PIN);
 const int VOLUME_DIVISOR = 1; // FOR DEBUGGING: divide volume by this amount to set volume lower
 
 // GPIO trigger constants and variables
-const int MATTER_TRIGGER_PIN = 2;  // GPIO 2 for Matter controller trigger
+const int MATTER_TRIGGER_PIN = 1;  // GPIO 1 for Matter controller trigger
 volatile bool matterTriggerDetected = false;  // Flag for interrupt handler
 
 SDCardManager *sdCardManager = nullptr;
@@ -203,6 +203,9 @@ void setup()
   // Initialize light controller first for blinking
   lightController.begin();
 
+  // Initialize servo with default values (can be updated later if needed)
+  servoController.initialize(SERVO_PIN, 0, 80); // Default min=0, max=80 degrees
+
   // Initialize SD Card Manager
   sdCardManager = new SDCardManager();
 
@@ -246,8 +249,8 @@ void setup()
   // Initialize SkitSelector with parsed skits
   skitSelector = new SkitSelector(sdCardContent.skits);
 
-  // Initialize servo
-  servoController.initialize(SERVO_PIN, servoMinDegrees, servoMaxDegrees);
+  // Update servo with config values (if different from defaults)
+  servoController.setMinMaxDegrees(servoMinDegrees, servoMaxDegrees);
 
   // Determine role based on settings.txt
   if (role.equals("primary"))
