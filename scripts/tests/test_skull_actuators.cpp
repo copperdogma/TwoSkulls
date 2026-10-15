@@ -5,7 +5,11 @@
 #include <cstdio>
 #include <vector>
 #include "driver/ledc.h"
+#include "esp_private/periph_ctrl.h"
+#include "hal/ledc_ll.h"
 #include "skull_actuators.h"
+
+actuator_test_ledc_t actuator_test_ledc = {};
 
 namespace {
 int64_t now_us = 10000000;
@@ -13,6 +17,9 @@ std::vector<ledc_timer_config_t> timers;
 std::vector<ledc_channel_config_t> channels;
 std::array<uint32_t, 3> duty = {};
 unsigned updates = 0;
+unsigned resets = 0;
+std::array<unsigned, 3> sets = {};
+std::array<unsigned, 3> channel_updates = {};
 void tick_after(int64_t us, uint16_t rms = 0, bool speaking = false, bool audio_busy = false)
 {
     now_us += us;
@@ -38,8 +45,15 @@ void expect_eyes(uint32_t value)
 }
 }
 int64_t esp_timer_get_time() { return now_us; }
+void periph_module_reset(periph_module_t module)
+{
+    assert(module == PERIPH_LEDC_MODULE && timers.empty() && channels.empty());
+    ++resets;
+    actuator_test_ledc = {};
+}
 esp_err_t ledc_timer_config(const ledc_timer_config_t *config)
 {
+    assert(resets == 1);
     assert(channels.empty()); // Both timers must precede any GPIO output.
     timers.push_back(*config);
     return ESP_OK;
@@ -54,12 +68,16 @@ esp_err_t ledc_channel_config(const ledc_channel_config_t *config)
 esp_err_t ledc_set_duty(ledc_mode_t mode, ledc_channel_t channel, uint32_t value)
 {
     assert(mode == LEDC_LOW_SPEED_MODE);
+    assert(!actuator_test_ledc.channel_group[mode].channel[channel].conf1.duty_start);
+    ++sets[channel];
     duty[channel] = value;
     return ESP_OK;
 }
-esp_err_t ledc_update_duty(ledc_mode_t mode, ledc_channel_t)
+esp_err_t ledc_update_duty(ledc_mode_t mode, ledc_channel_t channel)
 {
     assert(mode == LEDC_LOW_SPEED_MODE);
+    assert(!actuator_test_ledc.channel_group[mode].channel[channel].conf1.duty_start);
+    ++channel_updates[channel];
     ++updates;
     return ESP_OK;
 }
@@ -67,8 +85,11 @@ esp_err_t ledc_update_duty(ledc_mode_t mode, ledc_channel_t)
 int main()
 {
     using namespace skull::actuators;
+    actuator_test_ledc.channel_group[LEDC_LOW_SPEED_MODE].channel[0].conf1.duty_start = 1;
     diagnostic(2); // Boot may select an indicator before hardware/task startup.
     assert(init() == ESP_OK);
+    assert(!actuator_test_ledc.channel_group[LEDC_LOW_SPEED_MODE].channel[0].conf1.duty_start);
+    assert(init() == ESP_OK && resets == 1); // Repeated init never resets live PWM.
     assert(timers.size() == 2 && channels.size() == 3);
     assert(timers[0].timer_num == LEDC_TIMER_0);
     assert(timers[0].freq_hz == 50 && timers[0].duty_resolution == LEDC_TIMER_16_BIT);
@@ -91,7 +112,7 @@ int main()
     expect_eyes(255); // Pre-init selection survives and anchors at first tick.
     tick_after(600000);
     assert(duty[0] == 2795); // 30 degrees -> 853 us, not full servo range.
-    expect_eyes(100); // Delayed tick completes the one-shot without replaying.
+    expect_eyes(0); // At 600 ms, the second flash is in its off half.
     const unsigned peak_updates = updates;
     tick_after(19999);
     assert(updates == peak_updates && duty[0] == 2795);
@@ -99,6 +120,7 @@ int main()
     assert(duty[0] < 2795 && duty[0] > 1783);
     tick_after(580000);
     assert(duty[0] == 1783); // Exactly 1.2 seconds from first tick.
+    expect_eyes(100); // Delayed tick completes the one-shot without replaying.
 
     test();
     tick_after(20000);
@@ -226,15 +248,16 @@ int main()
         const int64_t start = now_us;
         unsigned flashes = 1;
         bool was_on = true;
-        for (int64_t elapsed = 20000; elapsed < count * 200000LL; elapsed += 20000) {
+        for (int64_t elapsed = 20000; elapsed < count * 400000LL; elapsed += 20000) {
             tick_at(start + elapsed);
-            const bool on = (elapsed / 100000) % 2 == 0;
+            const bool on = (elapsed / 200000) % 2 == 0;
             expect_eyes(on ? 255 : 0);
             if (on && !was_on) ++flashes;
             was_on = on;
         }
         assert(flashes == count);
-        tick_at(start + count * 200000LL);
+        assert(diagnostic_duration_ms(count, false) == count * 400);
+        tick_at(start + count * 400000LL);
         expect_eyes(100);
     }
 
@@ -242,13 +265,14 @@ int main()
         diagnostic(count, true);
         tick_after(20000);
         const int64_t start = now_us;
-        const int64_t duration = count * 200000LL;
-        const int64_t cycle = duration + 500000;
+        const int64_t duration = count * 400000LL;
+        const int64_t cycle = duration + 2000000;
+        assert(diagnostic_duration_ms(count) * 1000LL == cycle);
         for (int64_t elapsed = 0; elapsed <= 2 * cycle; elapsed += 20000) {
             // Start was already ticked; all remaining samples are 20 ms apart.
             if (elapsed) tick_at(start + elapsed);
             const int64_t phase = elapsed % cycle;
-            const bool on = phase < duration && (phase / 100000) % 2 == 0;
+            const bool on = phase < duration && (phase / 200000) % 2 == 0;
             expect_eyes(on ? 255 : 0);
         }
         diagnostic(0);
@@ -260,12 +284,12 @@ int main()
     tick_after(20000, 65535, true);
     const int64_t speaking_start = now_us;
     expect_eyes(255);
-    tick_at(speaking_start + 100000, 65535, true);
+    tick_at(speaking_start + 200000, 65535, true);
     expect_eyes(0); // Speech brightness cannot erase a diagnostic off phase.
     assert(duty[0] > jaw_duty(0)); // Jaw speech control continues independently.
-    tick_at(speaking_start + 540000, 65535, true);
+    tick_at(speaking_start + 1080000, 65535, true);
     expect_eyes(0); // Delayed tick lands in phase 5, with no catch-up pulses.
-    tick_at(speaking_start + 1100000 + 240000, 65535, true);
+    tick_at(speaking_start + 3200000 + 480000, 65535, true);
     expect_eyes(255); // Repeated cycle, phase 2, still active after speech.
     diagnostic(0);
     tick_after(20000, 65535, true);
@@ -275,9 +299,37 @@ int main()
 
     diagnostic(2);
     tick_after(20000, 65535, true);
-    tick_after(400000, 65535, true);
+    tick_after(800000, 65535, true);
     expect_eyes(255); // One-shot completion also resumes speaking brightness.
     tick_after(20000);
     expect_eyes(100);
+    // Pending jaw updates must not touch either duty API or prevent eye work.
+    auto &hw = actuator_test_ledc.channel_group[LEDC_LOW_SPEED_MODE];
+    hw.channel[0].conf1.duty_start = 1;
+    const auto jaw_sets = sets[0];
+    const auto jaw_updates = channel_updates[0];
+    const auto jaw_before = duty[0];
+    test();
+    tick_after(20000);
+    tick_after(600000, 65535, true);
+    assert(sets[0] == jaw_sets && duty[0] == jaw_before);
+    assert(channel_updates[0] == jaw_updates);
+    expect_eyes(255);
+    assert(stats().deferred_updates > 0 && stats().pending_channels == 1);
+    assert(stats().stuck && stats().max_pending_us >= 600000);
+    hw.channel[0].conf1.duty_start = 0;
+    tick_after(20000, 65535, true);
+    assert(sets[0] > jaw_sets); // Deferred duty wasn't falsely cached as applied.
+    assert(!stats().stuck && stats().pending_channels == 0);
+
+    // Independent eye caches: a pending left eye doesn't suppress the right.
+    hw.channel[1].conf1.duty_start = 1;
+    const auto left_sets = sets[1];
+    tick_after(20000);
+    assert(sets[1] == left_sets && duty[1] == 255 && duty[2] == 100);
+    hw.channel[1].conf1.duty_start = 0;
+    tick_after(20000);
+    expect_eyes(100);
+    assert(sets[1] == left_sets + 1 && resets == 1);
     std::puts("Actuator command tests passed");
 }

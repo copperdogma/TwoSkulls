@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include "driver/ledc.h"
+#include "esp_private/periph_ctrl.h"
+#include "hal/ledc_ll.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 
@@ -21,6 +23,7 @@ constexpr int64_t breathing_movement_us = 2000000;
 constexpr int64_t breathing_hold_us = 100000;
 
 bool ready = false;
+bool peripheral_reset_done = false;
 bool check_pending = false;
 int64_t check_started = -1;
 int64_t last_tick = -1;
@@ -29,12 +32,15 @@ int64_t breath_started = -1;
 double smoothed_amplitude = 0;
 int previous_jaw = 0;
 uint32_t last_jaw_duty = 0;
-uint32_t last_eye_duty = dim;
+uint32_t last_eye_duty[2] = {dim, dim};
+Stats telemetry = {};
+int64_t pending_since[3] = {-1, -1, -1};
+bool pending_warned[3] = {};
 unsigned diagnostic_count = 0;
 bool diagnostic_repeat = false;
 int64_t diagnostic_started = -1;
-constexpr int64_t blink_half_us = 100000;
-constexpr int64_t diagnostic_gap_us = 500000;
+constexpr int64_t blink_half_us = 200000;
+constexpr int64_t diagnostic_gap_us = 2000000;
 
 // Preserve ESP32_ESP32S2_AnalogWrite's Servo mapping: 0..180 degrees maps
 // to 544..2400 us. Restrict the application to its legacy 0..80 degree range;
@@ -81,16 +87,59 @@ esp_err_t checked(esp_err_t error, const char *operation)
     return error;
 }
 
-bool write_duty(ledc_channel_t channel, uint32_t duty)
+bool update_pending(ledc_channel_t channel, int64_t now)
 {
-    if (checked(ledc_set_duty(mode, channel, duty), "set duty") != ESP_OK) return false;
-    return checked(ledc_update_duty(mode, channel), "update duty") == ESP_OK;
+    // Classic ESP32 only: IDF's LL function busy-waits on this register with
+    // interrupts disabled. Single task owns these channels, so a cleared bit
+    // cannot become newly pending between this check and our own update.
+    auto *hw = LEDC_LL_GET_HW();
+    const bool pending = hw->channel_group[mode].channel[channel].conf1.duty_start != 0;
+    if (pending) {
+        telemetry.pending_channels |= 1U << channel;
+        if (pending_since[channel] < 0) pending_since[channel] = now;
+        const uint64_t duration = now - pending_since[channel];
+        telemetry.max_pending_us = std::max(telemetry.max_pending_us, duration);
+        if (duration >= 100000 && !pending_warned[channel]) {
+            pending_warned[channel] = true;
+            ESP_LOGW(tag, "LEDC channel %d duty_start pending >=100 ms; updates deferred", channel);
+        }
+    } else {
+        telemetry.pending_channels &= ~(1U << channel);
+        if (pending_since[channel] >= 0) {
+            telemetry.max_pending_us = std::max(telemetry.max_pending_us,
+                static_cast<uint64_t>(now - pending_since[channel]));
+        }
+        pending_since[channel] = -1;
+        pending_warned[channel] = false;
+    }
+    telemetry.stuck = pending_warned[0] || pending_warned[1] || pending_warned[2];
+    return pending;
+}
+
+enum class WriteResult { applied, deferred, failed };
+WriteResult write_duty(ledc_channel_t channel, uint32_t duty)
+{
+    // Guard BEFORE set_duty as well: reprogramming an active change can upset
+    // the peripheral's internal logic even before update_duty enters its wait.
+    if (update_pending(channel, esp_timer_get_time())) {
+        ++telemetry.deferred_updates;
+        return WriteResult::deferred;
+    }
+    if (checked(ledc_set_duty(mode, channel, duty), "set duty") != ESP_OK) return WriteResult::failed;
+    if (checked(ledc_update_duty(mode, channel), "update duty") != ESP_OK) return WriteResult::failed;
+    return WriteResult::applied;
 }
 }
 
 esp_err_t init()
 {
     if (ready) return ESP_OK;
+    // Software reset can preserve a pending duty_start bit. Reset once before
+    // configuring any timer/channel, never while audio/actuators are running.
+    if (!peripheral_reset_done) {
+        periph_module_reset(PERIPH_LEDC_MODULE);
+        peripheral_reset_done = true;
+    }
     esp_err_t error;
     // Configure timers first so the first pulse already has the right period.
     error = configure_timer(LEDC_TIMER_0, LEDC_TIMER_16_BIT, 50);
@@ -104,7 +153,7 @@ esp_err_t init()
     if (checked(error, "left eye channel init") != ESP_OK) return error;
     error = configure_channel(33, eye_right_channel, LEDC_TIMER_1, dim);
     if (checked(error, "right eye channel init") != ESP_OK) return error;
-    last_eye_duty = dim;
+    last_eye_duty[0] = last_eye_duty[1] = dim;
     previous_jaw = 0;
     smoothed_amplitude = 0;
     last_tick = -1;
@@ -125,6 +174,11 @@ void test()
     breath_started = -1;
 }
 
+uint32_t diagnostic_duration_ms(unsigned count, bool include_gap)
+{
+    return static_cast<uint32_t>((static_cast<int64_t>(count) * 2 * blink_half_us + (include_gap ? diagnostic_gap_us : 0)) / 1000);
+}
+
 void diagnostic(unsigned count, bool repeat)
 {
     diagnostic_count = count;
@@ -132,12 +186,17 @@ void diagnostic(unsigned count, bool repeat)
     diagnostic_started = -1;
 }
 
+Stats stats() { return telemetry; }
+
 void tick(uint16_t rms, bool speaking, bool audio_busy)
 {
     if (!ready) return;
     const int64_t now = esp_timer_get_time();
     if (last_tick >= 0 && now - last_tick < 20000) return;
     last_tick = now;
+    for (int channel = 0; channel < 3; ++channel) {
+        update_pending(static_cast<ledc_channel_t>(channel), now);
+    }
     // Start the idle cadence at the first control tick, after potentially long
     // Matter initialization, so boot never jumps into an overdue breath.
     if (last_breath_started < 0) last_breath_started = now;
@@ -198,8 +257,9 @@ void tick(uint16_t rms, bool speaking, bool audio_busy)
     previous_jaw = jaw;
     const uint32_t duty = jaw_duty(jaw);
     if (duty != last_jaw_duty) {
-        if (!write_duty(jaw_channel, duty)) return;
-        last_jaw_duty = duty;
+        const auto result = write_duty(jaw_channel, duty);
+        if (result == WriteResult::failed) return;
+        if (result == WriteResult::applied) last_jaw_duty = duty;
     }
     uint32_t eye_duty = speaking ? bright : dim;
     if (diagnostic_count) {
@@ -215,10 +275,13 @@ void tick(uint16_t rms, bool speaking, bool audio_busy)
             diagnostic_count = 0;
         }
     }
-    if (eye_duty != last_eye_duty) {
-        if (!write_duty(eye_left_channel, eye_duty)) return;
-        if (!write_duty(eye_right_channel, eye_duty)) return;
-        last_eye_duty = eye_duty;
+    for (int eye = 0; eye < 2; ++eye) {
+        if (eye_duty != last_eye_duty[eye]) {
+            const auto channel = eye == 0 ? eye_left_channel : eye_right_channel;
+            const auto result = write_duty(channel, eye_duty);
+            if (result == WriteResult::failed) return;
+            if (result == WriteResult::applied) last_eye_duty[eye] = eye_duty;
+        }
     }
 }
 }

@@ -90,7 +90,19 @@ int main(int argc, char **argv) {
         assert(scan(*c, argv[1]) && c->count == 15);
         int skits = 0, clipped = 0;
         for (size_t i = 0; i < c->count; ++i) { skits += c->assets[i].skit; clipped += c->assets[i].clipped_timing; }
-        assert(skits == 11 && clipped == 1);
+        assert(skits == 11 && clipped == 0);
+        bool names_found = false;
+        for (size_t i = 0; i < c->count; ++i) {
+            const Asset &asset = c->assets[i];
+            if (std::strcmp(asset.path, "/audio/Skit - names.wav") == 0) {
+                names_found = true;
+                assert(asset.line_count == 15);
+                assert(asset.lines[14].first_frame == 2745225);
+                assert(asset.lines[14].end_frame == 2807098);
+                assert(asset.lines[14].end_frame == asset.wave.data_bytes / 4);
+            }
+        }
+        assert(names_found);
     }
     std::puts("catalog tests passed");
 }

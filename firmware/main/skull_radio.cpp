@@ -37,6 +37,7 @@ enum class Kind { start, retry, peer_discovery, request, ble_gap, gatt, classic,
 struct Event {
     Kind kind{};
     int code{}, status{}, a{}, b{}, c{}, iface{};
+    esp_a2d_cie_sbc_t sbc{};
     esp_bd_addr_t address{};
     char text[249]{};
 };
@@ -336,7 +337,10 @@ void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *p) {
     case ESP_A2D_MEDIA_CTRL_ACK_EVT: e.a = p->media_ctrl_stat.cmd; e.status = p->media_ctrl_stat.status; break;
     case ESP_A2D_AUDIO_CFG_EVT:
         e.a = p->audio_cfg.mcc.type;
-        if (p->audio_cfg.mcc.type == ESP_A2D_MCT_SBC) e.b = p->audio_cfg.mcc.cie.sbc_info.samp_freq;
+        if (p->audio_cfg.mcc.type == ESP_A2D_MCT_SBC) {
+            e.sbc = p->audio_cfg.mcc.cie.sbc_info;
+            e.b = e.sbc.samp_freq;
+        }
         break;
     default: return;
     }
@@ -541,17 +545,22 @@ void handle_a2dp(const Event &e) {
             speaker_connect_deadline = 0; reconnect_stopped = false;
             await_acl_down = false; acl_wait_deadline = 0; acl_wait_expired = false;
             direct_fallback = false;
+            reconnect_attempts = 0; // A successful session starts a fresh recovery budget.
             reconnect_at = 0;
             speaker_connecting = false; speaker_up.store(true);
             save_speaker(); // Worker only, before starting PCM; never in callback.
             media_attempts = 0; try_media_start();
         } else if (e.a == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
             speaker_connect_deadline = 0;
+            const bool lost_session = speaker_up.load();
             const bool failed_direct = speaker_connecting && direct_fallback;
             direct_fallback = false;
             speaker_up.store(false); speaker_connecting = streaming = false;
             media_ready.store(false); media_retry_at = 0;
-            if (failed_direct && !reconnect_stopped) {
+            // Established-session loss is distinct from a failed initial open.
+            // Recover it using the same bounded cached-address episode, without
+            // resetting the budget on every failed retry or overlapping an ACL.
+            if ((lost_session || failed_direct) && !reconnect_stopped) {
                 if (speaker_acl_up) {
                     await_acl_down = true; acl_wait_expired = false;
                     acl_wait_deadline = now() + 60000000;
@@ -577,7 +586,17 @@ void handle_a2dp(const Event &e) {
         if (streaming) media_retry_at = 0;
         else if (was_streaming && speaker_up.load()) { media_attempts = 0; media_retry_at = now() + 1000000; }
         ESP_LOGI(TAG, "A2DP audio state=%d", e.a);
-    } else if (e.code == ESP_A2D_AUDIO_CFG_EVT) ESP_LOGI(TAG, "A2DP codec=%d SBC frequency mask=%d (PCM contract 44100/16/stereo)", e.a, e.b);
+    } else if (e.code == ESP_A2D_AUDIO_CFG_EVT) {
+        ESP_LOGI(TAG, "A2DP codec=%d SBC frequency mask=%d (PCM contract 44100/16/stereo)", e.a, e.b);
+        if (e.a == ESP_A2D_MCT_SBC) {
+            static_assert(sizeof(e.sbc) == 4, "SBC codec information must contain four bytes");
+            const auto *raw = reinterpret_cast<const uint8_t *>(&e.sbc);
+            ESP_LOGI(TAG, "SBC negotiated raw=%02x:%02x:%02x:%02x frequency_mask=0x%x channel_mask=0x%x block_mask=0x%x subbands_mask=0x%x allocation_mask=0x%x bitpool=%u..%u",
+                     raw[0], raw[1], raw[2], raw[3], e.sbc.samp_freq, e.sbc.ch_mode,
+                     e.sbc.block_len, e.sbc.num_subbands, e.sbc.alloc_mthd,
+                     e.sbc.min_bitpool, e.sbc.max_bitpool);
+        }
+    }
 }
 void worker(void *) {
     Event e{};

@@ -13,12 +13,13 @@
 namespace skull::show {
 namespace {
 constexpr char tag[] = "skull_show";
-enum class State { idle, preparing, awaiting_peer, playing, cancelling };
+enum class State { idle, preparing, awaiting_peer, greeting_tail, awaiting_polo, playing, cancelling };
 State state = State::idle;
 catalog::Catalog *assets = nullptr;
 const catalog::Asset *selected = nullptr;
 bool primary = true, initialization_seen = false, coordinated = false;
 bool discovery_enabled = false;
+bool peer_was_ready = false, greeting_pending = false, greeting_marco = false;
 uint32_t incoming_token = 0;
 std::atomic<bool> accepting{false}, requested{false};
 int64_t deadline = 0, cooldown_until = 0, marco_at = 0;
@@ -48,6 +49,7 @@ bool begin(const catalog::Asset *next, bool pair) {
 }
 void abort(const char *reason) {
     accepting.store(false);
+    greeting_pending = greeting_marco = false;
     ESP_LOGW(tag, "Playback canceled: %s; no automatic replay", reason);
     if (incoming_token) { secondary::respond(incoming_token, false); incoming_token = 0; }
     audio::cancel();
@@ -57,6 +59,9 @@ void abort(const char *reason) {
 
 void init(catalog::Catalog *content, bool is_primary) {
     assets = content; primary = is_primary;
+    // Snapshot an already established connection; detect subsequent readiness
+    // edges only after startup. On device init runs before radio connection.
+    peer_was_ready = radio::peer_ready();
 }
 bool trigger() {
     if (!accepting.exchange(false)) return false;
@@ -64,15 +69,30 @@ bool trigger() {
     return requested.compare_exchange_strong(expected, true);
 }
 bool local(const char *path) {
-    if (!initialization_seen || requested.load()) return false;
+    if (!initialization_seen || requested.load() || greeting_pending) return false;
     return begin(find(path), false);
 }
-bool busy() { return state != State::idle || requested.load(); }
+bool paired(const char *path) {
+    const auto *next = find(path);
+    if (!primary || !initialization_seen || !next || !next->skit || requested.load() || greeting_pending ||
+        !accepting.exchange(false)) return false;
+    if (!radio::peer_ready() || now() < cooldown_until || !begin(next, true)) return false;
+    actuators::diagnostic(1);
+    return true;
+}
+bool busy() {
+    // A dormant greeting cannot make progress without the speaker. Leave the
+    // idle controller available to the console's connection-retry command;
+    // greeting_pending still gates local/paired/Home playback until recovery.
+    return state != State::idle || requested.load() || (greeting_pending && radio::stream_ready());
+}
 const char *state_name() {
     switch (state) {
     case State::idle: return "idle";
     case State::preparing: return "preparing";
     case State::awaiting_peer: return "awaiting-peer";
+    case State::greeting_tail: return "greeting-tail";
+    case State::awaiting_polo: return "awaiting-polo";
     case State::playing: return "playing";
     case State::cancelling: return "canceling";
     }
@@ -93,9 +113,31 @@ void tick(bool initialization_finished, bool startup_active) {
     if (!initialization_seen || startup_active) {
         accepting.store(false); discovery(false); return;
     }
+    if (primary) {
+        const bool peer = radio::peer_ready();
+        if (peer && !peer_was_ready) {
+            greeting_pending = true;
+            // A Marco already in flight during discovery is the audible first
+            // half of this same greeting; never restart its PCM on connection.
+            greeting_marco = (state == State::preparing || state == State::playing) &&
+                selected && !coordinated && !std::strcmp(selected->path, "/audio/Marco.wav");
+            accepting.store(false);
+            ESP_LOGI(tag, "Jeff ready; greeting requires audible Marco before requesting Polo");
+        } else if (!peer && peer_was_ready) {
+            greeting_pending = false;
+            if ((greeting_marco && state == State::preparing) || state == State::greeting_tail ||
+                state == State::awaiting_polo)
+                abort("Jeff disconnected during greeting");
+            // Once PCM started, finish locally as for legacy skits; no Polo
+            // request or stale greeting is retained across this disconnection.
+            greeting_marco = false;
+        }
+        peer_was_ready = peer;
+    }
     if (!primary) {
-        if (secondary::take_connected() && state == State::idle && radio::stream_ready() && !audio::busy())
-            begin(find("/audio/Polo.wav"), false);
+        // Connecting alone is silent. Polo travels through the same explicit
+        // filename/prebuffer/ACK/start path as every other legacy request.
+        secondary::take_connected();
         secondary::Request incoming{};
         if (secondary::take_request(incoming)) {
             if (state == State::idle && radio::stream_ready() && begin(find(incoming.path), false)) {
@@ -138,6 +180,24 @@ void tick(bool initialization_finished, bool startup_active) {
             } else abort("local start failed after peer reply");
         } else if (reply != radio::PeerResult::pending || time >= deadline)
             abort("Jeff rejected/disconnected/timed out");
+    } else if (state == State::greeting_tail && time >= deadline) {
+        greeting_pending = false;
+        if (!radio::peer_ready() || radio::request_file("/audio/Polo.wav") != ESP_OK)
+            abort("Polo request unavailable after Marco");
+        else {
+            state = State::awaiting_polo;
+            deadline = time + 6000000;
+            ESP_LOGI(tag, "Marco PCM complete plus 300 ms tail guard; requesting /audio/Polo.wav from Jeff");
+        }
+    } else if (state == State::awaiting_polo) {
+        const auto reply = radio::peer_result();
+        if (reply == radio::PeerResult::accepted && radio::peer_ready()) {
+            ESP_LOGI(tag, "Polo ACK/readback accepted after Marco (not proof of Jeff sound)");
+            radio::clear_peer_result();
+            cooldown_until = time + 10000000;
+            state = State::idle;
+        } else if (reply != radio::PeerResult::pending || time >= deadline)
+            abort("Polo rejected/disconnected/timed out");
     } else if (state == State::playing && audio::complete()) {
         const auto stats = audio::stats();
         ESP_LOGI(tag, "Playback complete: %s frames=%lu underruns=%lu", selected->path,
@@ -145,6 +205,14 @@ void tick(bool initialization_finished, bool startup_active) {
         cooldown_until = time + 10000000;
         radio::clear_peer_result();
         state = State::idle;
+        if (greeting_marco) {
+            greeting_marco = false;
+            // PCM EOF precedes SBC/render queue drain. A bounded nonblocking
+            // guard gives Marco's tail room before Polo, though JBL acoustic
+            // latency is unmeasured and is not proven by this timer.
+            state = State::greeting_tail;
+            deadline = time + 300000;
+        }
     } else if (state == State::cancelling && !audio::busy() &&
                radio::peer_result() != radio::PeerResult::pending) {
         radio::clear_peer_result();
@@ -158,6 +226,20 @@ void tick(bool initialization_finished, bool startup_active) {
     } else marco_at = 0;
     if (state == State::idle) {
         discovery(primary);
+        if (greeting_pending) {
+            // Greetings precede Home/named triggers. A trigger racing the peer
+            // edge is discarded, never deferred until after this exchange.
+            requested.store(false); accepting.store(false);
+            if (radio::stream_ready() && !audio::busy()) {
+                if (begin(find("/audio/Marco.wav"), false)) greeting_marco = true;
+                else {
+                    greeting_pending = false;
+                    cooldown_until = time + 10000000;
+                    ESP_LOGW(tag, "Greeting unavailable: Marco missing or preparation failed; no replay");
+                }
+            }
+            return;
+        }
         const bool can_trigger = primary && assets && radio::stream_ready() && radio::peer_ready() &&
             !audio::busy() && time >= cooldown_until;
         accepting.store(can_trigger && !requested.load());

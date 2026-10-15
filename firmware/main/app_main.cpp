@@ -28,7 +28,7 @@
 using namespace esp_matter;
 using namespace chip::app::Clusters;
 namespace {
-constexpr char tag[] = "anthony";
+const char *tag = "skull"; // Set once from validated SD config before starting tasks.
 std::atomic<uint32_t> tone_frames{0};
 std::atomic<uint32_t> callback_max_us{0};
 std::atomic<uint32_t> triggers{0};
@@ -112,6 +112,11 @@ void matter_event(const chip::DeviceLayer::ChipDeviceEvent *event, intptr_t) {
 void status() {
     const auto radio = skull::radio::stats();
     const auto audio = skull::audio::stats();
+    const auto actuators = skull::actuators::stats();
+    ESP_LOGI(tag, "ACTUATORS deferred=%lu max_pending_us=%llu pending_channels=%u stuck=%d",
+             static_cast<unsigned long>(actuators.deferred_updates),
+             static_cast<unsigned long long>(actuators.max_pending_us),
+             static_cast<unsigned>(actuators.pending_channels), actuators.stuck);
     ESP_LOGI(tag, "PRODUCER blocks=%lu read_total_us=%lu read_max_us=%lu process_total_us=%lu process_max_us=%lu refill_gap_max_us=%lu role_frames=%lu raw_nonzero=%lu output_nonzero=%lu peak=%lu",
              static_cast<unsigned long>(audio.blocks), static_cast<unsigned long>(audio.read_us_total),
              static_cast<unsigned long>(audio.read_us_max), static_cast<unsigned long>(audio.process_us_total),
@@ -195,7 +200,7 @@ void diagnostic_task(void *) {
         skull::radio::Config config{card_config.speaker_name, card_config.secondary_mac, card_config.primary};
         ESP_ERROR_CHECK(skull::radio::start(config));
     }
-    ESP_LOGI(tag, "Skull ready. Commands: status, asset /audio/<file>.wav, heap-start, heap-stop, tone, trigger, play /audio/<file>.wav, jaw-test, retry, pairing, reboot, factory-reset CONFIRM. Matter On requests a paired skit.");
+    ESP_LOGI(tag, "Skull ready. Commands: status, asset /audio/<file>.wav, heap-start, heap-stop, tone, trigger, pair /audio/<file>.wav, play /audio/<file>.wav, jaw-test, retry, pairing, reboot, factory-reset CONFIRM. Matter On requests a paired skit.");
     char line[256]{};
     size_t used = 0;
     int64_t next_status = 0;
@@ -227,12 +232,22 @@ void diagnostic_task(void *) {
                 }
                 else if (!std::strcmp(line, "tone")) ESP_LOGI(tag, "Serial tone %s", request_tone() ? "accepted" : "ignored");
                 else if (!std::strcmp(line, "trigger")) ESP_LOGI(tag, "Serial paired trigger %s", skull::show::trigger() ? "accepted" : "ignored");
+                else if (!std::strncmp(line, "pair ", 5)) ESP_LOGI(tag, "Named paired diagnostic %s", (tone_frames.load() == 0 && skull::show::paired(line + 5)) ? "accepted" : "ignored");
                 else if (!std::strncmp(line, "play ", 5)) ESP_LOGI(tag, "Local diagnostic play %s", (tone_frames.load() == 0 && skull::show::local(line + 5)) ? "accepted" : "ignored");
                 else if (!std::strcmp(line, "jaw-test") && !skull::startup::busy() && !skull::show::busy() && !skull::audio::busy()) skull::actuators::test();
                 else if (!std::strcmp(line, "retry") && tone_frames.load() == 0 && !(skull::startup::busy() && skull::radio::stream_ready()) && ((!skull::show::busy() && !skull::audio::busy()) ||
                          (skull::audio::stats().cancel_waiting && !skull::radio::stream_ready()))) skull::radio::retry_connections();
                 else if (!std::strcmp(line, "pairing") && card_config.primary) chip::DeviceLayer::SystemLayer().ScheduleLambda([]() { pairing(); });
-                else if (!std::strcmp(line, "reboot")) esp_restart();
+                else if (!std::strcmp(line, "reboot")) {
+                    // This task also schedules shows/prepare, so an accepted
+                    // reboot cannot race a newly launched SD read. Waiting for
+                    // initial speaker discovery is safe: startup PCM was loaded
+                    // and its FILE closed before this task was created.
+                    if (skull::show::busy() || !skull::audio::quiescent() ||
+                        skull::startup::playing() || tone_frames.load() != 0)
+                        ESP_LOGW(tag, "Reboot refused while show/audio/startup/tone or SD file active; retry when idle");
+                    else esp_restart();
+                }
                 else if (!std::strcmp(line, "factory-reset CONFIRM") && card_config.primary) {
                     chip::DeviceLayer::SystemLayer().ScheduleLambda([]() { esp_matter::factory_reset(); });
                 }
@@ -250,7 +265,7 @@ void diagnostic_task(void *) {
 }
 
 extern "C" void app_main() {
-    ESP_LOGI(tag, "Anthony WROVER shared-radio feasibility probe 0.1.0 (startup audio, jaw and eyes)");
+    ESP_LOGI(tag, "TwoSkulls shared WROVER firmware (onboard SD, A2DP, BLE, Matter)");
     ESP_ERROR_CHECK(skull::actuators::init());
     ESP_ERROR_CHECK(nvs_flash_init()); // Never erase fabric/NVS automatically.
     ESP_LOGI(tag, "PSRAM initialized=%d size=%u", esp_psram_is_initialized(), static_cast<unsigned>(esp_psram_get_size()));
@@ -258,8 +273,9 @@ extern "C" void app_main() {
     while (sd != ESP_OK) {
         const unsigned failure_blinks = skull::storage::mounted() ? 5 : 3;
         ESP_LOGW(tag, "Boot storage/config retry: %s; %u eye flashes", esp_err_to_name(sd), failure_blinks);
-        skull::actuators::diagnostic(failure_blinks);
-        for (unsigned i = 0; i < failure_blinks * 10 + 25; ++i) {
+        skull::actuators::diagnostic(failure_blinks, true);
+        const unsigned diagnostic_ticks = (skull::actuators::diagnostic_duration_ms(failure_blinks) + 19) / 20;
+        for (unsigned i = 0; i < diagnostic_ticks; ++i) {
             skull::actuators::tick(0, false);
             vTaskDelay(pdMS_TO_TICKS(20));
         }
@@ -269,11 +285,14 @@ extern "C" void app_main() {
         if (unmount != ESP_OK) ESP_LOGW(tag, "Retry unmount: %s", esp_err_to_name(unmount));
         sd = skull::storage::mount_and_read_config(card_config);
     }
+    tag = card_config.primary ? "anthony" : "jeff";
+    ESP_LOGI(tag, "Configured role=%s", card_config.primary ? "primary" : "secondary");
     const unsigned blinks = card_config.primary ? 4 : 2;
     skull::actuators::diagnostic(blinks);
     ESP_LOGI(tag, "Boot eye diagnostic: %u flashes", blinks);
     // Finish both the role flashes and gentle check before lengthy radio setup.
-    for (unsigned i = 0; i <= std::max(60u, blinks * 10); ++i) {
+    const unsigned role_ticks = (skull::actuators::diagnostic_duration_ms(blinks, false) + 19) / 20;
+    for (unsigned i = 0; i <= std::max(60u, role_ticks); ++i) {
         skull::actuators::tick(0, false);
         vTaskDelay(pdMS_TO_TICKS(20));
     }

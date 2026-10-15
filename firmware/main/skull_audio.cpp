@@ -13,6 +13,10 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
+#ifndef SKULL_AUDIO_CLOSE
+#define SKULL_AUDIO_CLOSE std::fclose
+#endif
+
 #ifndef SKULL_AUDIO_SD_ROOT
 #define SKULL_AUDIO_SD_ROOT "/sdcard"
 #endif
@@ -32,6 +36,9 @@ struct Block {
 };
 enum class State { idle, requested, loading, ready, playing, complete, failed, cancelling, acknowledged };
 std::atomic<State> state{State::idle};
+// Sole worker owns the FILE. Remains true through fopen/fclose, including the
+// final-close window after the provider has already consumed the last block.
+std::atomic<bool> file_active{false};
 std::atomic<const catalog::Asset *> asset{nullptr};
 std::atomic<uint32_t> underruns{0}, frames{0}, envelope{0}, stack_water{0};
 std::atomic<uint32_t> produced_blocks{0}, read_us_total{0}, read_us_max{0};
@@ -76,8 +83,9 @@ void worker(void *) {
         stack_water.store(uxTaskGetStackHighWaterMark(nullptr), std::memory_order_relaxed);
         State s = state.load(std::memory_order_acquire);
         if (s == State::acknowledged) {
-            if (file) std::fclose(file);
+            if (file) SKULL_AUDIO_CLOSE(file);
             file = nullptr;
+            file_active.store(false, std::memory_order_release);
             reset_queues();
             envelope.store(0);
             state.store(State::idle, std::memory_order_release);
@@ -85,7 +93,7 @@ void worker(void *) {
             // Claimed only by this worker. Cancellation can supersede any phase.
             State expected = State::requested;
             if (!state.compare_exchange_strong(expected, State::loading)) continue;
-            if (file) std::fclose(file);
+            if (file) SKULL_AUDIO_CLOSE(file);
             file = nullptr;
             reset_queues();
             position = 0; exhausted = false; last_publication_us = 0;
@@ -94,14 +102,16 @@ void worker(void *) {
             const int length = std::snprintf(path, sizeof(path), SKULL_AUDIO_SD_ROOT "%s%s",
                                             a->path[0] == '/' ? "" : "/", a->path);
             wave::Info info{};
+            file_active.store(true, std::memory_order_release);
             if (length <= 0 || length >= static_cast<int>(sizeof(path)) ||
                 !(file = std::fopen(path, "rb")) ||
                 std::setvbuf(file, io_buffer, _IOFBF, io_buffer_bytes) != 0 ||
                 !wave::inspect(file, info) ||
                 info.data_bytes == 0 || info.data_bytes != a->wave.data_bytes ||
                 info.data_offset != a->wave.data_offset) {
-                if (file) std::fclose(file);
+                if (file) SKULL_AUDIO_CLOSE(file);
                 file = nullptr;
+                file_active.store(false, std::memory_order_release);
                 expected = State::loading;
                 state.compare_exchange_strong(expected, State::failed);
             } else total = info.data_bytes / 4;
@@ -125,7 +135,8 @@ void worker(void *) {
                     }
                     // A callback may still own a block; failed must be cancelled
                     // and acknowledged before another prepare can reset queues.
-                    std::fclose(file); file = nullptr;
+                    SKULL_AUDIO_CLOSE(file); file = nullptr;
+                    file_active.store(false, std::memory_order_release);
                 } else {
                     const auto *a = asset.load(std::memory_order_acquire);
                     uint32_t block_role_frames = 0, input_nonzero = 0, output_nonzero = 0, peak = 0;
@@ -165,7 +176,10 @@ void worker(void *) {
                         refill_gap_us_max.store(std::max(refill_gap_us_max.load(std::memory_order_relaxed), gap), std::memory_order_relaxed);
                     }
                     last_publication_us = publication_us;
-                    if (exhausted) { std::fclose(file); file = nullptr; }
+                    if (exhausted) {
+                        SKULL_AUDIO_CLOSE(file); file = nullptr;
+                        file_active.store(false, std::memory_order_release);
+                    }
                     if (exhausted || uxQueueMessagesWaiting(ready_queue) == block_count) {
                         State expected = State::loading;
                         state.compare_exchange_strong(expected, State::ready, std::memory_order_release);
@@ -233,6 +247,9 @@ void cancel() {
 bool busy() {
     const auto s = state.load(std::memory_order_acquire);
     return s != State::idle && s != State::complete && s != State::failed;
+}
+bool quiescent() {
+    return !busy() && !file_active.load(std::memory_order_acquire);
 }
 bool playing() { return state.load(std::memory_order_acquire) == State::playing; }
 bool complete() { return state.load(std::memory_order_acquire) == State::complete; }

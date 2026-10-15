@@ -5,6 +5,7 @@
 #include "skull_audio.h"
 #include "skull_catalog.h"
 #include "freertos/FreeRTOS.h"
+#include "esp_heap_caps.h"
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -41,6 +42,8 @@ static void fixture(unsigned frames) {
 int main() {
     using namespace skull;
     fixture(10000);asset.skit=true;asset.line_count=2;asset.lines[0]={0,5000,'A'};asset.lines[1]={5000,10000,'B'};
+    assert(audio::quiescent());
+    audio_test_hold_close.store(true);
     assert(audio::init(50,true)); assert(audio::prepare(&asset)); assert(!audio::start()); wait_until(audio::ready);assert(audio::start());
     uint32_t position=0;
     while(!audio::complete()) {
@@ -50,6 +53,12 @@ int main() {
         position+=after-before;std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     assert(position==10000);assert(!audio::busy());
+    // The last block is consumed while the real worker is held inside fclose.
+    // Playback completion alone must not permit an intentional CPU reset.
+    wait_until([] { return audio_test_close_entered.load(); });
+    assert(!audio::quiescent());
+    audio_test_hold_close.store(false);
+    wait_until(audio::quiescent);
     const auto timing=audio::stats();assert(timing.blocks==12);assert(audio_test_max_burst.load()==2);
     assert(timing.read_us_total>=timing.read_us_max);
     assert(timing.process_us_total>=timing.process_us_max);
@@ -59,12 +68,15 @@ int main() {
     // Hold partial callback block, cancel while callbacks stop, and verify that
     // no reprepare/reset occurs until a provider acknowledges cancellation.
     assert(audio::prepare(&asset));wait_until(audio::ready);assert(audio::start());uint8_t tiny[4]{};assert(audio::provide(tiny,4));audio::cancel();
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));assert(audio::stats().cancel_waiting);assert(audio::busy());assert(!audio::prepare(&asset));
-    assert(audio::provide(tiny,4));for(unsigned i=0;i<100 && audio::busy();++i)std::this_thread::sleep_for(std::chrono::milliseconds(1));assert(!audio::busy());
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));assert(audio::stats().cancel_waiting);assert(audio::busy());assert(!audio::quiescent());assert(!audio::prepare(&asset));
+    assert(audio::provide(tiny,4));for(unsigned i=0;i<100 && audio::busy();++i)std::this_thread::sleep_for(std::chrono::milliseconds(1));assert(!audio::busy());wait_until(audio::quiescent);
     // Rapid provider drains prebuffer before worker refills: starvation preserves
     // source cursor and emits only the caller's zeros.
     assert(audio::prepare(&asset));wait_until(audio::ready);assert(audio::start());std::vector<uint8_t> large(100000,0);assert(audio::provide(large.data(),large.size()));assert(audio::stats().underruns>0);assert(audio::stats().frames<=8*882);
-    audio::cancel();audio::provide(tiny,4);
-    std::puts("skull_audio producer, role gain/muting, EOF, cancellation hold, and starvation passed");
+    audio::cancel();audio::provide(tiny,4);wait_until(audio::quiescent);
+    // Failed open must clear worker file activity rather than trapping reboot.
+    std::strcpy(asset.path,"/missing.wav");assert(audio::prepare(&asset));
+    wait_until(audio::error);wait_until(audio::quiescent);
+    std::puts("skull_audio producer, role gain/muting, EOF, cancellation hold, starvation, and reboot file quiescence passed");
     std::fflush(stdout);std::_Exit(0); // worker is intentionally device-lifetime
 }

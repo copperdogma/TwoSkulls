@@ -58,3 +58,7 @@ CONFIG_ENABLE_TEST_SETUP_PARAMS=y
 CONFIG_USE_TEST_SERIAL_NUMBER="ANTHONY-WROVER-PROTOTYPE"
 # CONFIG_TEST_EVENT_TRIGGER_ENABLED is not set
 # CONFIG_ENABLE_OTA_REQUESTOR is not set
+
+# A2DP SBC encoding at 160 MHz starved IDLE0 on the JBL Flip 6 bench.
+# Preserve scheduler yields; qualify 240 MHz with the same paired catalogue.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y

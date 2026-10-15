@@ -4,7 +4,7 @@ This is Story 001's native application port; complete two-skull acceptance remai
 pending. It targets classic `esp32` with ESP-IDF **5.5.4** and managed ESP-Matter
 **1.5.0**, with one Bluedroid BTDM owner. SD config selects the role: primary
 Anthony starts a momentary Matter endpoint and the legacy secondary BLE client;
-secondary Jeff starts a standalone legacy GATT server and Polo response without
+secondary Jeff starts a standalone legacy GATT server and requested Polo response without
 starting Matter. Both connect their configured A2DP speaker and drive jaw GPIO23
 and eyes GPIO32/33. The role-specific `Initialized - Primary.wav` or
 `Initialized - Secondary.wav` is preloaded into PSRAM and played once after A2DP
@@ -231,11 +231,16 @@ Both roles catalog WAV/scripts, prebuffer PCM and mask A/B lines at exact
 source-frame boundaries. The primary selects from the weighted top-three pool and
 uses the existing BLE filename/ACK/readback protocol before starting a normal
 paired skit. All supported audio completions impose a ten-second trigger cooldown.
-Startup audio precedes peer discovery. Marco returns while scanning after init.
+Startup audio precedes peer discovery. Anthony says Marco about every five
+seconds while scanning after init. On peer readiness he completes any current
+Marco or plays one, waits a nonblocking300ms output-tail guard, then explicitly
+requests Polo using the legacy filename protocol. A connection alone is silent
+on Jeff. This preserves a clear audible Marco-then-Polo greeting.
 The selector counts once per selection, correcting the legacy double increment.
 
 Startup eye codes retain the original meanings:4 primary,2 secondary,3 SD mount
-failure,5 config failure. Failures repeat with500ms gaps. Boot SD/config failure
+failure,5 config failure. Each diagnostic blink is200ms on/200ms off; failures repeat after an additional
+2000ms dark gap. Boot SD/config failure
 blocks radio/Matter startup and automatically retries after a boot-only unmount;
 a repaired/reinserted card can recover without rebooting. No audio file or
 producer exists during these retries. Config parsing resets fields on every
@@ -243,8 +248,8 @@ attempt, requires an explicit primary/secondary role and speaker name, and
 accepts unsigned volume 0–100 with default 100. Mount/retry never formats or writes
 card contents.
 
-The secondary source advertises after initialization, plays Polo on an eligible
-peer connection, and accepts valid legacy GATT filename requests only when it
+The secondary source advertises after initialization and accepts valid legacy
+GATT filename requests (including Polo) only when it
 can prebuffer and play its B-role audio. Busy/invalid/expired/disconnected
 requests fail without queued replay. Real Jeff startup/Polo, BLE pairing/acknowledgments and one clean paired skit
 are now demonstrated; measured acoustic offset, full-load resource acceptance
@@ -267,3 +272,31 @@ hardware run completed `Skit - milkshakes.wav` with 741424 frames and zero
 reported underruns; Cam heard A-role dialogue through “we don't have hands,”
 then Marco resumed. That local result does not establish paired playback or
 secondary hardware acceptance. See the application evidence for boundaries.
+
+
+The current firmware uses240MHz CPU speed, retaining40MHz flash and
+PSRAM clocks and existing scheduler yields. A160MHz catalogue run exposed SBC
+encoder starvation on Jeff's Flip6 path. See the [scheduling research](../docs/research/2026-10-15-a2dp-throughput.md)
+and [qualification record](../docs/validation/2026-10-15-code-qualification.md) for
+failed evidence and the successful bounded comparison; source-frame completion alone does
+not qualify audio/scheduler health. The LEDC driver resets its peripheral once
+before setup and defers updates while hardware duty_start remains set, avoiding
+the SDK's unbounded critical-section wait. Status exposes deferred/stuck updates.
+
+For repeatable bench qualification (read-only card access), use the ESP-IDF Python
+environment and `scripts/paired_bench.py` from the repository root. Supply both
+`--primary-port` and `--secondary-port`, a fresh ignored `--output-directory`,
+and optionally `--check-reboot-guard`. It resets both devices, waits for startup
+and Marco/Polo, then exercises each repository skit through normal paired gates.
+`--skit` selects exact WAV basenames and `--repeat` repeats that subset. Captures
+include private Matter traffic and belong under ignored `build/validation`.
+The summary checks source frames, underruns, all-run watchdogs and unexpected
+resets. Resource and audible/acoustic acceptance remain separate checks.
+
+Console `reboot` is refused during playback, a pending show, startup speech,
+tones, or SD-file cleanup; retry it when idle. This prevents a deliberate reset
+from interrupting an SD transaction. It does not establish SD recovery after a
+panic/brownout/external reset; the observed card required a full power cycle
+after a forced reboot during playback. Speaker recovery makes a bounded episode
+of cached-address retries plus discovery. If a speaker remains off past that
+episode, explicit idle `retry` is required after it becomes available.

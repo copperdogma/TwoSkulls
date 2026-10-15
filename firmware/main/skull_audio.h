@@ -12,6 +12,9 @@ bool start();
 // it; if the transport stops calling provide(), busy() remains true. No replay.
 void cancel();
 bool busy();
+// Control task only, with no concurrent prepare(): no active request or worker
+// file open/read/close, including final close after PCM delivery completes.
+bool quiescent();
 bool playing();
 bool complete();
 bool error();

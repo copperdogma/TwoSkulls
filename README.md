@@ -13,7 +13,7 @@
   - Initializes Bluetooth A2DP (audio playback via bluetooth speakers)
   - Queues initialization audio (Primary or Secondary)
   - Primary attempts to find Secondary, playing "Marco" audio every 5 seconds until connected
-  - Secondary responds with "Polo" audio when connected to Primary
+  - Secondary responds with "Polo" after Primary finishes "Marco" and explicitly requests the reply
   - Primary initializes GPIO trigger pin for Matter controller
   - Primary starts monitoring GPIO trigger pin
   

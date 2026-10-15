@@ -4,6 +4,14 @@
 #include "esp_err.h"
 
 namespace skull::actuators {
+struct Stats {
+    uint32_t deferred_updates;
+    uint64_t max_pending_us;
+    uint8_t pending_channels; // Bit 0 jaw, bit 1 left eye, bit 2 right eye.
+    bool stuck; // At least one currently pending channel observed for >=100 ms.
+};
+// Same diagnostic-task owner as tick(); no cross-task synchronization.
+Stats stats();
 // Initializes jaw GPIO23 (50 Hz), eyes GPIO32/33 (5 kHz), and closed/dim
 // outputs. Call before starting the diagnostic task.
 esp_err_t init();
@@ -15,9 +23,11 @@ void tick(uint16_t rms, bool speaking, bool audio_busy = false);
 // Repeat the gentle check; invoke from the same task as tick(), while idle.
 void test();
 // Same control-task owner as tick(); may also be set during boot before that
-// task starts. Overrides only eye brightness: count flashes, 100 ms on/100 ms
-// off each, optionally repeating after an additional 500 ms dark gap. The first
+// task starts. Overrides only eye brightness: count flashes, 200 ms on/200 ms
+// off each, optionally repeating after an additional 2000 ms dark gap. The first
 // tick anchors time; delayed ticks skip elapsed phases. Speech never clears a
 // diagnostic. A one-shot returns to speech/idle brightness; count 0 clears it.
 void diagnostic(unsigned count, bool repeat = false);
+// Full pattern duration; include the inter-group gap for boot error retries.
+uint32_t diagnostic_duration_ms(unsigned count, bool include_gap = true);
 }

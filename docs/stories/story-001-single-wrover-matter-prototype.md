@@ -605,3 +605,20 @@ resource and full-show acceptance holds. The earlier instruction to stop all
 Gate2 code until live Gate1 peer proof is superseded for this authorized work;
 its acceptance requirements remain. See the
 [application port record](../validation/2026-10-15-native-application-port.md).
+
+
+### Follow-up catalogue/recovery qualification — 2026-10-15
+
+All 11 skits passed paired on the same image on both boards: complete source
+frames, zero underruns/watchdogs/unexpected resets. Cam confirmed clean turns
+and Home interaction under playback. Marco precedes requested Polo; diagnostic
+flashes are slower with a two-second error-group gap. Targeted LEDC containment
+and SBC encoder optimization address observed reset/stutter failures. Missing-card
+reinsertion, quick speaker power-cycle recovery, busy-reboot refusal and idle
+reboot were checked. Names repository timing now ends exactly at EOF.
+
+The [qualification record](../validation/2026-10-15-code-qualification.md) preserves
+failed captures and exact image identity. Primary internal-heap window minimum
+29379 bytes remains below the proposed 32 KiB diagnostic floor. Jeff actuators,
+measured acoustic offset, yard soak and uncontrolled-reset SD recovery remain
+open; late speaker return after the bounded retry episode needs explicit retry.

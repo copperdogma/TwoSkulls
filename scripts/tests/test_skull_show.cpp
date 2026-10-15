@@ -32,6 +32,7 @@ unsigned responses_accepted = 0, responses_rejected = 0, secondary_polls = 0;
 skull::secondary::Request incoming{};
 const skull::catalog::Asset *prepared = nullptr;
 std::vector<std::string> events;
+std::vector<std::string> requested_paths;
 skull::catalog::Catalog assets;
 void tick(int64_t delta = 0, bool initialized = true, bool startup = false) {
     clock_us += delta;
@@ -58,6 +59,7 @@ void awaiting() {
     assert(std::strcmp(skull::show::state_name(), "awaiting-peer") == 0);
 }
 void finish() { audio_busy = false; audio_complete = true; tick(); }
+void finish_greeting_marco() { finish(); tick(300000); }
 void incoming_request(const char *path, uint32_t token = 42) {
     incoming.token = token; std::strcpy(incoming.path, path); request_available = true;
 }
@@ -86,13 +88,19 @@ bool peer_scanning() { return mock::scanning; }
 void set_peer_discovery(bool enabled) { mock::discovery = enabled; }
 esp_err_t request_file(const char *path) {
     assert(mock::audio_ready && mock::prepared);
-    assert(std::strcmp(path, mock::prepared->path) == 0);
+    if (!std::strcmp(path, "/audio/Polo.wav")) {
+        assert(mock::audio_complete && !mock::audio_busy);
+        assert(!std::strcmp(mock::prepared->path, "/audio/Marco.wav"));
+    } else assert(std::strcmp(path, mock::prepared->path) == 0);
+    mock::requested_paths.emplace_back(path);
     ++mock::requests; mock::events.push_back("request");
     if (mock::request_status == ESP_OK) mock::reply = PeerResult::pending;
     return mock::request_status;
 }
 PeerResult peer_result() { return mock::reply; }
-void clear_peer_result() { mock::reply = PeerResult::idle; }
+void clear_peer_result() {
+    if (mock::reply != PeerResult::pending) mock::reply = PeerResult::idle;
+}
 }
 namespace skull::actuators { void diagnostic(unsigned count, bool repeat) {
     assert(count == 1 && !repeat); ++mock::flashes;
@@ -137,7 +145,8 @@ static void readiness_gates() {
     speaker = true; peer = false; tick(); assert(!skull::show::trigger());
     peer = true; audio_busy = true; tick(); assert(!skull::show::trigger());
     audio_busy = false; tick(0, true, true); assert(!skull::show::trigger());
-    tick(); assert(prepares == 0 && skull::show::trigger());
+    tick(); assert(prepares == 1 && !skull::show::trigger());
+    assert(!std::strcmp(prepared->path, "/audio/Marco.wav"));
 }
 static void handshake_and_no_backlog() {
     using namespace mock;
@@ -154,8 +163,9 @@ static void stale_trigger_consumed() {
     using namespace mock;
     setup(); enabled(); assert(skull::show::trigger());
     peer = false; tick(); peer = true; tick();
-    assert(prepares == 0 && requests == 0); // No stale Home trigger after reconnect.
-    assert(skull::show::trigger());
+    assert(prepares == 1 && requests == 0); // Only a fresh greeting, no stale Home show.
+    assert(!std::strcmp(prepared->path, "/audio/Marco.wav"));
+    assert(!skull::show::trigger());
 }
 static void rejected() {
     using namespace mock;
@@ -203,7 +213,8 @@ static void accepted_reply_after_peer_disconnect() {
     peer = true; tick(30000000); // Reconnection cannot start the prepared stale show.
     assert(starts == 0 && requests == 1 && skull::show::busy());
     audio_busy = false; tick(); tick(10000000);
-    assert(!skull::show::busy() && starts == 0 && prepares == 1 && requests == 1);
+    assert(skull::show::busy() && starts == 0 && prepares == 2 && requests == 1);
+    assert(!std::strcmp(prepared->path, "/audio/Marco.wav")); // Fresh reconnect greeting only.
 }
 static void queued_trigger_counts_as_busy() {
     using namespace mock;
@@ -220,6 +231,34 @@ static void local_diagnostic_bypasses_peer() {
     assert(!skull::show::local(assets.assets[1].path));
     audio_ready = true; tick(); assert(starts == 1 && requests == 0 && flashes == 0);
     finish(); tick(20000000); assert(!skull::show::trigger());
+}
+static void named_paired_keeps_handshake() {
+    using namespace mock;
+    setup();
+    assert(!skull::show::paired(assets.assets[0].path));
+    enabled();
+    assert(!skull::show::paired("/audio/missing.wav"));
+    assert(!skull::show::paired(assets.assets[1].path)); // Not a skit.
+    assert(skull::show::paired(assets.assets[0].path));
+    assert(prepares == 1 && requests == 0 && starts == 0 && flashes == 1);
+    assert(!skull::show::trigger() && !skull::show::paired(assets.assets[0].path));
+    audio_ready = true; tick(); assert(requests == 1 && starts == 0);
+    reply = skull::radio::PeerResult::accepted; tick(); assert(starts == 1);
+    finish(); assert(!skull::show::paired(assets.assets[0].path));
+    tick(10000000); assert(skull::show::paired(assets.assets[0].path));
+}
+static void named_paired_rechecks_peer_and_pending() {
+    using namespace mock;
+    setup(); enabled(); peer = false;
+    assert(!skull::show::paired(assets.assets[0].path) && prepares == 0);
+    peer = true; tick(); assert(skull::show::trigger());
+    assert(!skull::show::paired(assets.assets[0].path));
+    tick(); assert(prepares == 1); // Existing Matter request keeps ownership.
+}
+static void secondary_rejects_named_paired() {
+    using namespace mock;
+    setup(false); enabled();
+    assert(!skull::show::paired(assets.assets[0].path) && prepares == 0);
 }
 static void secondary_never_autostarts() {
     using namespace mock;
@@ -266,12 +305,15 @@ static void secondary_startup_advertising_gate() {
     tick(0, true, true); assert(secondary_advertising && secondary_busy);
     tick(); assert(secondary_advertising && !secondary_busy && prepares == 0);
 }
-static void secondary_polo_on_connection() {
+static void secondary_connection_is_silent_until_explicit_polo() {
     using namespace mock;
     setup(false); tick(); secondary_connected = true; secondary_connected_event = true; tick();
+    assert(prepares == 0 && starts == 0);
+    incoming_request("/audio/Polo.wav"); tick();
     assert(prepares == 1 && std::strcmp(prepared->path, "/audio/Polo.wav") == 0);
-    audio_ready = true; tick(); assert(starts == 1 && requests == 0 && responses_accepted == 0);
-    finish(); tick(20000000); assert(prepares == 1); // One connected edge, no repeated Polo.
+    audio_ready = true; tick(); assert(starts == 1 && requests == 0 && responses_accepted == 1);
+    assert(events == std::vector<std::string>({"prepare", "respond-accept", "start"}));
+    finish(); tick(20000000); assert(prepares == 1);
 }
 static void secondary_connection_without_speaker_no_backlog() {
     using namespace mock;
@@ -332,6 +374,118 @@ static void secondary_failed_prepare_rejected() {
     assert(prepares == 1 && responses_rejected == 1 && !skull::show::busy() && starts == 0);
     prepare_ok = true; tick(20000000); assert(prepares == 1);
 }
+static void greeting_startup_and_pcm_ordering() {
+    using namespace mock;
+    peer = false; setup(); tick(0, false); peer = true; tick(20000000, false, true);
+    assert(prepares == 0 && requests == 0 && !skull::show::trigger());
+    tick(); assert(prepares == 1 && skull::show::busy());
+    assert(!skull::show::trigger() && !skull::show::paired(assets.assets[0].path));
+    assert(!skull::show::local(assets.assets[0].path));
+    audio_ready = true; tick(); assert(starts == 1 && requests == 0);
+    tick(1000000); assert(requests == 0); // No early Polo while Marco PCM remains.
+    finish(); assert(requests == 0);
+    tick(299999); assert(requests == 0 && !skull::show::trigger());
+    tick(1); assert(requests == 1 && starts == 1);
+    assert(requested_paths == std::vector<std::string>({"/audio/Polo.wav"}));
+    assert(events == std::vector<std::string>({"prepare", "start", "request"}));
+    assert(!std::strcmp(skull::show::state_name(), "awaiting-polo"));
+    assert(!skull::show::trigger() && !skull::show::paired(assets.assets[0].path));
+    reply = skull::radio::PeerResult::accepted; tick();
+    assert(!skull::show::busy() && prepares == 1 && starts == 1);
+    tick(9999999); assert(!skull::show::trigger()); tick(1);
+    assert(prepares == 1 && requests == 1 && skull::show::trigger());
+}
+static void greeting_rejected_no_replay() {
+    using namespace mock;
+    peer = false; setup(); tick(); peer = true; tick(); audio_ready = true; tick(); finish_greeting_marco();
+    reply = skull::radio::PeerResult::rejected; tick();
+    assert(cancels == 1 && starts == 1 && requests == 1);
+    tick(); tick(30000000);
+    assert(!skull::show::busy() && prepares == 1 && starts == 1 && requests == 1);
+}
+static void greeting_timeout_waits_for_transport_terminal() {
+    using namespace mock;
+    peer = false; setup(); tick(); peer = true; tick(); audio_ready = true; tick(); finish_greeting_marco();
+    tick(5999999); assert(cancels == 0); tick(1); assert(cancels == 1);
+    tick(20000000); assert(skull::show::busy() && requests == 1 && starts == 1);
+    reply = skull::radio::PeerResult::timed_out; tick(); tick(10000000);
+    assert(!skull::show::busy() && prepares == 1 && starts == 1 && requests == 1);
+}
+static void greeting_request_queue_failure_no_replay() {
+    using namespace mock;
+    peer = false; setup(); tick(); peer = true; tick(); audio_ready = true; tick();
+    request_status = ESP_FAIL; finish_greeting_marco(); assert(cancels == 1 && requests == 1 && starts == 1);
+    tick(); tick(30000000); assert(!skull::show::busy() && prepares == 1 && requests == 1);
+}
+static void greeting_peer_loss_before_start_cancels() {
+    using namespace mock;
+    peer = false; setup(); tick(); peer = true; tick();
+    peer = false; tick(); assert(cancels == 1 && starts == 0 && requests == 0);
+    audio_busy = false; tick(); tick(30000000); assert(prepares == 1 && starts == 0);
+}
+static void greeting_peer_loss_after_start_finishes_without_polo() {
+    using namespace mock;
+    peer = false; setup(); tick(); peer = true; tick(); audio_ready = true; tick();
+    peer = false; tick(); assert(cancels == 0 && starts == 1);
+    finish(); tick(20000000); assert(!skull::show::busy() && requests == 0 && prepares == 1);
+}
+static void greeting_reuses_inflight_scan_marco() {
+    using namespace mock;
+    peer = false; setup(); scanning = true; tick(); tick(5000000);
+    audio_ready = true; tick(); assert(prepares == 1 && starts == 1);
+    peer = true; scanning = false; tick(); assert(prepares == 1 && requests == 0);
+    finish_greeting_marco(); assert(requests == 1 && starts == 1 && prepares == 1);
+    reply = skull::radio::PeerResult::accepted; tick(); tick(20000000);
+    assert(prepares == 1 && starts == 1 && requests == 1);
+}
+static void greeting_peer_loss_during_tail_discards_polo() {
+    using namespace mock;
+    peer = false; setup(); tick(); peer = true; tick(); audio_ready = true; tick(); finish();
+    peer = false; tick(100000); tick(30000000);
+    assert(requests == 0 && starts == 1 && prepares == 1 && !skull::show::busy());
+}
+static void greeting_ack_after_peer_loss_cannot_succeed() {
+    using namespace mock;
+    peer = false; setup(); tick(); peer = true; tick(); audio_ready = true; tick(); finish_greeting_marco();
+    peer = false; reply = skull::radio::PeerResult::accepted; tick();
+    assert(cancels == 1 && requests == 1 && starts == 1);
+    tick(30000000); assert(!skull::show::busy() && prepares == 1);
+}
+static void greeting_waits_for_speaker_without_blocking_retry() {
+    using namespace mock;
+    peer = false; speaker = false; setup(); tick(); peer = true; tick();
+    assert(!skull::show::busy() && !audio_busy && prepares == 0 && requests == 0);
+    tick(300000000); // Exhausted automatic reconnect attempts must not wedge retry.
+    assert(!skull::show::busy() && !audio_busy && prepares == 0);
+    assert(!skull::show::trigger() && !skull::show::paired(assets.assets[0].path));
+    assert(!skull::show::local(assets.assets[0].path));
+    // The console's existing !show::busy() && !audio::busy() branch permits
+    // manual retry. Simulate the successful reconnection it causes.
+    speaker = true; tick(); assert(skull::show::busy() && prepares == 1);
+    assert(!std::strcmp(prepared->path, "/audio/Marco.wav"));
+    audio_ready = true; tick(); finish_greeting_marco();
+    assert(starts == 1 && requests == 1);
+    reply = skull::radio::PeerResult::accepted; tick(); tick(30000000);
+    assert(!skull::show::busy() && starts == 1 && prepares == 1 && requests == 1);
+}
+static void dormant_greeting_disconnected_peer_is_discarded() {
+    using namespace mock;
+    peer = false; speaker = false; setup(); tick(); peer = true; tick();
+    assert(!skull::show::busy()); peer = false; tick(); speaker = true; tick();
+    tick(30000000); assert(prepares == 0 && starts == 0 && requests == 0 && !skull::show::busy());
+}
+static void missing_greeting_asset_does_not_retry() {
+    using namespace mock;
+    peer = false; setup(); assets.count = 1; tick(); peer = true; tick();
+    tick(30000000); assert(prepares == 0 && requests == 0 && !skull::show::busy());
+}
+static void paired_peer_loss_after_start_finishes_locally() {
+    using namespace mock;
+    setup(); enabled(); awaiting(); reply = skull::radio::PeerResult::accepted; tick();
+    peer = false; reply = skull::radio::PeerResult::disconnected; tick();
+    assert(starts == 1 && cancels == 0 && skull::show::busy());
+    finish(); tick(20000000); assert(!skull::show::busy() && prepares == 1 && starts == 1 && requests == 1);
+}
 int main() {
     struct Test { const char *name; void (*run)(); };
     const Test tests[] = {
@@ -344,13 +498,16 @@ int main() {
         {"accepted reply after disconnect canceled", accepted_reply_after_peer_disconnect},
         {"queued trigger owns busy state", queued_trigger_counts_as_busy},
         {"explicit local bypass", local_diagnostic_bypasses_peer},
+        {"named pair keeps readiness/ACK/cooldown gates", named_paired_keeps_handshake},
+        {"named pair rechecks peer and pending trigger", named_paired_rechecks_peer_and_pending},
+        {"secondary rejects named pair", secondary_rejects_named_paired},
         {"secondary passive", secondary_never_autostarts},
         {"Marco initialized/5-second scan", marco_requires_initialized_scan_interval},
         {"scan pause resets interval", scan_interval_resets_after_pause},
         {"Marco cadence persists during playback", marco_cadence_continues_while_playing},
         {"busy Marco drops due time without backlog", marco_drops_busy_due_time_without_backlog},
         {"secondary startup advertising gate", secondary_startup_advertising_gate},
-        {"secondary connects with Polo", secondary_polo_on_connection},
+        {"secondary connection silent; explicit Polo accepted", secondary_connection_is_silent_until_explicit_polo},
         {"secondary speakerless connection no backlog", secondary_connection_without_speaker_no_backlog},
         {"secondary prepare/accept/start ordering", secondary_request_accept_before_start},
         {"secondary unknown asset rejected", secondary_rejects_unknown_asset},
@@ -359,6 +516,19 @@ int main() {
         {"secondary busy request no backlog", secondary_busy_request_rejected_without_backlog},
         {"secondary prebuffer deadline rejects", secondary_prebuffer_deadline_rejects},
         {"secondary failed prepare rejected", secondary_failed_prepare_rejected},
+        {"greeting startup/PCM/Polo/ACK/cooldown ordering", greeting_startup_and_pcm_ordering},
+        {"greeting rejected no replay", greeting_rejected_no_replay},
+        {"greeting timeout waits transport terminal", greeting_timeout_waits_for_transport_terminal},
+        {"greeting request queue failure no replay", greeting_request_queue_failure_no_replay},
+        {"greeting disconnect before start cancels", greeting_peer_loss_before_start_cancels},
+        {"greeting disconnect after start finishes without Polo", greeting_peer_loss_after_start_finishes_without_polo},
+        {"greeting reuses scan Marco without repeat", greeting_reuses_inflight_scan_marco},
+        {"greeting peer loss during tail discards Polo", greeting_peer_loss_during_tail_discards_polo},
+        {"greeting ACK after peer loss canceled", greeting_ack_after_peer_loss_cannot_succeed},
+        {"dormant greeting leaves speaker retry available", greeting_waits_for_speaker_without_blocking_retry},
+        {"dormant greeting discarded on peer loss", dormant_greeting_disconnected_peer_is_discarded},
+        {"missing Marco does not retry greeting", missing_greeting_asset_does_not_retry},
+        {"paired show peer loss after start finishes locally", paired_peer_loss_after_start_finishes_locally},
     };
     // Controller globals intentionally live for one firmware boot. Fork starts
     // each independent scenario from pristine process state without test-only
@@ -373,5 +543,5 @@ int main() {
         }
         std::printf("PASS: %s\n", test.name);
     }
-    std::puts("skull_show: 28 deterministic controller scenarios passed");
+    std::printf("skull_show: %zu deterministic controller scenarios passed\n", sizeof(tests) / sizeof(tests[0]));
 }
