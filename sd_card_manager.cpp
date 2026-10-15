@@ -2,12 +2,24 @@
 
 SDCardManager::SDCardManager() {}
 
+// Classic ESP32 SDMMC slot pins are fixed: CLK=14, CMD=15, D0=2.
+// Match Death's onboard-slot setup; 1-bit mode leaves D1/D2/D3 unused by the driver.
 bool SDCardManager::begin() {
-    if (!SD.begin()) {
-        Serial.println("SD Card: Mount Failed!");
+    pinMode(15, INPUT_PULLUP);
+    pinMode(2, INPUT_PULLUP);
+
+    // 20 MHz, 1-bit mode, and no formatting on mount failure.
+    if (!SD_MMC.begin("/sdcard", true, false, 20000000)) {
+        Serial.println("SD Card: Onboard SD_MMC mount failed (1-bit, 20 MHz). Check card seating.");
         return false;
     }
-    Serial.println("SD Card: Mounted successfully");
+    if (SD_MMC.cardType() == CARD_NONE) {
+        Serial.println("SD Card: No card detected in onboard slot.");
+        SD_MMC.end();
+        return false;
+    }
+    Serial.printf("SD Card: Onboard SD_MMC mounted (1-bit, 20 MHz, %llu MB)\n",
+                  static_cast<unsigned long long>(SD_MMC.cardSize() / (1024ULL * 1024ULL)));
     return true;
 }
 
@@ -33,7 +45,7 @@ SDCardContent SDCardManager::loadContent() {
 }
 
 bool SDCardManager::processSkitFiles(SDCardContent& content) {
-    File root = SD.open("/audio");
+    File root = SD_MMC.open("/audio");
     if (!root || !root.isDirectory()) {
         Serial.println("SD Card: Failed to open /audio directory");
         return false;
@@ -120,7 +132,7 @@ ParsedSkit SDCardManager::findSkitByName(const std::vector<ParsedSkit>& skits, c
 }
 
 bool SDCardManager::fileExists(const char* path) {
-    File file = SD.open(path);
+    File file = SD_MMC.open(path);
     if (!file || file.isDirectory()) {
         return false;
     }
@@ -129,7 +141,7 @@ bool SDCardManager::fileExists(const char* path) {
 }
 
 File SDCardManager::openFile(const char* path) {
-    return SD.open(path);
+    return SD_MMC.open(path);
 }
 
 String SDCardManager::readLine(File& file) {

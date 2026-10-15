@@ -40,7 +40,36 @@
 
   Code originaly based off: Death_With_Skull_Synced_to_Audio
 
+## Onboard SD card migration
+
+The firmware now targets the onboard MicroSD slot on the FREENOVE ESP32-WROVER
+board, using `SD_MMC` in 1-bit mode at 20 MHz, matching Death's setup.
+**Move the jaw servo signal from GPIO15 to GPIO23 before running this firmware.**
+GPIO15 is the SD command line. Remove the external SD module and all six of its
+wires before reusing GPIO23. Keep the existing separate servo power supply.
+
+See [the migration and bench checklist](docs/onboard-sd-migration.md) for the
+pin map, card preparation, research, and the earlier Arduino baseline. The native
+firmware has now passed paired audio and Apple Home bench checks on both boards;
+Jeff's disconnected actuators and yard/soak checks remain pending.
+
 ## Development Workflow
+
+The native prototype follows
+[Story 001 — single-WROVER Anthony with Matter](docs/stories/story-001-single-wrover-matter-prototype.md),
+with a [sibling-project and online research record](docs/research/2026-10-14-single-wrover-research.md).
+The [native-IDF firmware](firmware/README.md) now implements both skull roles,
+onboard SD playback, script role muting, startup diagnostics, jaw/eyes and idle
+breathing. Anthony's Matter switch requests a paired skit; serial commands also
+permit explicit local playback tests. Anthony's startup announcement and a full
+local skit have played on the borrowed v3.0 board. Jeff's new board now runs the identical image selected by SD config. Both
+completed a paired Starbucks skit with zero underruns, and Cam confirmed clean
+turn-taking. Jeff actuator, measured acoustic timing, resource margin and yard
+soak checks remain open. See the
+[two-board bench evidence](docs/validation/2026-10-15-jeff-first-boot.md). See the
+[application port record](docs/validation/2026-10-15-native-application-port.md).
+See the [dated implementation evidence](docs/validation/2026-10-15-implementation-log.md).
+The Arduino workflow below still describes the existing full show firmware.
 
 This project uses a hybrid development approach:
 - **Development**: Done in Cursor (or any preferred IDE) for better code editing, git integration, and development experience
@@ -123,7 +152,7 @@ The following sequence should be followed when building each skull board, testin
    - Solder servo male header pins to GND/5v/GPIO and test
    
 6. **SD Card Module**
-   - Solder SD card male header pins to GND/3.3v/GPIOs and test
+   - Insert the prepared card in the onboard MicroSD slot and test mounting/file reads
    
 7. **Matter Controller**
    - Solder ESP32 mini (matter controller) to GND/5v/GPIO and test
@@ -135,14 +164,11 @@ LEDs (x2, red, for eyes)
 - connect to GPIO 32 and 33, plus single ground 
   - the two LED black wires are combined with a 100ohm resistor to stop them from drawing too many amps and burning out, which leads to a single black ground wire
 
-SD Card pins (from  FZ0829-micro-sd-card-module-with-ESP32.docx):
-    SD Card | ESP32
-    CS​        D5
-    SCK  ​     D18
-    MOSI​      D23
-    MISO​      D19
-    VCC       VIN (voltage input) -- works on 3.3v
-    GND       GND
+SD card: onboard MicroSD slot (no external reader wiring)
+- SD_MMC 1-bit mode, 20 MHz: CLK=GPIO14, CMD=GPIO15, D0=GPIO2
+- Reserve GPIO14/15/2 for the SD bus; do not attach the servo to GPIO15.
+- GPIO23 is now the jaw servo signal. GPIO5/18/19 are freed from the old reader.
+- Keep GPIO4/12/13 free of new loads until the board's onboard slot wiring is checked.
 
 Matter Controller (ESP32-C3)
  - GPIO 1: Connected to main ESP32 GPIO 1 for trigger signal
@@ -153,7 +179,7 @@ Servo: Power HD HD-1160A
 - speed = 0.12s/60deg = 500 deg/s max speed
 - VCC: 5v
 - GND
-- control (yellow): PIN 15
+- control (yellow): GPIO23 (moved from GPIO15 for onboard SD)
 
 
 TROUBLESHOOTING:

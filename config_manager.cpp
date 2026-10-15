@@ -8,7 +8,7 @@ ConfigManager &ConfigManager::getInstance()
 
 bool ConfigManager::loadConfig()
 {
-    File configFile = SD.open("/config.txt", FILE_READ);
+    File configFile = SD_MMC.open("/config.txt", FILE_READ);
     if (!configFile)
     {
         Serial.println("Failed to open config file");

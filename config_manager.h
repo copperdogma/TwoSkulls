@@ -2,7 +2,7 @@
 #define CONFIG_MANAGER_H
 
 #include <Arduino.h>
-#include <SD.h>
+#include <SD_MMC.h>
 #include <map>
 
 class ConfigManager {

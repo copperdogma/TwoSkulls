@@ -33,5 +33,13 @@
 
 #Custom
 /build/
+/firmware/build/
+/firmware/managed_components/
+/firmware/sdkconfig
+/firmware/sdkconfig.old
+/firmware/dependencies.lock.*
+/firmware/.cache/
+__pycache__/
+*.pyc
 huge_app.csv
 TwoSkulls.code-workspace

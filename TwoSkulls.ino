@@ -8,7 +8,7 @@
 #include <Arduino.h>
 #include "bluetooth_controller.h"
 #include "FS.h"     // Ensure ESP32 board package is installed
-#include "SD.h"     // Ensure ESP32 board package is installed
+#include "SD_MMC.h"     // Ensure ESP32 board package is installed
 #include "light_controller.h"
 #include "servo_controller.h"
 #include "sd_card_manager.h"
@@ -68,7 +68,7 @@ const double MOVE_EXPONENT = 0.2;     // Exponent for non-linear mapping of audi
 const double RMS_MAX = 32768.0;       // Maximum possible RMS value for 16-bit audio
 const int CHUNKS_NEEDED = 17;         // Chunks requested per call. Note: it's 34 chunks per 100ms of audio
 
-const int SERVO_PIN = 15; // Servo control pin
+const int SERVO_PIN = 23; // GPIO15 is reserved for onboard SD CMD; rewire servo signal to GPIO23
 
 esp_adc_cal_characteristics_t adc_chars;
 
