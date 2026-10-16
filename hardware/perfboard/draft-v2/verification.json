@@ -1,0 +1,30 @@
+{
+  "parts": 8,
+  "nets": 6,
+  "valid_part_pins": 56,
+  "wire_segments": 32,
+  "all_nets_connected": true,
+  "foreign_pin_or_junction_intersections": [],
+  "physical_fit_verified": false,
+  "electrical_load_tested": false,
+  "editor_import_export_matches_generated_geometry_and_circuit": true,
+  "editor_export_differences": [
+    "New project ID and update timestamp",
+    "Display labels set to letters across, columns from left, rows from top"
+  ],
+  "editor_findings": [
+    "Intentionally unused WROVER supply pins",
+    "J1 overlaps an underside rail junction: intentional vertical stacking, actual clearance must be checked"
+  ],
+  "independent_review": "Electrical terminal membership unchanged from v1; GPIOs and polarities correct; no electrical blocker. Component dimensions remain assumptions.",
+  "nominal_clearances_mm": {
+    "C1_C2": 1.12,
+    "C1_programming_corridor": 1.35
+  },
+  "mechanical_holds": [
+    "Actual board and header geometry",
+    "Caps body sizes and lead pitches",
+    "Raised socket flange, hole centres, depth and screw/tool access",
+    "Skull fit, standoffs and adhesive compatibility"
+  ]
+}

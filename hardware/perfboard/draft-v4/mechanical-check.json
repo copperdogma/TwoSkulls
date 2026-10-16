@@ -1,0 +1,50 @@
+{
+  "antenna_assumption": {
+    "width_mm": 18,
+    "center_col": 13,
+    "north_row": -1.5,
+    "south_row": 0.9,
+    "position_measured": false
+  },
+  "target_clearance_mm": 15,
+  "NE_reserved_mount": {
+    "col": 25,
+    "row": 3,
+    "radius_mm": 4,
+    "status": "optional reserve; v3 three actual mounts retained"
+  },
+  "servo_housing_assumption": {
+    "col_center": 26,
+    "pin_origin_row": 6,
+    "body_center_row": 7,
+    "across_mm": 4,
+    "along_mm": 10,
+    "measured": false
+  },
+  "row_search_housing_to_NE_clearance_mm": {
+    "1": -3.460000000000001,
+    "2": -3.460000000000001,
+    "3": -3.460000000000001,
+    "4": -3.4541062374417537,
+    "5": -1.3249299074603682,
+    "6": 1.1881788712418153
+  },
+  "nominal_clearances_mm": {
+    "servo_to_antenna": 24.392712764266296,
+    "servo_to_NE_reserve": 1.1881788712418153,
+    "NW_mount_to_antenna": 15.676766909225712,
+    "NE_mount_to_antenna": 18.132373483203285,
+    "C1_body_to_antenna": 16.002000000000002
+  },
+  "signal_polyline_length_mm": {
+    "v3": 68.58,
+    "v4": 30.48
+  },
+  "limits": [
+    "Fixed GPIO23 escape wire begins within15mm buffer; route away from antenna and test RF",
+    "Cable constrained east/south; swept cable volume is unmeasured",
+    "Flying links require vertical clearance below soldered header tails",
+    "Small NW/cap margins depend on actual antenna position",
+    "No fabrication fit or RF acceptance established"
+  ]
+}

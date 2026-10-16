@@ -1,0 +1,29 @@
+{
+  "schema": "twoskulls-perfboarder-tool-trial-v1",
+  "date": "2026-10-15",
+  "package": "@perfboarder/mcp@0.1.2",
+  "result": "bounded tool trial passed; not hardware layout acceptance",
+  "parts": 4,
+  "nets": 4,
+  "wires": 6,
+  "roundtrip_fields_equal": {
+    "board": true,
+    "kinds": true,
+    "parts": true,
+    "nets": true,
+    "keepouts": true,
+    "notes": true,
+    "solderedLinks": true
+  },
+  "all_final_endpoints_exist": true,
+  "collision_attempt_refused": true,
+  "problems_after_correction": [],
+  "remaining": [
+    "Unmeasured socket spacing and board size",
+    "No actual WROVER electrical pin map in trial",
+    "No eye connector or capacitors",
+    "No power/current/wire-gauge validation",
+    "Generic footprint sizes require checking",
+    "Checker previously accepted nonexistent pin references; corrected and independently checked"
+  ]
+}

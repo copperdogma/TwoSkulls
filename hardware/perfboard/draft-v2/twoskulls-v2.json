@@ -1,0 +1,695 @@
+{
+  "id": "68229cf3-4166-40b7-aa2a-0e122b2c6c64",
+  "name": "TwoSkulls v2 - straight rails - review draft",
+  "board": {
+    "cols": 26,
+    "rows": 32,
+    "pitch": 2.54,
+    "margin": 2.14
+  },
+  "kinds": {
+    "freenove-v3-socket-spacing-verify": {
+      "id": "freenove-v3-socket-spacing-verify",
+      "label": "Freenove v3 socket - spacing VERIFY",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "L01_3V3",
+          "col": 0,
+          "row": 0,
+          "role": "power"
+        },
+        {
+          "name": "L02_RST",
+          "col": 0,
+          "row": 1
+        },
+        {
+          "name": "L03_GPIO36",
+          "col": 0,
+          "row": 2
+        },
+        {
+          "name": "L04_GPIO39",
+          "col": 0,
+          "row": 3
+        },
+        {
+          "name": "L05_GPIO34",
+          "col": 0,
+          "row": 4
+        },
+        {
+          "name": "L06_GPIO35",
+          "col": 0,
+          "row": 5
+        },
+        {
+          "name": "L07_GPIO32",
+          "col": 0,
+          "row": 6
+        },
+        {
+          "name": "L08_GPIO33",
+          "col": 0,
+          "row": 7
+        },
+        {
+          "name": "L09_GPIO25",
+          "col": 0,
+          "row": 8
+        },
+        {
+          "name": "L10_GPIO26",
+          "col": 0,
+          "row": 9
+        },
+        {
+          "name": "L11_GPIO27",
+          "col": 0,
+          "row": 10
+        },
+        {
+          "name": "L12_GPIO14",
+          "col": 0,
+          "row": 11
+        },
+        {
+          "name": "L13_GPIO12",
+          "col": 0,
+          "row": 12
+        },
+        {
+          "name": "L14_GND",
+          "col": 0,
+          "row": 13,
+          "role": "power"
+        },
+        {
+          "name": "L15_GPIO13",
+          "col": 0,
+          "row": 14
+        },
+        {
+          "name": "L16_3V3",
+          "col": 0,
+          "row": 15,
+          "role": "power"
+        },
+        {
+          "name": "L17_3V3",
+          "col": 0,
+          "row": 16,
+          "role": "power"
+        },
+        {
+          "name": "L18_3V3",
+          "col": 0,
+          "row": 17,
+          "role": "power"
+        },
+        {
+          "name": "L19_5V",
+          "col": 0,
+          "row": 18,
+          "role": "power"
+        },
+        {
+          "name": "L20_5V",
+          "col": 0,
+          "row": 19,
+          "role": "power"
+        },
+        {
+          "name": "R01_GND",
+          "col": 10,
+          "row": 0,
+          "role": "power"
+        },
+        {
+          "name": "R02_GPIO23",
+          "col": 10,
+          "row": 1
+        },
+        {
+          "name": "R03_GPIO22",
+          "col": 10,
+          "row": 2
+        },
+        {
+          "name": "R04_GPIO1",
+          "col": 10,
+          "row": 3
+        },
+        {
+          "name": "R05_GPIO3",
+          "col": 10,
+          "row": 4
+        },
+        {
+          "name": "R06_GPIO21",
+          "col": 10,
+          "row": 5
+        },
+        {
+          "name": "R07_GND",
+          "col": 10,
+          "row": 6,
+          "role": "power"
+        },
+        {
+          "name": "R08_GPIO19",
+          "col": 10,
+          "row": 7
+        },
+        {
+          "name": "R09_GPIO18",
+          "col": 10,
+          "row": 8
+        },
+        {
+          "name": "R10_GPIO5",
+          "col": 10,
+          "row": 9
+        },
+        {
+          "name": "R11_GND",
+          "col": 10,
+          "row": 10,
+          "role": "power"
+        },
+        {
+          "name": "R12_GND",
+          "col": 10,
+          "row": 11,
+          "role": "power"
+        },
+        {
+          "name": "R13_GPIO4",
+          "col": 10,
+          "row": 12
+        },
+        {
+          "name": "R14_GPIO0",
+          "col": 10,
+          "row": 13
+        },
+        {
+          "name": "R15_GPIO2",
+          "col": 10,
+          "row": 14
+        },
+        {
+          "name": "R16_GPIO15",
+          "col": 10,
+          "row": 15
+        },
+        {
+          "name": "R17_GND",
+          "col": 10,
+          "row": 16,
+          "role": "power"
+        },
+        {
+          "name": "R18_GND",
+          "col": 10,
+          "row": 17,
+          "role": "power"
+        },
+        {
+          "name": "R19_GND",
+          "col": 10,
+          "row": 18,
+          "role": "power"
+        },
+        {
+          "name": "R20_GND",
+          "col": 10,
+          "row": 19,
+          "role": "power"
+        }
+      ],
+      "height": 14
+    },
+    "eyes-header-keep-existing-100r": {
+      "id": "eyes-header-keep-existing-100r",
+      "label": "Eyes header - keep existing 100R",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "LEFT",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "RIGHT",
+          "col": 0,
+          "row": 1
+        },
+        {
+          "name": "GND",
+          "col": 0,
+          "row": 2
+        }
+      ],
+      "height": 8,
+      "tags": [
+        "connector"
+      ],
+      "outward": "left"
+    },
+    "servo-header-signal-5v-ground": {
+      "id": "servo-header-signal-5v-ground",
+      "label": "Servo header - signal 5V ground",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "SIG",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "5V",
+          "col": 0,
+          "row": 1
+        },
+        {
+          "name": "GND",
+          "col": 0,
+          "row": 2
+        }
+      ],
+      "height": 8,
+      "tags": [
+        "connector"
+      ],
+      "outward": "right"
+    },
+    "usb-socket-flying-lead-pads": {
+      "id": "usb-socket-flying-lead-pads",
+      "label": "USB socket flying lead pads",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "5V",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "GND",
+          "col": 0,
+          "row": 1
+        }
+      ],
+      "height": 3,
+      "tags": []
+    },
+    "schottky-diode-10-16mm-pitch": {
+      "id": "schottky-diode-10-16mm-pitch",
+      "label": "Schottky diode 10.16mm pitch",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "A",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "K",
+          "col": 0,
+          "row": 4
+        }
+      ],
+      "height": 3,
+      "tags": []
+    },
+    "capacitor-servo-bulk-5-08mm-pitch": {
+      "id": "capacitor-servo-bulk-5-08mm-pitch",
+      "label": "Capacitor servo bulk 5.08mm pitch",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "PLUS",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "MINUS",
+          "col": 2,
+          "row": 0
+        }
+      ],
+      "height": 16,
+      "tags": []
+    },
+    "capacitor-servo-bypass-5-08mm-pitch": {
+      "id": "capacitor-servo-bypass-5-08mm-pitch",
+      "label": "Capacitor servo bypass 5.08mm pitch",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "P",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "N",
+          "col": 2,
+          "row": 0
+        }
+      ],
+      "height": 6,
+      "tags": []
+    },
+    "capacitor-controller-bulk-5-08mm-pitch": {
+      "id": "capacitor-controller-bulk-5-08mm-pitch",
+      "label": "Capacitor controller bulk 5.08mm pitch",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "PLUS",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "MINUS",
+          "col": 2,
+          "row": 0
+        }
+      ],
+      "height": 12,
+      "tags": []
+    }
+  },
+  "parts": [
+    {
+      "ref": "J1",
+      "kind": "freenove-v3-socket-spacing-verify",
+      "at": {
+        "col": 8,
+        "row": 1
+      },
+      "rotation": 0,
+      "value": "REMOVABLE WROVER - raised sockets",
+      "locked": true
+    },
+    {
+      "ref": "J2",
+      "kind": "eyes-header-keep-existing-100r",
+      "at": {
+        "col": 1,
+        "row": 7
+      },
+      "rotation": 0,
+      "value": "EYES - harness resistor retained",
+      "locked": true
+    },
+    {
+      "ref": "J3",
+      "kind": "servo-header-signal-5v-ground",
+      "at": {
+        "col": 26,
+        "row": 23
+      },
+      "rotation": 0,
+      "value": "SERVO: SIG / +5 / GND",
+      "locked": true
+    },
+    {
+      "ref": "J4",
+      "kind": "usb-socket-flying-lead-pads",
+      "at": {
+        "col": 20,
+        "row": 28
+      },
+      "rotation": 0,
+      "value": "WIRE LANDINGS ONLY - socket on raised bracket",
+      "locked": true
+    },
+    {
+      "ref": "D1",
+      "kind": "schottky-diode-10-16mm-pitch",
+      "at": {
+        "col": 6,
+        "row": 22
+      },
+      "rotation": 0,
+      "value": "1N5819 - band DOWN toward MCU supply",
+      "locked": true
+    },
+    {
+      "ref": "C1",
+      "kind": "capacitor-servo-bulk-5-08mm-pitch",
+      "at": {
+        "col": 9,
+        "row": 28
+      },
+      "rotation": 0,
+      "value": "470uF >=10V - polarity CHECK",
+      "locked": true
+    },
+    {
+      "ref": "C2",
+      "kind": "capacitor-servo-bypass-5-08mm-pitch",
+      "at": {
+        "col": 9,
+        "row": 25
+      },
+      "rotation": 0,
+      "value": "100nF ceramic",
+      "locked": true
+    },
+    {
+      "ref": "C3",
+      "kind": "capacitor-controller-bulk-5-08mm-pitch",
+      "at": {
+        "col": 2,
+        "row": 23
+      },
+      "rotation": 0,
+      "value": "100uF >=10V - polarity CHECK",
+      "locked": true
+    }
+  ],
+  "nets": [
+    {
+      "name": "EXT_5V",
+      "pins": [
+        "@9,6",
+        "@9,22",
+        "@9,24",
+        "C2.P",
+        "C1.PLUS",
+        "D1.A",
+        "@18,24",
+        "J3.5V",
+        "@18,28",
+        "J4.5V"
+      ],
+      "colour": "#c0392b",
+      "wires": [
+        [
+          "@9,6",
+          "@9,22"
+        ],
+        [
+          "@9,22",
+          "@9,24"
+        ],
+        [
+          "@9,24",
+          "C2.P"
+        ],
+        [
+          "C2.P",
+          "C1.PLUS"
+        ],
+        [
+          "@9,22",
+          "D1.A"
+        ],
+        [
+          "@9,24",
+          "@18,24"
+        ],
+        [
+          "@18,24",
+          "J3.5V"
+        ],
+        [
+          "@18,24",
+          "@18,28"
+        ],
+        [
+          "@18,28",
+          "J4.5V"
+        ]
+      ]
+    },
+    {
+      "name": "GND",
+      "pins": [
+        "@11,6",
+        "@11,20",
+        "@11,21",
+        "C2.N",
+        "C1.MINUS",
+        "@11,30",
+        "J1.R20_GND",
+        "@4,21",
+        "@3,21",
+        "@3,9",
+        "J2.GND",
+        "J3.GND",
+        "C3.MINUS",
+        "@20,30",
+        "J4.GND"
+      ],
+      "colour": "#2980b9",
+      "wires": [
+        [
+          "@11,6",
+          "@11,20"
+        ],
+        [
+          "@11,20",
+          "@11,21"
+        ],
+        [
+          "@11,21",
+          "C2.N"
+        ],
+        [
+          "C2.N",
+          "C1.MINUS"
+        ],
+        [
+          "C1.MINUS",
+          "@11,30"
+        ],
+        [
+          "@11,20",
+          "J1.R20_GND"
+        ],
+        [
+          "@11,21",
+          "@4,21"
+        ],
+        [
+          "@4,21",
+          "@3,21"
+        ],
+        [
+          "@3,21",
+          "@3,9"
+        ],
+        [
+          "@3,9",
+          "J2.GND"
+        ],
+        [
+          "C2.N",
+          "J3.GND"
+        ],
+        [
+          "@4,21",
+          "C3.MINUS"
+        ],
+        [
+          "@11,30",
+          "@20,30"
+        ],
+        [
+          "@20,30",
+          "J4.GND"
+        ]
+      ]
+    },
+    {
+      "name": "MCU_5V",
+      "pins": [
+        "D1.K",
+        "@8,26",
+        "J1.L20_5V",
+        "@2,26",
+        "C3.PLUS"
+      ],
+      "colour": "#e67e22",
+      "wires": [
+        [
+          "D1.K",
+          "@8,26"
+        ],
+        [
+          "@8,26",
+          "J1.L20_5V"
+        ],
+        [
+          "D1.K",
+          "@2,26"
+        ],
+        [
+          "@2,26",
+          "C3.PLUS"
+        ]
+      ]
+    },
+    {
+      "name": "EYE_LEFT",
+      "pins": [
+        "J1.L07_GPIO32",
+        "J2.LEFT"
+      ],
+      "colour": "#8e44ad",
+      "wires": [
+        [
+          "J1.L07_GPIO32",
+          "J2.LEFT"
+        ]
+      ]
+    },
+    {
+      "name": "EYE_RIGHT",
+      "pins": [
+        "J1.L08_GPIO33",
+        "J2.RIGHT"
+      ],
+      "colour": "#d35400",
+      "wires": [
+        [
+          "J1.L08_GPIO33",
+          "J2.RIGHT"
+        ]
+      ]
+    },
+    {
+      "name": "SERVO_PWM",
+      "pins": [
+        "J1.R02_GPIO23",
+        "@20,2",
+        "@20,23",
+        "J3.SIG"
+      ],
+      "colour": "#27ae60",
+      "wires": [
+        [
+          "J1.R02_GPIO23",
+          "@20,2"
+        ],
+        [
+          "@20,2",
+          "@20,23"
+        ],
+        [
+          "@20,23",
+          "J3.SIG"
+        ]
+      ]
+    }
+  ],
+  "keepouts": [],
+  "notes": [],
+  "createdAt": "2026-10-16T06:18:45.222994+00:00",
+  "updatedAt": "2026-10-16T06:18:45.223177+00:00",
+  "solderedLinks": []
+}

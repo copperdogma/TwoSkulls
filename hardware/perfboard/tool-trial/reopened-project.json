@@ -1,0 +1,424 @@
+{
+  "id": "bb15c1d6-596b-4b50-9061-adf4e8c667a2",
+  "name": "TwoSkulls tool trial - NOT FOR BUILD (2)",
+  "board": {
+    "cols": 30,
+    "rows": 30,
+    "pitch": 2.54,
+    "margin": 2.14
+  },
+  "kinds": {
+    "trial-socket-pair-25-4mm-assumed-spacing": {
+      "id": "trial-socket-pair-25-4mm-assumed-spacing",
+      "label": "Trial socket pair - 25.4mm assumed spacing",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "L1",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "L2",
+          "col": 0,
+          "row": 1
+        },
+        {
+          "name": "L3",
+          "col": 0,
+          "row": 2
+        },
+        {
+          "name": "L4",
+          "col": 0,
+          "row": 3
+        },
+        {
+          "name": "L5",
+          "col": 0,
+          "row": 4
+        },
+        {
+          "name": "L6",
+          "col": 0,
+          "row": 5
+        },
+        {
+          "name": "L7",
+          "col": 0,
+          "row": 6
+        },
+        {
+          "name": "L8",
+          "col": 0,
+          "row": 7
+        },
+        {
+          "name": "L9",
+          "col": 0,
+          "row": 8
+        },
+        {
+          "name": "L10",
+          "col": 0,
+          "row": 9
+        },
+        {
+          "name": "L11",
+          "col": 0,
+          "row": 10
+        },
+        {
+          "name": "L12",
+          "col": 0,
+          "row": 11
+        },
+        {
+          "name": "L13",
+          "col": 0,
+          "row": 12
+        },
+        {
+          "name": "L14",
+          "col": 0,
+          "row": 13
+        },
+        {
+          "name": "L15",
+          "col": 0,
+          "row": 14
+        },
+        {
+          "name": "L16",
+          "col": 0,
+          "row": 15
+        },
+        {
+          "name": "L17",
+          "col": 0,
+          "row": 16
+        },
+        {
+          "name": "L18",
+          "col": 0,
+          "row": 17
+        },
+        {
+          "name": "L19",
+          "col": 0,
+          "row": 18
+        },
+        {
+          "name": "L20",
+          "col": 0,
+          "row": 19
+        },
+        {
+          "name": "R1",
+          "col": 10,
+          "row": 0
+        },
+        {
+          "name": "R2",
+          "col": 10,
+          "row": 1
+        },
+        {
+          "name": "R3",
+          "col": 10,
+          "row": 2
+        },
+        {
+          "name": "R4",
+          "col": 10,
+          "row": 3
+        },
+        {
+          "name": "R5",
+          "col": 10,
+          "row": 4
+        },
+        {
+          "name": "R6",
+          "col": 10,
+          "row": 5
+        },
+        {
+          "name": "R7",
+          "col": 10,
+          "row": 6
+        },
+        {
+          "name": "R8",
+          "col": 10,
+          "row": 7
+        },
+        {
+          "name": "R9",
+          "col": 10,
+          "row": 8
+        },
+        {
+          "name": "R10",
+          "col": 10,
+          "row": 9
+        },
+        {
+          "name": "R11",
+          "col": 10,
+          "row": 10
+        },
+        {
+          "name": "R12",
+          "col": 10,
+          "row": 11
+        },
+        {
+          "name": "R13",
+          "col": 10,
+          "row": 12
+        },
+        {
+          "name": "R14",
+          "col": 10,
+          "row": 13
+        },
+        {
+          "name": "R15",
+          "col": 10,
+          "row": 14
+        },
+        {
+          "name": "R16",
+          "col": 10,
+          "row": 15
+        },
+        {
+          "name": "R17",
+          "col": 10,
+          "row": 16
+        },
+        {
+          "name": "R18",
+          "col": 10,
+          "row": 17
+        },
+        {
+          "name": "R19",
+          "col": 10,
+          "row": 18
+        },
+        {
+          "name": "R20",
+          "col": 10,
+          "row": 19
+        }
+      ],
+      "height": 12
+    },
+    "diode-do41": {
+      "id": "diode-do41",
+      "label": "Diode, DO-41 (1N400x)",
+      "pins": [
+        {
+          "name": "A",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "K",
+          "col": 1,
+          "row": 0
+        }
+      ],
+      "height": 2.7,
+      "source": "perfboarder"
+    },
+    "trial-5v-input-header": {
+      "id": "trial-5v-input-header",
+      "label": "Trial 5V input header",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "5V",
+          "col": 0,
+          "row": 0,
+          "role": "power"
+        },
+        {
+          "name": "GND",
+          "col": 0,
+          "row": 1,
+          "role": "power"
+        }
+      ],
+      "height": 8,
+      "tags": [
+        "connector"
+      ],
+      "outward": "right"
+    },
+    "trial-servo-connector": {
+      "id": "trial-servo-connector",
+      "label": "Trial servo connector",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "5V",
+          "col": 0,
+          "row": 0,
+          "role": "power"
+        },
+        {
+          "name": "GND",
+          "col": 0,
+          "row": 1,
+          "role": "power"
+        },
+        {
+          "name": "SIG",
+          "col": 0,
+          "row": 2
+        }
+      ],
+      "height": 8,
+      "tags": [
+        "connector"
+      ],
+      "outward": "right"
+    },
+    "trial-axial-diode-10-16mm-lead-pitch": {
+      "id": "trial-axial-diode-10-16mm-lead-pitch",
+      "label": "Trial axial diode - 10.16mm lead pitch",
+      "source": "perfboarder",
+      "pins": [
+        {
+          "name": "A",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "K",
+          "col": 4,
+          "row": 0
+        }
+      ],
+      "height": 3
+    }
+  },
+  "parts": [
+    {
+      "ref": "J1",
+      "kind": "trial-socket-pair-25-4mm-assumed-spacing",
+      "at": {
+        "col": 8,
+        "row": 4
+      },
+      "rotation": 0,
+      "value": "Illustrative socket geometry"
+    },
+    {
+      "ref": "J2",
+      "kind": "trial-5v-input-header",
+      "at": {
+        "col": 30,
+        "row": 26
+      },
+      "rotation": 0,
+      "value": "5V IN - connector only"
+    },
+    {
+      "ref": "J3",
+      "kind": "trial-servo-connector",
+      "at": {
+        "col": 30,
+        "row": 17
+      },
+      "rotation": 0,
+      "value": "Servo test connector"
+    },
+    {
+      "ref": "D1",
+      "kind": "trial-axial-diode-10-16mm-lead-pitch",
+      "at": {
+        "col": 8,
+        "row": 27
+      },
+      "rotation": 0,
+      "value": "Cathode K toward controller - placeholder"
+    }
+  ],
+  "nets": [
+    {
+      "name": "EXT_5V",
+      "pins": [
+        "J2.5V",
+        "J3.5V",
+        "D1.A"
+      ],
+      "colour": "#c0392b",
+      "wires": [
+        [
+          "J2.5V",
+          "J3.5V"
+        ],
+        [
+          "J2.5V",
+          "D1.A"
+        ]
+      ]
+    },
+    {
+      "name": "GND",
+      "pins": [
+        "J2.GND",
+        "J3.GND",
+        "J1.R20"
+      ],
+      "colour": "#2980b9",
+      "wires": [
+        [
+          "J2.GND",
+          "J3.GND"
+        ],
+        [
+          "J2.GND",
+          "J1.R20"
+        ]
+      ]
+    },
+    {
+      "name": "TRIAL_SIGNAL",
+      "pins": [
+        "J3.SIG",
+        "J1.R2"
+      ],
+      "colour": "#27ae60",
+      "wires": [
+        [
+          "J3.SIG",
+          "J1.R2"
+        ]
+      ]
+    },
+    {
+      "name": "CONTROLLER_5V",
+      "pins": [
+        "D1.K",
+        "J1.L20"
+      ],
+      "colour": "#e67e22",
+      "wires": [
+        [
+          "D1.K",
+          "J1.L20"
+        ]
+      ]
+    }
+  ],
+  "keepouts": [],
+  "notes": [],
+  "createdAt": "2026-10-15T23:37:30.537Z",
+  "updatedAt": "2026-10-15T23:40:06.227Z",
+  "solderedLinks": []
+}

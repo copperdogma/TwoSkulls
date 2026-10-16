@@ -1,0 +1,48 @@
+{
+  "parts": 8,
+  "nets": 6,
+  "valid_part_pins": 56,
+  "wire_segments": 28,
+  "all_nets_connected": true,
+  "foreign_pin_or_junction_intersections": [],
+  "physical_fit_verified": false,
+  "electrical_load_tested": false,
+  "editor_import_export_matches_geometry_and_circuit": true,
+  "independent_review": "Same terminal membership as v1/v2; polarities correct; no foreign pin/junction crossings; no cap-body overlap or route into illustrative slot box.",
+  "editor_findings": [
+    "Intentionally unused WROVER supply pins",
+    "J1 overlaps underside rail junction",
+    "C1 overlaps J1 in plan: capacitor underside, module above",
+    "C2 overlaps J1 in plan: capacitor underside, module above"
+  ],
+  "physical_holds": [
+    "Actual blank and WROVER header/body/antenna offsets",
+    "Actual USB socket PCB slot and tail depth",
+    "Both actual inserted plug bodies and insertion orders",
+    "Flat cap body support, insulation, real dimensions and vent clearance",
+    "Riser height and shell flex clearance"
+  ],
+  "editor_display": "Columns count from left, rows from top; back view mirrored",
+  "insulated_crossings": [
+    {
+      "col": 3,
+      "row": 21
+    },
+    {
+      "col": 8,
+      "row": 21
+    },
+    {
+      "col": 8,
+      "row": 23
+    },
+    {
+      "col": 12,
+      "row": 21
+    },
+    {
+      "col": 14,
+      "row": 22
+    }
+  ]
+}

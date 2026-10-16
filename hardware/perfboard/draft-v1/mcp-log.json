@@ -1,0 +1,1554 @@
+[
+  {
+    "request": {
+      "name": "board",
+      "arguments": {}
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"name\": \"TwoSkulls v1 - USB UP - FIT CHECK REQUIRED\",\n  \"board\": {\n    \"cols\": 26,\n    \"rows\": 32,\n    \"pitchMm\": 2.54\n  },\n  \"parts\": [\n    {\n      \"ref\": \"J1\",\n      \"kind\": \"freenove-v3-socket-spacing-verify\",\n      \"label\": \"Freenove v3 socket - spacing VERIFY\",\n      \"value\": \"WROVER v3 - antenna UP USB DOWN\",\n      \"at\": {\n        \"col\": 8,\n        \"row\": 2\n      },\n      \"rotation\": 0,\n      \"locked\": true,\n      \"pins\": [\n        {\n          \"pin\": \"J1.L01_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 2\n          },\n          \"label\": \"S02\"\n        },\n        {\n          \"pin\": \"J1.L02_RST\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 3\n          },\n          \"label\": \"S03\"\n        },\n        {\n          \"pin\": \"J1.L03_GPIO36\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 4\n          },\n          \"label\": \"S04\"\n        },\n        {\n          \"pin\": \"J1.L04_GPIO39\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 5\n          },\n          \"label\": \"S05\"\n        },\n        {\n          \"pin\": \"J1.L05_GPIO34\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 6\n          },\n          \"label\": \"S06\"\n        },\n        {\n          \"pin\": \"J1.L06_GPIO35\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 7\n          },\n          \"label\": \"S07\"\n        },\n        {\n          \"pin\": \"J1.L07_GPIO32\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 8\n          },\n          \"label\": \"S08\"\n        },\n        {\n          \"pin\": \"J1.L08_GPIO33\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 9\n          },\n          \"label\": \"S09\"\n        },\n        {\n          \"pin\": \"J1.L09_GPIO25\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 10\n          },\n          \"label\": \"S10\"\n        },\n        {\n          \"pin\": \"J1.L10_GPIO26\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 11\n          },\n          \"label\": \"S11\"\n        },\n        {\n          \"pin\": \"J1.L11_GPIO27\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 12\n          },\n          \"label\": \"S12\"\n        },\n        {\n          \"pin\": \"J1.L12_GPIO14\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 13\n          },\n          \"label\": \"S13\"\n        },\n        {\n          \"pin\": \"J1.L13_GPIO12\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 14\n          },\n          \"label\": \"S14\"\n        },\n        {\n          \"pin\": \"J1.L14_GND\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 15\n          },\n          \"label\": \"S15\"\n        },\n        {\n          \"pin\": \"J1.L15_GPIO13\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 16\n          },\n          \"label\": \"S16\"\n        },\n        {\n          \"pin\": \"J1.L16_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 17\n          },\n          \"label\": \"S17\"\n        },\n        {\n          \"pin\": \"J1.L17_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 18\n          },\n          \"label\": \"S18\"\n        },\n        {\n          \"pin\": \"J1.L18_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 19\n          },\n          \"label\": \"S19\"\n        },\n        {\n          \"pin\": \"J1.L19_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 20\n          },\n          \"label\": \"S20\"\n        },\n        {\n          \"pin\": \"J1.L20_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 21\n          },\n          \"label\": \"S21\"\n        },\n        {\n          \"pin\": \"J1.R01_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 2\n          },\n          \"label\": \"I02\"\n        },\n        {\n          \"pin\": \"J1.R02_GPIO23\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 3\n          },\n          \"label\": \"I03\"\n        },\n        {\n          \"pin\": \"J1.R03_GPIO22\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 4\n          },\n          \"label\": \"I04\"\n        },\n        {\n          \"pin\": \"J1.R04_GPIO1\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 5\n          },\n          \"label\": \"I05\"\n        },\n        {\n          \"pin\": \"J1.R05_GPIO3\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 6\n          },\n          \"label\": \"I06\"\n        },\n        {\n          \"pin\": \"J1.R06_GPIO21\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 7\n          },\n          \"label\": \"I07\"\n        },\n        {\n          \"pin\": \"J1.R07_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 8\n          },\n          \"label\": \"I08\"\n        },\n        {\n          \"pin\": \"J1.R08_GPIO19\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 9\n          },\n          \"label\": \"I09\"\n        },\n        {\n          \"pin\": \"J1.R09_GPIO18\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 10\n          },\n          \"label\": \"I10\"\n        },\n        {\n          \"pin\": \"J1.R10_GPIO5\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 11\n          },\n          \"label\": \"I11\"\n        },\n        {\n          \"pin\": \"J1.R11_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 12\n          },\n          \"label\": \"I12\"\n        },\n        {\n          \"pin\": \"J1.R12_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 13\n          },\n          \"label\": \"I13\"\n        },\n        {\n          \"pin\": \"J1.R13_GPIO4\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 14\n          },\n          \"label\": \"I14\"\n        },\n        {\n          \"pin\": \"J1.R14_GPIO0\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 15\n          },\n          \"label\": \"I15\"\n        },\n        {\n          \"pin\": \"J1.R15_GPIO2\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 16\n          },\n          \"label\": \"I16\"\n        },\n        {\n          \"pin\": \"J1.R16_GPIO15\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 17\n          },\n          \"label\": \"I17\"\n        },\n        {\n          \"pin\": \"J1.R17_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 18\n          },\n          \"label\": \"I18\"\n        },\n        {\n          \"pin\": \"J1.R18_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 19\n          },\n          \"label\": \"I19\"\n        },\n        {\n          \"pin\": \"J1.R19_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 20\n          },\n          \"label\": \"I20\"\n        },\n        {\n          \"pin\": \"J1.R20_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 21\n          },\n          \"label\": \"I21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"U1\",\n      \"kind\": \"eyes-harness-keep-existing-100r\",\n      \"label\": \"Eyes harness - keep existing 100R\",\n      \"value\": \"EYES - harness resistor retained\",\n      \"at\": {\n        \"col\": 1,\n        \"row\": 8\n      },\n      \"rotation\": 0,\n      \"locked\": true,\n      \"pins\": [\n        {\n          \"pin\": \"U1.LEFT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 8\n          },\n          \"label\": \"Z08\"\n        },\n        {\n          \"pin\": \"U1.RIGHT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 9\n          },\n          \"label\": \"Z09\"\n        },\n        {\n          \"pin\": \"U1.GND\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 10\n          },\n          \"label\": \"Z10\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"U2\",\n      \"kind\": \"servo-signal-5v-ground\",\n      \"label\": \"Servo - signal 5V ground\",\n      \"value\": \"SERVO: SIG / +5 / GND\",\n      \"at\": {\n        \"col\": 26,\n        \"row\": 12\n      },\n      \"rotation\": 0,\n      \"locked\": true,\n      \"pins\": [\n        {\n          \"pin\": \"U2.SIG\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 12\n          },\n          \"label\": \"A12\"\n        },\n        {\n          \"pin\": \"U2.5V\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 13\n          },\n          \"label\": \"A13\"\n        },\n        {\n          \"pin\": \"U2.GND\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 14\n          },\n          \"label\": \"A14\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J2\",\n      \"kind\": \"usb-socket-flying-lead-pads\",\n      \"label\": \"USB socket flying lead pads\",\n      \"value\": \"USB-C POWER IN - upright cradle\",\n      \"at\": {\n        \"col\": 20,\n        \"row\": 23\n      },\n      \"rotation\": 0,\n      \"locked\": true,\n      \"pins\": [\n        {\n          \"pin\": \"J2.5V\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 23\n          },\n          \"label\": \"G23\"\n        },\n        {\n          \"pin\": \"J2.GND\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 24\n          },\n          \"label\": \"G24\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"D1\",\n      \"kind\": \"schottky-diode-10-16mm-pitch\",\n      \"label\": \"Schottky diode 10.16mm pitch\",\n      \"value\": \"1N5819 - band UP to J1\",\n      \"at\": {\n        \"col\": 5,\n        \"row\": 21\n      },\n      \"rotation\": 0,\n      \"locked\": true,\n      \"pins\": [\n        {\n          \"pin\": \"D1.A\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 25\n          },\n          \"label\": \"V25\"\n        },\n        {\n          \"pin\": \"D1.K\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 21\n          },\n          \"label\": \"V21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"U3\",\n      \"kind\": \"servo-bulk-cap-5-08mm-pitch\",\n      \"label\": \"Servo bulk cap 5.08mm pitch\",\n      \"value\": \"470uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 19\n      },\n      \"rotation\": 0,\n      \"locked\": true,\n      \"pins\": [\n        {\n          \"pin\": \"U3.PLUS\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 19\n          },\n          \"label\": \"D19\"\n        },\n        {\n          \"pin\": \"U3.MINUS\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 19\n          },\n          \"label\": \"B19\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"U4\",\n      \"kind\": \"servo-bypass-5-08mm-pitch\",\n      \"label\": \"Servo bypass 5.08mm pitch\",\n      \"value\": \"100nF ceramic\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 9\n      },\n      \"rotation\": 0,\n      \"locked\": true,\n      \"pins\": [\n        {\n          \"pin\": \"U4.P\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 9\n          },\n          \"label\": \"D09\"\n        },\n        {\n          \"pin\": \"U4.N\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 9\n          },\n          \"label\": \"B09\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"U5\",\n      \"kind\": \"controller-bulk-cap-5-08mm-pitch\",\n      \"label\": \"Controller bulk cap 5.08mm pitch\",\n      \"value\": \"100uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 2,\n        \"row\": 28\n      },\n      \"rotation\": 0,\n      \"locked\": true,\n      \"pins\": [\n        {\n          \"pin\": \"U5.PLUS\",\n          \"hole\": {\n            \"col\": 2,\n            \"row\": 28\n          },\n          \"label\": \"Y28\"\n        },\n        {\n          \"pin\": \"U5.MINUS\",\n          \"hole\": {\n            \"col\": 4,\n            \"row\": 28\n          },\n          \"label\": \"W28\"\n        }\n      ]\n    }\n  ],\n  \"nets\": [\n    {\n      \"name\": \"EXT_5V\",\n      \"pins\": [\n        \"J2.5V\",\n        \"@20,20\",\n        \"@24,20\",\n        \"@24,19\",\n        \"@24,13\",\n        \"@24,9\",\n        \"U4.P\",\n        \"U2.5V\",\n        \"U3.PLUS\",\n        \"@20,26\",\n        \"@5,26\",\n        \"D1.A\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J2.5V\",\n          \"b\": \"@20,20\"\n        },\n        {\n          \"a\": \"@20,20\",\n          \"b\": \"@24,20\"\n        },\n        {\n          \"a\": \"@24,20\",\n          \"b\": \"@24,19\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"@24,13\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"@24,9\"\n        },\n        {\n          \"a\": \"@24,9\",\n          \"b\": \"U4.P\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"U2.5V\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"U3.PLUS\"\n        },\n        {\n          \"a\": \"J2.5V\",\n          \"b\": \"@20,26\"\n        },\n        {\n          \"a\": \"@20,26\",\n          \"b\": \"@5,26\"\n        },\n        {\n          \"a\": \"@5,26\",\n          \"b\": \"D1.A\"\n        }\n      ]\n    },\n    {\n      \"name\": \"MCU_5V\",\n      \"pins\": [\n        \"D1.K\",\n        \"J1.L20_5V\",\n        \"@2,21\",\n        \"U5.PLUS\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"J1.L20_5V\"\n        },\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"@2,21\"\n        },\n        {\n          \"a\": \"@2,21\",\n          \"b\": \"U5.PLUS\"\n        }\n      ]\n    },\n    {\n      \"name\": \"GND\",\n      \"pins\": [\n        \"J2.GND\",\n        \"@21,24\",\n        \"@21,21\",\n        \"@25,21\",\n        \"U3.MINUS\",\n        \"@25,14\",\n        \"U4.N\",\n        \"U2.GND\",\n        \"@19,24\",\n        \"@19,21\",\n        \"J1.R20_GND\",\n        \"@19,29\",\n        \"@4,29\",\n        \"U5.MINUS\",\n        \"@4,10\",\n        \"U1.GND\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J2.GND\",\n          \"b\": \"@21,24\"\n        },\n        {\n          \"a\": \"@21,24\",\n          \"b\": \"@21,21\"\n        },\n        {\n          \"a\": \"@21,21\",\n          \"b\": \"@25,21\"\n        },\n        {\n          \"a\": \"@25,21\",\n          \"b\": \"U3.MINUS\"\n        },\n        {\n          \"a\": \"U3.MINUS\",\n          \"b\": \"@25,14\"\n        },\n        {\n          \"a\": \"@25,14\",\n          \"b\": \"U4.N\"\n        },\n        {\n          \"a\": \"@25,14\",\n          \"b\": \"U2.GND\"\n        },\n        {\n          \"a\": \"J2.GND\",\n          \"b\": \"@19,24\"\n        },\n        {\n          \"a\": \"@19,24\",\n          \"b\": \"@19,21\"\n        },\n        {\n          \"a\": \"@19,21\",\n          \"b\": \"J1.R20_GND\"\n        },\n        {\n          \"a\": \"@19,24\",\n          \"b\": \"@19,29\"\n        },\n        {\n          \"a\": \"@19,29\",\n          \"b\": \"@4,29\"\n        },\n        {\n          \"a\": \"@4,29\",\n          \"b\": \"U5.MINUS\"\n        },\n        {\n          \"a\": \"@4,29\",\n          \"b\": \"@4,10\"\n        },\n        {\n          \"a\": \"@4,10\",\n          \"b\": \"U1.GND\"\n        }\n      ]\n    },\n    {\n      \"name\": \"SERVO_PWM\",\n      \"pins\": [\n        \"J1.R02_GPIO23\",\n        \"@20,3\",\n        \"@20,12\",\n        \"U2.SIG\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J1.R02_GPIO23\",\n          \"b\": \"@20,3\"\n        },\n        {\n          \"a\": \"@20,3\",\n          \"b\": \"@20,12\"\n        },\n        {\n          \"a\": \"@20,12\",\n          \"b\": \"U2.SIG\"\n        }\n      ]\n    },\n    {\n      \"name\": \"EYE_LEFT\",\n      \"pins\": [\n        \"J1.L07_GPIO32\",\n        \"U1.LEFT\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J1.L07_GPIO32\",\n          \"b\": \"U1.LEFT\"\n        }\n      ]\n    },\n    {\n      \"name\": \"EYE_RIGHT\",\n      \"pins\": [\n        \"J1.L08_GPIO33\",\n        \"U1.RIGHT\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J1.L08_GPIO33\",\n          \"b\": \"U1.RIGHT\"\n        }\n      ]\n    }\n  ],\n  \"problems\": {\n    \"hard\": 2,\n    \"soft\": 1\n  }\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "new_board",
+      "arguments": {
+        "name": "TwoSkulls v1 - USB UP - FIT CHECK REQUIRED",
+        "cols": 26,
+        "rows": 32
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "TwoSkulls v1 - USB UP - FIT CHECK REQUIRED (2) (b299ba82-73bc-4d2a-a38b-790e3fd74f4a) is open: 26x32 holes, empty"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "define_kind",
+      "arguments": {
+        "label": "Freenove v3 socket - spacing VERIFY",
+        "pins": [
+          {
+            "name": "L01_3V3",
+            "col": 0,
+            "row": 0,
+            "role": "power"
+          },
+          {
+            "name": "L02_RST",
+            "col": 0,
+            "row": 1
+          },
+          {
+            "name": "L03_GPIO36",
+            "col": 0,
+            "row": 2
+          },
+          {
+            "name": "L04_GPIO39",
+            "col": 0,
+            "row": 3
+          },
+          {
+            "name": "L05_GPIO34",
+            "col": 0,
+            "row": 4
+          },
+          {
+            "name": "L06_GPIO35",
+            "col": 0,
+            "row": 5
+          },
+          {
+            "name": "L07_GPIO32",
+            "col": 0,
+            "row": 6
+          },
+          {
+            "name": "L08_GPIO33",
+            "col": 0,
+            "row": 7
+          },
+          {
+            "name": "L09_GPIO25",
+            "col": 0,
+            "row": 8
+          },
+          {
+            "name": "L10_GPIO26",
+            "col": 0,
+            "row": 9
+          },
+          {
+            "name": "L11_GPIO27",
+            "col": 0,
+            "row": 10
+          },
+          {
+            "name": "L12_GPIO14",
+            "col": 0,
+            "row": 11
+          },
+          {
+            "name": "L13_GPIO12",
+            "col": 0,
+            "row": 12
+          },
+          {
+            "name": "L14_GND",
+            "col": 0,
+            "row": 13,
+            "role": "power"
+          },
+          {
+            "name": "L15_GPIO13",
+            "col": 0,
+            "row": 14
+          },
+          {
+            "name": "L16_3V3",
+            "col": 0,
+            "row": 15,
+            "role": "power"
+          },
+          {
+            "name": "L17_3V3",
+            "col": 0,
+            "row": 16,
+            "role": "power"
+          },
+          {
+            "name": "L18_3V3",
+            "col": 0,
+            "row": 17,
+            "role": "power"
+          },
+          {
+            "name": "L19_5V",
+            "col": 0,
+            "row": 18,
+            "role": "power"
+          },
+          {
+            "name": "L20_5V",
+            "col": 0,
+            "row": 19,
+            "role": "power"
+          },
+          {
+            "name": "R01_GND",
+            "col": 10,
+            "row": 0,
+            "role": "power"
+          },
+          {
+            "name": "R02_GPIO23",
+            "col": 10,
+            "row": 1
+          },
+          {
+            "name": "R03_GPIO22",
+            "col": 10,
+            "row": 2
+          },
+          {
+            "name": "R04_GPIO1",
+            "col": 10,
+            "row": 3
+          },
+          {
+            "name": "R05_GPIO3",
+            "col": 10,
+            "row": 4
+          },
+          {
+            "name": "R06_GPIO21",
+            "col": 10,
+            "row": 5
+          },
+          {
+            "name": "R07_GND",
+            "col": 10,
+            "row": 6,
+            "role": "power"
+          },
+          {
+            "name": "R08_GPIO19",
+            "col": 10,
+            "row": 7
+          },
+          {
+            "name": "R09_GPIO18",
+            "col": 10,
+            "row": 8
+          },
+          {
+            "name": "R10_GPIO5",
+            "col": 10,
+            "row": 9
+          },
+          {
+            "name": "R11_GND",
+            "col": 10,
+            "row": 10,
+            "role": "power"
+          },
+          {
+            "name": "R12_GND",
+            "col": 10,
+            "row": 11,
+            "role": "power"
+          },
+          {
+            "name": "R13_GPIO4",
+            "col": 10,
+            "row": 12
+          },
+          {
+            "name": "R14_GPIO0",
+            "col": 10,
+            "row": 13
+          },
+          {
+            "name": "R15_GPIO2",
+            "col": 10,
+            "row": 14
+          },
+          {
+            "name": "R16_GPIO15",
+            "col": 10,
+            "row": 15
+          },
+          {
+            "name": "R17_GND",
+            "col": 10,
+            "row": 16,
+            "role": "power"
+          },
+          {
+            "name": "R18_GND",
+            "col": 10,
+            "row": 17,
+            "role": "power"
+          },
+          {
+            "name": "R19_GND",
+            "col": 10,
+            "row": 18,
+            "role": "power"
+          },
+          {
+            "name": "R20_GND",
+            "col": 10,
+            "row": 19,
+            "role": "power"
+          }
+        ],
+        "height": 14
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Freenove v3 socket - spacing VERIFY is kind freenove-v3-socket-spacing-verify: 40 pins; add_part with it"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "add_part",
+      "arguments": {
+        "kindId": "freenove-v3-socket-spacing-verify",
+        "col": 8,
+        "row": 2,
+        "value": "WROVER v3 - antenna UP USB DOWN"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"ref\": \"J1\",\n  \"at\": {\n    \"col\": 8,\n    \"row\": 2\n  },\n  \"rotation\": 0,\n  \"label\": \"S02\"\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "define_kind",
+      "arguments": {
+        "label": "Eyes header - keep existing 100R",
+        "pins": [
+          {
+            "name": "LEFT",
+            "col": 0,
+            "row": 0
+          },
+          {
+            "name": "RIGHT",
+            "col": 0,
+            "row": 1
+          },
+          {
+            "name": "GND",
+            "col": 0,
+            "row": 2
+          }
+        ],
+        "height": 8,
+        "tags": [
+          "connector"
+        ],
+        "outward": "left"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Eyes header - keep existing 100R is kind eyes-header-keep-existing-100r: 3 pins; add_part with it"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "add_part",
+      "arguments": {
+        "kindId": "eyes-header-keep-existing-100r",
+        "col": 1,
+        "row": 8,
+        "value": "EYES - harness resistor retained"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"ref\": \"J2\",\n  \"at\": {\n    \"col\": 1,\n    \"row\": 8\n  },\n  \"rotation\": 0,\n  \"label\": \"Z08\"\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "define_kind",
+      "arguments": {
+        "label": "Servo header - signal 5V ground",
+        "pins": [
+          {
+            "name": "SIG",
+            "col": 0,
+            "row": 0
+          },
+          {
+            "name": "5V",
+            "col": 0,
+            "row": 1
+          },
+          {
+            "name": "GND",
+            "col": 0,
+            "row": 2
+          }
+        ],
+        "height": 8,
+        "tags": [
+          "connector"
+        ],
+        "outward": "right"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Servo header - signal 5V ground is kind servo-header-signal-5v-ground: 3 pins; add_part with it"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "add_part",
+      "arguments": {
+        "kindId": "servo-header-signal-5v-ground",
+        "col": 26,
+        "row": 12,
+        "value": "SERVO: SIG / +5 / GND"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"ref\": \"J3\",\n  \"at\": {\n    \"col\": 26,\n    \"row\": 12\n  },\n  \"rotation\": 0,\n  \"label\": \"A12\"\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "define_kind",
+      "arguments": {
+        "label": "USB socket flying lead pads",
+        "pins": [
+          {
+            "name": "5V",
+            "col": 0,
+            "row": 0
+          },
+          {
+            "name": "GND",
+            "col": 0,
+            "row": 1
+          }
+        ],
+        "height": 3,
+        "tags": []
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "USB socket flying lead pads is kind usb-socket-flying-lead-pads: 2 pins; add_part with it"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "add_part",
+      "arguments": {
+        "kindId": "usb-socket-flying-lead-pads",
+        "col": 20,
+        "row": 23,
+        "value": "USB-C POWER IN - upright cradle"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"ref\": \"J4\",\n  \"at\": {\n    \"col\": 20,\n    \"row\": 23\n  },\n  \"rotation\": 0,\n  \"label\": \"G23\"\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "define_kind",
+      "arguments": {
+        "label": "Schottky diode 10.16mm pitch",
+        "pins": [
+          {
+            "name": "A",
+            "col": 0,
+            "row": 4
+          },
+          {
+            "name": "K",
+            "col": 0,
+            "row": 0
+          }
+        ],
+        "height": 3,
+        "tags": []
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Schottky diode 10.16mm pitch is kind schottky-diode-10-16mm-pitch: 2 pins; add_part with it"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "add_part",
+      "arguments": {
+        "kindId": "schottky-diode-10-16mm-pitch",
+        "col": 5,
+        "row": 21,
+        "value": "1N5819 - band UP to J1"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"ref\": \"D1\",\n  \"at\": {\n    \"col\": 5,\n    \"row\": 21\n  },\n  \"rotation\": 0,\n  \"label\": \"V21\"\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "define_kind",
+      "arguments": {
+        "label": "Capacitor servo bulk 5.08mm pitch",
+        "pins": [
+          {
+            "name": "PLUS",
+            "col": 0,
+            "row": 0
+          },
+          {
+            "name": "MINUS",
+            "col": 2,
+            "row": 0
+          }
+        ],
+        "height": 16,
+        "tags": []
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Capacitor servo bulk 5.08mm pitch is kind capacitor-servo-bulk-5-08mm-pitch: 2 pins; add_part with it"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "add_part",
+      "arguments": {
+        "kindId": "capacitor-servo-bulk-5-08mm-pitch",
+        "col": 23,
+        "row": 19,
+        "value": "470uF >=10V - polarity CHECK"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"ref\": \"C1\",\n  \"at\": {\n    \"col\": 23,\n    \"row\": 19\n  },\n  \"rotation\": 0,\n  \"label\": \"D19\"\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "define_kind",
+      "arguments": {
+        "label": "Capacitor servo bypass 5.08mm pitch",
+        "pins": [
+          {
+            "name": "P",
+            "col": 0,
+            "row": 0
+          },
+          {
+            "name": "N",
+            "col": 2,
+            "row": 0
+          }
+        ],
+        "height": 6,
+        "tags": []
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Capacitor servo bypass 5.08mm pitch is kind capacitor-servo-bypass-5-08mm-pitch: 2 pins; add_part with it"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "add_part",
+      "arguments": {
+        "kindId": "capacitor-servo-bypass-5-08mm-pitch",
+        "col": 23,
+        "row": 9,
+        "value": "100nF ceramic"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"ref\": \"C2\",\n  \"at\": {\n    \"col\": 23,\n    \"row\": 9\n  },\n  \"rotation\": 0,\n  \"label\": \"D09\"\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "define_kind",
+      "arguments": {
+        "label": "Capacitor controller bulk 5.08mm pitch",
+        "pins": [
+          {
+            "name": "PLUS",
+            "col": 0,
+            "row": 0
+          },
+          {
+            "name": "MINUS",
+            "col": 2,
+            "row": 0
+          }
+        ],
+        "height": 12,
+        "tags": []
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Capacitor controller bulk 5.08mm pitch is kind capacitor-controller-bulk-5-08mm-pitch: 2 pins; add_part with it"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "add_part",
+      "arguments": {
+        "kindId": "capacitor-controller-bulk-5-08mm-pitch",
+        "col": 2,
+        "row": 28,
+        "value": "100uF >=10V - polarity CHECK"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"ref\": \"C3\",\n  \"at\": {\n    \"col\": 2,\n    \"row\": 28\n  },\n  \"rotation\": 0,\n  \"label\": \"Y28\"\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "J4.5V",
+        "b": "@20,20"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1: J4.5V to @20,20"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@20,20",
+        "b": "@24,20"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@24,20 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@24,20",
+        "b": "@24,19"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@24,19 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@24,19",
+        "b": "@24,13"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@24,13 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@24,13",
+        "b": "@24,9"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@24,9 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@24,9",
+        "b": "C2.P"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "C2.P joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@24,13",
+        "b": "J3.5V"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "J3.5V joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@24,19",
+        "b": "C1.PLUS"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "C1.PLUS joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "J4.5V",
+        "b": "@20,26"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@20,26 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@20,26",
+        "b": "@5,26"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@5,26 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@5,26",
+        "b": "D1.A"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "D1.A joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "board",
+      "arguments": {}
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"name\": \"TwoSkulls v1 - USB UP - FIT CHECK REQUIRED (2)\",\n  \"board\": {\n    \"cols\": 26,\n    \"rows\": 32,\n    \"pitchMm\": 2.54\n  },\n  \"parts\": [\n    {\n      \"ref\": \"J1\",\n      \"kind\": \"freenove-v3-socket-spacing-verify\",\n      \"label\": \"Freenove v3 socket - spacing VERIFY\",\n      \"value\": \"WROVER v3 - antenna UP USB DOWN\",\n      \"at\": {\n        \"col\": 8,\n        \"row\": 2\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J1.L01_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 2\n          },\n          \"label\": \"S02\"\n        },\n        {\n          \"pin\": \"J1.L02_RST\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 3\n          },\n          \"label\": \"S03\"\n        },\n        {\n          \"pin\": \"J1.L03_GPIO36\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 4\n          },\n          \"label\": \"S04\"\n        },\n        {\n          \"pin\": \"J1.L04_GPIO39\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 5\n          },\n          \"label\": \"S05\"\n        },\n        {\n          \"pin\": \"J1.L05_GPIO34\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 6\n          },\n          \"label\": \"S06\"\n        },\n        {\n          \"pin\": \"J1.L06_GPIO35\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 7\n          },\n          \"label\": \"S07\"\n        },\n        {\n          \"pin\": \"J1.L07_GPIO32\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 8\n          },\n          \"label\": \"S08\"\n        },\n        {\n          \"pin\": \"J1.L08_GPIO33\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 9\n          },\n          \"label\": \"S09\"\n        },\n        {\n          \"pin\": \"J1.L09_GPIO25\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 10\n          },\n          \"label\": \"S10\"\n        },\n        {\n          \"pin\": \"J1.L10_GPIO26\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 11\n          },\n          \"label\": \"S11\"\n        },\n        {\n          \"pin\": \"J1.L11_GPIO27\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 12\n          },\n          \"label\": \"S12\"\n        },\n        {\n          \"pin\": \"J1.L12_GPIO14\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 13\n          },\n          \"label\": \"S13\"\n        },\n        {\n          \"pin\": \"J1.L13_GPIO12\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 14\n          },\n          \"label\": \"S14\"\n        },\n        {\n          \"pin\": \"J1.L14_GND\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 15\n          },\n          \"label\": \"S15\"\n        },\n        {\n          \"pin\": \"J1.L15_GPIO13\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 16\n          },\n          \"label\": \"S16\"\n        },\n        {\n          \"pin\": \"J1.L16_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 17\n          },\n          \"label\": \"S17\"\n        },\n        {\n          \"pin\": \"J1.L17_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 18\n          },\n          \"label\": \"S18\"\n        },\n        {\n          \"pin\": \"J1.L18_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 19\n          },\n          \"label\": \"S19\"\n        },\n        {\n          \"pin\": \"J1.L19_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 20\n          },\n          \"label\": \"S20\"\n        },\n        {\n          \"pin\": \"J1.L20_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 21\n          },\n          \"label\": \"S21\"\n        },\n        {\n          \"pin\": \"J1.R01_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 2\n          },\n          \"label\": \"I02\"\n        },\n        {\n          \"pin\": \"J1.R02_GPIO23\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 3\n          },\n          \"label\": \"I03\"\n        },\n        {\n          \"pin\": \"J1.R03_GPIO22\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 4\n          },\n          \"label\": \"I04\"\n        },\n        {\n          \"pin\": \"J1.R04_GPIO1\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 5\n          },\n          \"label\": \"I05\"\n        },\n        {\n          \"pin\": \"J1.R05_GPIO3\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 6\n          },\n          \"label\": \"I06\"\n        },\n        {\n          \"pin\": \"J1.R06_GPIO21\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 7\n          },\n          \"label\": \"I07\"\n        },\n        {\n          \"pin\": \"J1.R07_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 8\n          },\n          \"label\": \"I08\"\n        },\n        {\n          \"pin\": \"J1.R08_GPIO19\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 9\n          },\n          \"label\": \"I09\"\n        },\n        {\n          \"pin\": \"J1.R09_GPIO18\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 10\n          },\n          \"label\": \"I10\"\n        },\n        {\n          \"pin\": \"J1.R10_GPIO5\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 11\n          },\n          \"label\": \"I11\"\n        },\n        {\n          \"pin\": \"J1.R11_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 12\n          },\n          \"label\": \"I12\"\n        },\n        {\n          \"pin\": \"J1.R12_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 13\n          },\n          \"label\": \"I13\"\n        },\n        {\n          \"pin\": \"J1.R13_GPIO4\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 14\n          },\n          \"label\": \"I14\"\n        },\n        {\n          \"pin\": \"J1.R14_GPIO0\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 15\n          },\n          \"label\": \"I15\"\n        },\n        {\n          \"pin\": \"J1.R15_GPIO2\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 16\n          },\n          \"label\": \"I16\"\n        },\n        {\n          \"pin\": \"J1.R16_GPIO15\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 17\n          },\n          \"label\": \"I17\"\n        },\n        {\n          \"pin\": \"J1.R17_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 18\n          },\n          \"label\": \"I18\"\n        },\n        {\n          \"pin\": \"J1.R18_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 19\n          },\n          \"label\": \"I19\"\n        },\n        {\n          \"pin\": \"J1.R19_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 20\n          },\n          \"label\": \"I20\"\n        },\n        {\n          \"pin\": \"J1.R20_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 21\n          },\n          \"label\": \"I21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J2\",\n      \"kind\": \"eyes-header-keep-existing-100r\",\n      \"label\": \"Eyes header - keep existing 100R\",\n      \"value\": \"EYES - harness resistor retained\",\n      \"at\": {\n        \"col\": 1,\n        \"row\": 8\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J2.LEFT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 8\n          },\n          \"label\": \"Z08\"\n        },\n        {\n          \"pin\": \"J2.RIGHT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 9\n          },\n          \"label\": \"Z09\"\n        },\n        {\n          \"pin\": \"J2.GND\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 10\n          },\n          \"label\": \"Z10\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J3\",\n      \"kind\": \"servo-header-signal-5v-ground\",\n      \"label\": \"Servo header - signal 5V ground\",\n      \"value\": \"SERVO: SIG / +5 / GND\",\n      \"at\": {\n        \"col\": 26,\n        \"row\": 12\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J3.SIG\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 12\n          },\n          \"label\": \"A12\"\n        },\n        {\n          \"pin\": \"J3.5V\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 13\n          },\n          \"label\": \"A13\"\n        },\n        {\n          \"pin\": \"J3.GND\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 14\n          },\n          \"label\": \"A14\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J4\",\n      \"kind\": \"usb-socket-flying-lead-pads\",\n      \"label\": \"USB socket flying lead pads\",\n      \"value\": \"USB-C POWER IN - upright cradle\",\n      \"at\": {\n        \"col\": 20,\n        \"row\": 23\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J4.5V\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 23\n          },\n          \"label\": \"G23\"\n        },\n        {\n          \"pin\": \"J4.GND\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 24\n          },\n          \"label\": \"G24\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"D1\",\n      \"kind\": \"schottky-diode-10-16mm-pitch\",\n      \"label\": \"Schottky diode 10.16mm pitch\",\n      \"value\": \"1N5819 - band UP to J1\",\n      \"at\": {\n        \"col\": 5,\n        \"row\": 21\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"D1.A\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 25\n          },\n          \"label\": \"V25\"\n        },\n        {\n          \"pin\": \"D1.K\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 21\n          },\n          \"label\": \"V21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C1\",\n      \"kind\": \"capacitor-servo-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bulk 5.08mm pitch\",\n      \"value\": \"470uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 19\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C1.PLUS\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 19\n          },\n          \"label\": \"D19\"\n        },\n        {\n          \"pin\": \"C1.MINUS\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 19\n          },\n          \"label\": \"B19\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C2\",\n      \"kind\": \"capacitor-servo-bypass-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bypass 5.08mm pitch\",\n      \"value\": \"100nF ceramic\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 9\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C2.P\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 9\n          },\n          \"label\": \"D09\"\n        },\n        {\n          \"pin\": \"C2.N\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 9\n          },\n          \"label\": \"B09\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C3\",\n      \"kind\": \"capacitor-controller-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor controller bulk 5.08mm pitch\",\n      \"value\": \"100uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 2,\n        \"row\": 28\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C3.PLUS\",\n          \"hole\": {\n            \"col\": 2,\n            \"row\": 28\n          },\n          \"label\": \"Y28\"\n        },\n        {\n          \"pin\": \"C3.MINUS\",\n          \"hole\": {\n            \"col\": 4,\n            \"row\": 28\n          },\n          \"label\": \"W28\"\n        }\n      ]\n    }\n  ],\n  \"nets\": [\n    {\n      \"name\": \"N1\",\n      \"pins\": [\n        \"J4.5V\",\n        \"@20,20\",\n        \"@24,20\",\n        \"@24,19\",\n        \"@24,13\",\n        \"@24,9\",\n        \"C2.P\",\n        \"J3.5V\",\n        \"C1.PLUS\",\n        \"@20,26\",\n        \"@5,26\",\n        \"D1.A\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,20\"\n        },\n        {\n          \"a\": \"@20,20\",\n          \"b\": \"@24,20\"\n        },\n        {\n          \"a\": \"@24,20\",\n          \"b\": \"@24,19\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"@24,13\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"@24,9\"\n        },\n        {\n          \"a\": \"@24,9\",\n          \"b\": \"C2.P\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"J3.5V\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"C1.PLUS\"\n        },\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,26\"\n        },\n        {\n          \"a\": \"@20,26\",\n          \"b\": \"@5,26\"\n        },\n        {\n          \"a\": \"@5,26\",\n          \"b\": \"D1.A\"\n        }\n      ]\n    }\n  ],\n  \"problems\": {\n    \"hard\": 2,\n    \"soft\": 1\n  }\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "name_net",
+      "arguments": {
+        "net": "N1",
+        "name": "EXT_5V"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1 is now EXT_5V"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "colour_net",
+      "arguments": {
+        "net": "EXT_5V",
+        "colour": "#c0392b"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "EXT_5V is #c0392b"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "D1.K",
+        "b": "J1.L20_5V"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1: D1.K to J1.L20_5V"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "D1.K",
+        "b": "@2,21"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@2,21 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@2,21",
+        "b": "C3.PLUS"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "C3.PLUS joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "board",
+      "arguments": {}
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"name\": \"TwoSkulls v1 - USB UP - FIT CHECK REQUIRED (2)\",\n  \"board\": {\n    \"cols\": 26,\n    \"rows\": 32,\n    \"pitchMm\": 2.54\n  },\n  \"parts\": [\n    {\n      \"ref\": \"J1\",\n      \"kind\": \"freenove-v3-socket-spacing-verify\",\n      \"label\": \"Freenove v3 socket - spacing VERIFY\",\n      \"value\": \"WROVER v3 - antenna UP USB DOWN\",\n      \"at\": {\n        \"col\": 8,\n        \"row\": 2\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J1.L01_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 2\n          },\n          \"label\": \"S02\"\n        },\n        {\n          \"pin\": \"J1.L02_RST\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 3\n          },\n          \"label\": \"S03\"\n        },\n        {\n          \"pin\": \"J1.L03_GPIO36\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 4\n          },\n          \"label\": \"S04\"\n        },\n        {\n          \"pin\": \"J1.L04_GPIO39\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 5\n          },\n          \"label\": \"S05\"\n        },\n        {\n          \"pin\": \"J1.L05_GPIO34\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 6\n          },\n          \"label\": \"S06\"\n        },\n        {\n          \"pin\": \"J1.L06_GPIO35\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 7\n          },\n          \"label\": \"S07\"\n        },\n        {\n          \"pin\": \"J1.L07_GPIO32\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 8\n          },\n          \"label\": \"S08\"\n        },\n        {\n          \"pin\": \"J1.L08_GPIO33\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 9\n          },\n          \"label\": \"S09\"\n        },\n        {\n          \"pin\": \"J1.L09_GPIO25\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 10\n          },\n          \"label\": \"S10\"\n        },\n        {\n          \"pin\": \"J1.L10_GPIO26\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 11\n          },\n          \"label\": \"S11\"\n        },\n        {\n          \"pin\": \"J1.L11_GPIO27\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 12\n          },\n          \"label\": \"S12\"\n        },\n        {\n          \"pin\": \"J1.L12_GPIO14\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 13\n          },\n          \"label\": \"S13\"\n        },\n        {\n          \"pin\": \"J1.L13_GPIO12\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 14\n          },\n          \"label\": \"S14\"\n        },\n        {\n          \"pin\": \"J1.L14_GND\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 15\n          },\n          \"label\": \"S15\"\n        },\n        {\n          \"pin\": \"J1.L15_GPIO13\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 16\n          },\n          \"label\": \"S16\"\n        },\n        {\n          \"pin\": \"J1.L16_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 17\n          },\n          \"label\": \"S17\"\n        },\n        {\n          \"pin\": \"J1.L17_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 18\n          },\n          \"label\": \"S18\"\n        },\n        {\n          \"pin\": \"J1.L18_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 19\n          },\n          \"label\": \"S19\"\n        },\n        {\n          \"pin\": \"J1.L19_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 20\n          },\n          \"label\": \"S20\"\n        },\n        {\n          \"pin\": \"J1.L20_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 21\n          },\n          \"label\": \"S21\"\n        },\n        {\n          \"pin\": \"J1.R01_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 2\n          },\n          \"label\": \"I02\"\n        },\n        {\n          \"pin\": \"J1.R02_GPIO23\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 3\n          },\n          \"label\": \"I03\"\n        },\n        {\n          \"pin\": \"J1.R03_GPIO22\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 4\n          },\n          \"label\": \"I04\"\n        },\n        {\n          \"pin\": \"J1.R04_GPIO1\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 5\n          },\n          \"label\": \"I05\"\n        },\n        {\n          \"pin\": \"J1.R05_GPIO3\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 6\n          },\n          \"label\": \"I06\"\n        },\n        {\n          \"pin\": \"J1.R06_GPIO21\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 7\n          },\n          \"label\": \"I07\"\n        },\n        {\n          \"pin\": \"J1.R07_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 8\n          },\n          \"label\": \"I08\"\n        },\n        {\n          \"pin\": \"J1.R08_GPIO19\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 9\n          },\n          \"label\": \"I09\"\n        },\n        {\n          \"pin\": \"J1.R09_GPIO18\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 10\n          },\n          \"label\": \"I10\"\n        },\n        {\n          \"pin\": \"J1.R10_GPIO5\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 11\n          },\n          \"label\": \"I11\"\n        },\n        {\n          \"pin\": \"J1.R11_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 12\n          },\n          \"label\": \"I12\"\n        },\n        {\n          \"pin\": \"J1.R12_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 13\n          },\n          \"label\": \"I13\"\n        },\n        {\n          \"pin\": \"J1.R13_GPIO4\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 14\n          },\n          \"label\": \"I14\"\n        },\n        {\n          \"pin\": \"J1.R14_GPIO0\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 15\n          },\n          \"label\": \"I15\"\n        },\n        {\n          \"pin\": \"J1.R15_GPIO2\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 16\n          },\n          \"label\": \"I16\"\n        },\n        {\n          \"pin\": \"J1.R16_GPIO15\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 17\n          },\n          \"label\": \"I17\"\n        },\n        {\n          \"pin\": \"J1.R17_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 18\n          },\n          \"label\": \"I18\"\n        },\n        {\n          \"pin\": \"J1.R18_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 19\n          },\n          \"label\": \"I19\"\n        },\n        {\n          \"pin\": \"J1.R19_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 20\n          },\n          \"label\": \"I20\"\n        },\n        {\n          \"pin\": \"J1.R20_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 21\n          },\n          \"label\": \"I21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J2\",\n      \"kind\": \"eyes-header-keep-existing-100r\",\n      \"label\": \"Eyes header - keep existing 100R\",\n      \"value\": \"EYES - harness resistor retained\",\n      \"at\": {\n        \"col\": 1,\n        \"row\": 8\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J2.LEFT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 8\n          },\n          \"label\": \"Z08\"\n        },\n        {\n          \"pin\": \"J2.RIGHT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 9\n          },\n          \"label\": \"Z09\"\n        },\n        {\n          \"pin\": \"J2.GND\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 10\n          },\n          \"label\": \"Z10\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J3\",\n      \"kind\": \"servo-header-signal-5v-ground\",\n      \"label\": \"Servo header - signal 5V ground\",\n      \"value\": \"SERVO: SIG / +5 / GND\",\n      \"at\": {\n        \"col\": 26,\n        \"row\": 12\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J3.SIG\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 12\n          },\n          \"label\": \"A12\"\n        },\n        {\n          \"pin\": \"J3.5V\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 13\n          },\n          \"label\": \"A13\"\n        },\n        {\n          \"pin\": \"J3.GND\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 14\n          },\n          \"label\": \"A14\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J4\",\n      \"kind\": \"usb-socket-flying-lead-pads\",\n      \"label\": \"USB socket flying lead pads\",\n      \"value\": \"USB-C POWER IN - upright cradle\",\n      \"at\": {\n        \"col\": 20,\n        \"row\": 23\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J4.5V\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 23\n          },\n          \"label\": \"G23\"\n        },\n        {\n          \"pin\": \"J4.GND\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 24\n          },\n          \"label\": \"G24\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"D1\",\n      \"kind\": \"schottky-diode-10-16mm-pitch\",\n      \"label\": \"Schottky diode 10.16mm pitch\",\n      \"value\": \"1N5819 - band UP to J1\",\n      \"at\": {\n        \"col\": 5,\n        \"row\": 21\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"D1.A\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 25\n          },\n          \"label\": \"V25\"\n        },\n        {\n          \"pin\": \"D1.K\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 21\n          },\n          \"label\": \"V21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C1\",\n      \"kind\": \"capacitor-servo-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bulk 5.08mm pitch\",\n      \"value\": \"470uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 19\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C1.PLUS\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 19\n          },\n          \"label\": \"D19\"\n        },\n        {\n          \"pin\": \"C1.MINUS\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 19\n          },\n          \"label\": \"B19\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C2\",\n      \"kind\": \"capacitor-servo-bypass-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bypass 5.08mm pitch\",\n      \"value\": \"100nF ceramic\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 9\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C2.P\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 9\n          },\n          \"label\": \"D09\"\n        },\n        {\n          \"pin\": \"C2.N\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 9\n          },\n          \"label\": \"B09\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C3\",\n      \"kind\": \"capacitor-controller-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor controller bulk 5.08mm pitch\",\n      \"value\": \"100uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 2,\n        \"row\": 28\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C3.PLUS\",\n          \"hole\": {\n            \"col\": 2,\n            \"row\": 28\n          },\n          \"label\": \"Y28\"\n        },\n        {\n          \"pin\": \"C3.MINUS\",\n          \"hole\": {\n            \"col\": 4,\n            \"row\": 28\n          },\n          \"label\": \"W28\"\n        }\n      ]\n    }\n  ],\n  \"nets\": [\n    {\n      \"name\": \"EXT_5V\",\n      \"pins\": [\n        \"J4.5V\",\n        \"@20,20\",\n        \"@24,20\",\n        \"@24,19\",\n        \"@24,13\",\n        \"@24,9\",\n        \"C2.P\",\n        \"J3.5V\",\n        \"C1.PLUS\",\n        \"@20,26\",\n        \"@5,26\",\n        \"D1.A\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,20\"\n        },\n        {\n          \"a\": \"@20,20\",\n          \"b\": \"@24,20\"\n        },\n        {\n          \"a\": \"@24,20\",\n          \"b\": \"@24,19\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"@24,13\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"@24,9\"\n        },\n        {\n          \"a\": \"@24,9\",\n          \"b\": \"C2.P\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"J3.5V\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"C1.PLUS\"\n        },\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,26\"\n        },\n        {\n          \"a\": \"@20,26\",\n          \"b\": \"@5,26\"\n        },\n        {\n          \"a\": \"@5,26\",\n          \"b\": \"D1.A\"\n        }\n      ]\n    },\n    {\n      \"name\": \"N1\",\n      \"pins\": [\n        \"D1.K\",\n        \"J1.L20_5V\",\n        \"@2,21\",\n        \"C3.PLUS\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"J1.L20_5V\"\n        },\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"@2,21\"\n        },\n        {\n          \"a\": \"@2,21\",\n          \"b\": \"C3.PLUS\"\n        }\n      ]\n    }\n  ],\n  \"problems\": {\n    \"hard\": 2,\n    \"soft\": 1\n  }\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "name_net",
+      "arguments": {
+        "net": "N1",
+        "name": "MCU_5V"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1 is now MCU_5V"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "colour_net",
+      "arguments": {
+        "net": "MCU_5V",
+        "colour": "#e67e22"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "MCU_5V is #e67e22"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "J4.GND",
+        "b": "@21,24"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1: J4.GND to @21,24"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@21,24",
+        "b": "@21,21"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@21,21 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@21,21",
+        "b": "@25,21"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@25,21 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@25,21",
+        "b": "C1.MINUS"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "C1.MINUS joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "C1.MINUS",
+        "b": "@25,14"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@25,14 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@25,14",
+        "b": "C2.N"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "C2.N joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@25,14",
+        "b": "J3.GND"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "J3.GND joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "J4.GND",
+        "b": "@19,24"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@19,24 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@19,24",
+        "b": "@19,21"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@19,21 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@19,21",
+        "b": "J1.R20_GND"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "J1.R20_GND joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@19,24",
+        "b": "@19,29"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@19,29 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@19,29",
+        "b": "@4,29"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@4,29 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@4,29",
+        "b": "C3.MINUS"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "C3.MINUS joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@4,29",
+        "b": "@4,10"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@4,10 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@4,10",
+        "b": "J2.GND"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "J2.GND joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "board",
+      "arguments": {}
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"name\": \"TwoSkulls v1 - USB UP - FIT CHECK REQUIRED (2)\",\n  \"board\": {\n    \"cols\": 26,\n    \"rows\": 32,\n    \"pitchMm\": 2.54\n  },\n  \"parts\": [\n    {\n      \"ref\": \"J1\",\n      \"kind\": \"freenove-v3-socket-spacing-verify\",\n      \"label\": \"Freenove v3 socket - spacing VERIFY\",\n      \"value\": \"WROVER v3 - antenna UP USB DOWN\",\n      \"at\": {\n        \"col\": 8,\n        \"row\": 2\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J1.L01_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 2\n          },\n          \"label\": \"S02\"\n        },\n        {\n          \"pin\": \"J1.L02_RST\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 3\n          },\n          \"label\": \"S03\"\n        },\n        {\n          \"pin\": \"J1.L03_GPIO36\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 4\n          },\n          \"label\": \"S04\"\n        },\n        {\n          \"pin\": \"J1.L04_GPIO39\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 5\n          },\n          \"label\": \"S05\"\n        },\n        {\n          \"pin\": \"J1.L05_GPIO34\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 6\n          },\n          \"label\": \"S06\"\n        },\n        {\n          \"pin\": \"J1.L06_GPIO35\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 7\n          },\n          \"label\": \"S07\"\n        },\n        {\n          \"pin\": \"J1.L07_GPIO32\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 8\n          },\n          \"label\": \"S08\"\n        },\n        {\n          \"pin\": \"J1.L08_GPIO33\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 9\n          },\n          \"label\": \"S09\"\n        },\n        {\n          \"pin\": \"J1.L09_GPIO25\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 10\n          },\n          \"label\": \"S10\"\n        },\n        {\n          \"pin\": \"J1.L10_GPIO26\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 11\n          },\n          \"label\": \"S11\"\n        },\n        {\n          \"pin\": \"J1.L11_GPIO27\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 12\n          },\n          \"label\": \"S12\"\n        },\n        {\n          \"pin\": \"J1.L12_GPIO14\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 13\n          },\n          \"label\": \"S13\"\n        },\n        {\n          \"pin\": \"J1.L13_GPIO12\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 14\n          },\n          \"label\": \"S14\"\n        },\n        {\n          \"pin\": \"J1.L14_GND\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 15\n          },\n          \"label\": \"S15\"\n        },\n        {\n          \"pin\": \"J1.L15_GPIO13\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 16\n          },\n          \"label\": \"S16\"\n        },\n        {\n          \"pin\": \"J1.L16_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 17\n          },\n          \"label\": \"S17\"\n        },\n        {\n          \"pin\": \"J1.L17_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 18\n          },\n          \"label\": \"S18\"\n        },\n        {\n          \"pin\": \"J1.L18_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 19\n          },\n          \"label\": \"S19\"\n        },\n        {\n          \"pin\": \"J1.L19_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 20\n          },\n          \"label\": \"S20\"\n        },\n        {\n          \"pin\": \"J1.L20_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 21\n          },\n          \"label\": \"S21\"\n        },\n        {\n          \"pin\": \"J1.R01_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 2\n          },\n          \"label\": \"I02\"\n        },\n        {\n          \"pin\": \"J1.R02_GPIO23\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 3\n          },\n          \"label\": \"I03\"\n        },\n        {\n          \"pin\": \"J1.R03_GPIO22\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 4\n          },\n          \"label\": \"I04\"\n        },\n        {\n          \"pin\": \"J1.R04_GPIO1\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 5\n          },\n          \"label\": \"I05\"\n        },\n        {\n          \"pin\": \"J1.R05_GPIO3\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 6\n          },\n          \"label\": \"I06\"\n        },\n        {\n          \"pin\": \"J1.R06_GPIO21\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 7\n          },\n          \"label\": \"I07\"\n        },\n        {\n          \"pin\": \"J1.R07_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 8\n          },\n          \"label\": \"I08\"\n        },\n        {\n          \"pin\": \"J1.R08_GPIO19\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 9\n          },\n          \"label\": \"I09\"\n        },\n        {\n          \"pin\": \"J1.R09_GPIO18\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 10\n          },\n          \"label\": \"I10\"\n        },\n        {\n          \"pin\": \"J1.R10_GPIO5\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 11\n          },\n          \"label\": \"I11\"\n        },\n        {\n          \"pin\": \"J1.R11_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 12\n          },\n          \"label\": \"I12\"\n        },\n        {\n          \"pin\": \"J1.R12_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 13\n          },\n          \"label\": \"I13\"\n        },\n        {\n          \"pin\": \"J1.R13_GPIO4\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 14\n          },\n          \"label\": \"I14\"\n        },\n        {\n          \"pin\": \"J1.R14_GPIO0\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 15\n          },\n          \"label\": \"I15\"\n        },\n        {\n          \"pin\": \"J1.R15_GPIO2\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 16\n          },\n          \"label\": \"I16\"\n        },\n        {\n          \"pin\": \"J1.R16_GPIO15\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 17\n          },\n          \"label\": \"I17\"\n        },\n        {\n          \"pin\": \"J1.R17_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 18\n          },\n          \"label\": \"I18\"\n        },\n        {\n          \"pin\": \"J1.R18_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 19\n          },\n          \"label\": \"I19\"\n        },\n        {\n          \"pin\": \"J1.R19_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 20\n          },\n          \"label\": \"I20\"\n        },\n        {\n          \"pin\": \"J1.R20_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 21\n          },\n          \"label\": \"I21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J2\",\n      \"kind\": \"eyes-header-keep-existing-100r\",\n      \"label\": \"Eyes header - keep existing 100R\",\n      \"value\": \"EYES - harness resistor retained\",\n      \"at\": {\n        \"col\": 1,\n        \"row\": 8\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J2.LEFT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 8\n          },\n          \"label\": \"Z08\"\n        },\n        {\n          \"pin\": \"J2.RIGHT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 9\n          },\n          \"label\": \"Z09\"\n        },\n        {\n          \"pin\": \"J2.GND\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 10\n          },\n          \"label\": \"Z10\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J3\",\n      \"kind\": \"servo-header-signal-5v-ground\",\n      \"label\": \"Servo header - signal 5V ground\",\n      \"value\": \"SERVO: SIG / +5 / GND\",\n      \"at\": {\n        \"col\": 26,\n        \"row\": 12\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J3.SIG\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 12\n          },\n          \"label\": \"A12\"\n        },\n        {\n          \"pin\": \"J3.5V\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 13\n          },\n          \"label\": \"A13\"\n        },\n        {\n          \"pin\": \"J3.GND\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 14\n          },\n          \"label\": \"A14\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J4\",\n      \"kind\": \"usb-socket-flying-lead-pads\",\n      \"label\": \"USB socket flying lead pads\",\n      \"value\": \"USB-C POWER IN - upright cradle\",\n      \"at\": {\n        \"col\": 20,\n        \"row\": 23\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J4.5V\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 23\n          },\n          \"label\": \"G23\"\n        },\n        {\n          \"pin\": \"J4.GND\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 24\n          },\n          \"label\": \"G24\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"D1\",\n      \"kind\": \"schottky-diode-10-16mm-pitch\",\n      \"label\": \"Schottky diode 10.16mm pitch\",\n      \"value\": \"1N5819 - band UP to J1\",\n      \"at\": {\n        \"col\": 5,\n        \"row\": 21\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"D1.A\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 25\n          },\n          \"label\": \"V25\"\n        },\n        {\n          \"pin\": \"D1.K\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 21\n          },\n          \"label\": \"V21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C1\",\n      \"kind\": \"capacitor-servo-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bulk 5.08mm pitch\",\n      \"value\": \"470uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 19\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C1.PLUS\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 19\n          },\n          \"label\": \"D19\"\n        },\n        {\n          \"pin\": \"C1.MINUS\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 19\n          },\n          \"label\": \"B19\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C2\",\n      \"kind\": \"capacitor-servo-bypass-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bypass 5.08mm pitch\",\n      \"value\": \"100nF ceramic\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 9\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C2.P\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 9\n          },\n          \"label\": \"D09\"\n        },\n        {\n          \"pin\": \"C2.N\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 9\n          },\n          \"label\": \"B09\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C3\",\n      \"kind\": \"capacitor-controller-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor controller bulk 5.08mm pitch\",\n      \"value\": \"100uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 2,\n        \"row\": 28\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C3.PLUS\",\n          \"hole\": {\n            \"col\": 2,\n            \"row\": 28\n          },\n          \"label\": \"Y28\"\n        },\n        {\n          \"pin\": \"C3.MINUS\",\n          \"hole\": {\n            \"col\": 4,\n            \"row\": 28\n          },\n          \"label\": \"W28\"\n        }\n      ]\n    }\n  ],\n  \"nets\": [\n    {\n      \"name\": \"EXT_5V\",\n      \"pins\": [\n        \"J4.5V\",\n        \"@20,20\",\n        \"@24,20\",\n        \"@24,19\",\n        \"@24,13\",\n        \"@24,9\",\n        \"C2.P\",\n        \"J3.5V\",\n        \"C1.PLUS\",\n        \"@20,26\",\n        \"@5,26\",\n        \"D1.A\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,20\"\n        },\n        {\n          \"a\": \"@20,20\",\n          \"b\": \"@24,20\"\n        },\n        {\n          \"a\": \"@24,20\",\n          \"b\": \"@24,19\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"@24,13\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"@24,9\"\n        },\n        {\n          \"a\": \"@24,9\",\n          \"b\": \"C2.P\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"J3.5V\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"C1.PLUS\"\n        },\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,26\"\n        },\n        {\n          \"a\": \"@20,26\",\n          \"b\": \"@5,26\"\n        },\n        {\n          \"a\": \"@5,26\",\n          \"b\": \"D1.A\"\n        }\n      ]\n    },\n    {\n      \"name\": \"MCU_5V\",\n      \"pins\": [\n        \"D1.K\",\n        \"J1.L20_5V\",\n        \"@2,21\",\n        \"C3.PLUS\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"J1.L20_5V\"\n        },\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"@2,21\"\n        },\n        {\n          \"a\": \"@2,21\",\n          \"b\": \"C3.PLUS\"\n        }\n      ]\n    },\n    {\n      \"name\": \"N1\",\n      \"pins\": [\n        \"J4.GND\",\n        \"@21,24\",\n        \"@21,21\",\n        \"@25,21\",\n        \"C1.MINUS\",\n        \"@25,14\",\n        \"C2.N\",\n        \"J3.GND\",\n        \"@19,24\",\n        \"@19,21\",\n        \"J1.R20_GND\",\n        \"@19,29\",\n        \"@4,29\",\n        \"C3.MINUS\",\n        \"@4,10\",\n        \"J2.GND\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J4.GND\",\n          \"b\": \"@21,24\"\n        },\n        {\n          \"a\": \"@21,24\",\n          \"b\": \"@21,21\"\n        },\n        {\n          \"a\": \"@21,21\",\n          \"b\": \"@25,21\"\n        },\n        {\n          \"a\": \"@25,21\",\n          \"b\": \"C1.MINUS\"\n        },\n        {\n          \"a\": \"C1.MINUS\",\n          \"b\": \"@25,14\"\n        },\n        {\n          \"a\": \"@25,14\",\n          \"b\": \"C2.N\"\n        },\n        {\n          \"a\": \"@25,14\",\n          \"b\": \"J3.GND\"\n        },\n        {\n          \"a\": \"J4.GND\",\n          \"b\": \"@19,24\"\n        },\n        {\n          \"a\": \"@19,24\",\n          \"b\": \"@19,21\"\n        },\n        {\n          \"a\": \"@19,21\",\n          \"b\": \"J1.R20_GND\"\n        },\n        {\n          \"a\": \"@19,24\",\n          \"b\": \"@19,29\"\n        },\n        {\n          \"a\": \"@19,29\",\n          \"b\": \"@4,29\"\n        },\n        {\n          \"a\": \"@4,29\",\n          \"b\": \"C3.MINUS\"\n        },\n        {\n          \"a\": \"@4,29\",\n          \"b\": \"@4,10\"\n        },\n        {\n          \"a\": \"@4,10\",\n          \"b\": \"J2.GND\"\n        }\n      ]\n    }\n  ],\n  \"problems\": {\n    \"hard\": 2,\n    \"soft\": 1\n  }\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "name_net",
+      "arguments": {
+        "net": "N1",
+        "name": "GND"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1 is now GND"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "colour_net",
+      "arguments": {
+        "net": "GND",
+        "colour": "#2980b9"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "GND is #2980b9"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "J1.R02_GPIO23",
+        "b": "@20,3"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1: J1.R02_GPIO23 to @20,3"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@20,3",
+        "b": "@20,12"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "@20,12 joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "@20,12",
+        "b": "J3.SIG"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "J3.SIG joined N1"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "board",
+      "arguments": {}
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"name\": \"TwoSkulls v1 - USB UP - FIT CHECK REQUIRED (2)\",\n  \"board\": {\n    \"cols\": 26,\n    \"rows\": 32,\n    \"pitchMm\": 2.54\n  },\n  \"parts\": [\n    {\n      \"ref\": \"J1\",\n      \"kind\": \"freenove-v3-socket-spacing-verify\",\n      \"label\": \"Freenove v3 socket - spacing VERIFY\",\n      \"value\": \"WROVER v3 - antenna UP USB DOWN\",\n      \"at\": {\n        \"col\": 8,\n        \"row\": 2\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J1.L01_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 2\n          },\n          \"label\": \"S02\"\n        },\n        {\n          \"pin\": \"J1.L02_RST\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 3\n          },\n          \"label\": \"S03\"\n        },\n        {\n          \"pin\": \"J1.L03_GPIO36\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 4\n          },\n          \"label\": \"S04\"\n        },\n        {\n          \"pin\": \"J1.L04_GPIO39\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 5\n          },\n          \"label\": \"S05\"\n        },\n        {\n          \"pin\": \"J1.L05_GPIO34\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 6\n          },\n          \"label\": \"S06\"\n        },\n        {\n          \"pin\": \"J1.L06_GPIO35\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 7\n          },\n          \"label\": \"S07\"\n        },\n        {\n          \"pin\": \"J1.L07_GPIO32\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 8\n          },\n          \"label\": \"S08\"\n        },\n        {\n          \"pin\": \"J1.L08_GPIO33\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 9\n          },\n          \"label\": \"S09\"\n        },\n        {\n          \"pin\": \"J1.L09_GPIO25\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 10\n          },\n          \"label\": \"S10\"\n        },\n        {\n          \"pin\": \"J1.L10_GPIO26\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 11\n          },\n          \"label\": \"S11\"\n        },\n        {\n          \"pin\": \"J1.L11_GPIO27\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 12\n          },\n          \"label\": \"S12\"\n        },\n        {\n          \"pin\": \"J1.L12_GPIO14\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 13\n          },\n          \"label\": \"S13\"\n        },\n        {\n          \"pin\": \"J1.L13_GPIO12\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 14\n          },\n          \"label\": \"S14\"\n        },\n        {\n          \"pin\": \"J1.L14_GND\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 15\n          },\n          \"label\": \"S15\"\n        },\n        {\n          \"pin\": \"J1.L15_GPIO13\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 16\n          },\n          \"label\": \"S16\"\n        },\n        {\n          \"pin\": \"J1.L16_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 17\n          },\n          \"label\": \"S17\"\n        },\n        {\n          \"pin\": \"J1.L17_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 18\n          },\n          \"label\": \"S18\"\n        },\n        {\n          \"pin\": \"J1.L18_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 19\n          },\n          \"label\": \"S19\"\n        },\n        {\n          \"pin\": \"J1.L19_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 20\n          },\n          \"label\": \"S20\"\n        },\n        {\n          \"pin\": \"J1.L20_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 21\n          },\n          \"label\": \"S21\"\n        },\n        {\n          \"pin\": \"J1.R01_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 2\n          },\n          \"label\": \"I02\"\n        },\n        {\n          \"pin\": \"J1.R02_GPIO23\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 3\n          },\n          \"label\": \"I03\"\n        },\n        {\n          \"pin\": \"J1.R03_GPIO22\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 4\n          },\n          \"label\": \"I04\"\n        },\n        {\n          \"pin\": \"J1.R04_GPIO1\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 5\n          },\n          \"label\": \"I05\"\n        },\n        {\n          \"pin\": \"J1.R05_GPIO3\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 6\n          },\n          \"label\": \"I06\"\n        },\n        {\n          \"pin\": \"J1.R06_GPIO21\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 7\n          },\n          \"label\": \"I07\"\n        },\n        {\n          \"pin\": \"J1.R07_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 8\n          },\n          \"label\": \"I08\"\n        },\n        {\n          \"pin\": \"J1.R08_GPIO19\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 9\n          },\n          \"label\": \"I09\"\n        },\n        {\n          \"pin\": \"J1.R09_GPIO18\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 10\n          },\n          \"label\": \"I10\"\n        },\n        {\n          \"pin\": \"J1.R10_GPIO5\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 11\n          },\n          \"label\": \"I11\"\n        },\n        {\n          \"pin\": \"J1.R11_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 12\n          },\n          \"label\": \"I12\"\n        },\n        {\n          \"pin\": \"J1.R12_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 13\n          },\n          \"label\": \"I13\"\n        },\n        {\n          \"pin\": \"J1.R13_GPIO4\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 14\n          },\n          \"label\": \"I14\"\n        },\n        {\n          \"pin\": \"J1.R14_GPIO0\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 15\n          },\n          \"label\": \"I15\"\n        },\n        {\n          \"pin\": \"J1.R15_GPIO2\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 16\n          },\n          \"label\": \"I16\"\n        },\n        {\n          \"pin\": \"J1.R16_GPIO15\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 17\n          },\n          \"label\": \"I17\"\n        },\n        {\n          \"pin\": \"J1.R17_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 18\n          },\n          \"label\": \"I18\"\n        },\n        {\n          \"pin\": \"J1.R18_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 19\n          },\n          \"label\": \"I19\"\n        },\n        {\n          \"pin\": \"J1.R19_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 20\n          },\n          \"label\": \"I20\"\n        },\n        {\n          \"pin\": \"J1.R20_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 21\n          },\n          \"label\": \"I21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J2\",\n      \"kind\": \"eyes-header-keep-existing-100r\",\n      \"label\": \"Eyes header - keep existing 100R\",\n      \"value\": \"EYES - harness resistor retained\",\n      \"at\": {\n        \"col\": 1,\n        \"row\": 8\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J2.LEFT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 8\n          },\n          \"label\": \"Z08\"\n        },\n        {\n          \"pin\": \"J2.RIGHT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 9\n          },\n          \"label\": \"Z09\"\n        },\n        {\n          \"pin\": \"J2.GND\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 10\n          },\n          \"label\": \"Z10\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J3\",\n      \"kind\": \"servo-header-signal-5v-ground\",\n      \"label\": \"Servo header - signal 5V ground\",\n      \"value\": \"SERVO: SIG / +5 / GND\",\n      \"at\": {\n        \"col\": 26,\n        \"row\": 12\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J3.SIG\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 12\n          },\n          \"label\": \"A12\"\n        },\n        {\n          \"pin\": \"J3.5V\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 13\n          },\n          \"label\": \"A13\"\n        },\n        {\n          \"pin\": \"J3.GND\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 14\n          },\n          \"label\": \"A14\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J4\",\n      \"kind\": \"usb-socket-flying-lead-pads\",\n      \"label\": \"USB socket flying lead pads\",\n      \"value\": \"USB-C POWER IN - upright cradle\",\n      \"at\": {\n        \"col\": 20,\n        \"row\": 23\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J4.5V\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 23\n          },\n          \"label\": \"G23\"\n        },\n        {\n          \"pin\": \"J4.GND\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 24\n          },\n          \"label\": \"G24\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"D1\",\n      \"kind\": \"schottky-diode-10-16mm-pitch\",\n      \"label\": \"Schottky diode 10.16mm pitch\",\n      \"value\": \"1N5819 - band UP to J1\",\n      \"at\": {\n        \"col\": 5,\n        \"row\": 21\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"D1.A\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 25\n          },\n          \"label\": \"V25\"\n        },\n        {\n          \"pin\": \"D1.K\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 21\n          },\n          \"label\": \"V21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C1\",\n      \"kind\": \"capacitor-servo-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bulk 5.08mm pitch\",\n      \"value\": \"470uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 19\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C1.PLUS\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 19\n          },\n          \"label\": \"D19\"\n        },\n        {\n          \"pin\": \"C1.MINUS\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 19\n          },\n          \"label\": \"B19\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C2\",\n      \"kind\": \"capacitor-servo-bypass-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bypass 5.08mm pitch\",\n      \"value\": \"100nF ceramic\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 9\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C2.P\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 9\n          },\n          \"label\": \"D09\"\n        },\n        {\n          \"pin\": \"C2.N\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 9\n          },\n          \"label\": \"B09\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C3\",\n      \"kind\": \"capacitor-controller-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor controller bulk 5.08mm pitch\",\n      \"value\": \"100uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 2,\n        \"row\": 28\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C3.PLUS\",\n          \"hole\": {\n            \"col\": 2,\n            \"row\": 28\n          },\n          \"label\": \"Y28\"\n        },\n        {\n          \"pin\": \"C3.MINUS\",\n          \"hole\": {\n            \"col\": 4,\n            \"row\": 28\n          },\n          \"label\": \"W28\"\n        }\n      ]\n    }\n  ],\n  \"nets\": [\n    {\n      \"name\": \"EXT_5V\",\n      \"pins\": [\n        \"J4.5V\",\n        \"@20,20\",\n        \"@24,20\",\n        \"@24,19\",\n        \"@24,13\",\n        \"@24,9\",\n        \"C2.P\",\n        \"J3.5V\",\n        \"C1.PLUS\",\n        \"@20,26\",\n        \"@5,26\",\n        \"D1.A\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,20\"\n        },\n        {\n          \"a\": \"@20,20\",\n          \"b\": \"@24,20\"\n        },\n        {\n          \"a\": \"@24,20\",\n          \"b\": \"@24,19\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"@24,13\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"@24,9\"\n        },\n        {\n          \"a\": \"@24,9\",\n          \"b\": \"C2.P\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"J3.5V\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"C1.PLUS\"\n        },\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,26\"\n        },\n        {\n          \"a\": \"@20,26\",\n          \"b\": \"@5,26\"\n        },\n        {\n          \"a\": \"@5,26\",\n          \"b\": \"D1.A\"\n        }\n      ]\n    },\n    {\n      \"name\": \"MCU_5V\",\n      \"pins\": [\n        \"D1.K\",\n        \"J1.L20_5V\",\n        \"@2,21\",\n        \"C3.PLUS\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"J1.L20_5V\"\n        },\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"@2,21\"\n        },\n        {\n          \"a\": \"@2,21\",\n          \"b\": \"C3.PLUS\"\n        }\n      ]\n    },\n    {\n      \"name\": \"GND\",\n      \"pins\": [\n        \"J4.GND\",\n        \"@21,24\",\n        \"@21,21\",\n        \"@25,21\",\n        \"C1.MINUS\",\n        \"@25,14\",\n        \"C2.N\",\n        \"J3.GND\",\n        \"@19,24\",\n        \"@19,21\",\n        \"J1.R20_GND\",\n        \"@19,29\",\n        \"@4,29\",\n        \"C3.MINUS\",\n        \"@4,10\",\n        \"J2.GND\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J4.GND\",\n          \"b\": \"@21,24\"\n        },\n        {\n          \"a\": \"@21,24\",\n          \"b\": \"@21,21\"\n        },\n        {\n          \"a\": \"@21,21\",\n          \"b\": \"@25,21\"\n        },\n        {\n          \"a\": \"@25,21\",\n          \"b\": \"C1.MINUS\"\n        },\n        {\n          \"a\": \"C1.MINUS\",\n          \"b\": \"@25,14\"\n        },\n        {\n          \"a\": \"@25,14\",\n          \"b\": \"C2.N\"\n        },\n        {\n          \"a\": \"@25,14\",\n          \"b\": \"J3.GND\"\n        },\n        {\n          \"a\": \"J4.GND\",\n          \"b\": \"@19,24\"\n        },\n        {\n          \"a\": \"@19,24\",\n          \"b\": \"@19,21\"\n        },\n        {\n          \"a\": \"@19,21\",\n          \"b\": \"J1.R20_GND\"\n        },\n        {\n          \"a\": \"@19,24\",\n          \"b\": \"@19,29\"\n        },\n        {\n          \"a\": \"@19,29\",\n          \"b\": \"@4,29\"\n        },\n        {\n          \"a\": \"@4,29\",\n          \"b\": \"C3.MINUS\"\n        },\n        {\n          \"a\": \"@4,29\",\n          \"b\": \"@4,10\"\n        },\n        {\n          \"a\": \"@4,10\",\n          \"b\": \"J2.GND\"\n        }\n      ]\n    },\n    {\n      \"name\": \"N1\",\n      \"pins\": [\n        \"J1.R02_GPIO23\",\n        \"@20,3\",\n        \"@20,12\",\n        \"J3.SIG\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J1.R02_GPIO23\",\n          \"b\": \"@20,3\"\n        },\n        {\n          \"a\": \"@20,3\",\n          \"b\": \"@20,12\"\n        },\n        {\n          \"a\": \"@20,12\",\n          \"b\": \"J3.SIG\"\n        }\n      ]\n    }\n  ],\n  \"problems\": {\n    \"hard\": 2,\n    \"soft\": 1\n  }\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "name_net",
+      "arguments": {
+        "net": "N1",
+        "name": "SERVO_PWM"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1 is now SERVO_PWM"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "colour_net",
+      "arguments": {
+        "net": "SERVO_PWM",
+        "colour": "#27ae60"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "SERVO_PWM is #27ae60"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "J1.L07_GPIO32",
+        "b": "J2.LEFT"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1: J1.L07_GPIO32 to J2.LEFT"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "board",
+      "arguments": {}
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"name\": \"TwoSkulls v1 - USB UP - FIT CHECK REQUIRED (2)\",\n  \"board\": {\n    \"cols\": 26,\n    \"rows\": 32,\n    \"pitchMm\": 2.54\n  },\n  \"parts\": [\n    {\n      \"ref\": \"J1\",\n      \"kind\": \"freenove-v3-socket-spacing-verify\",\n      \"label\": \"Freenove v3 socket - spacing VERIFY\",\n      \"value\": \"WROVER v3 - antenna UP USB DOWN\",\n      \"at\": {\n        \"col\": 8,\n        \"row\": 2\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J1.L01_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 2\n          },\n          \"label\": \"S02\"\n        },\n        {\n          \"pin\": \"J1.L02_RST\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 3\n          },\n          \"label\": \"S03\"\n        },\n        {\n          \"pin\": \"J1.L03_GPIO36\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 4\n          },\n          \"label\": \"S04\"\n        },\n        {\n          \"pin\": \"J1.L04_GPIO39\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 5\n          },\n          \"label\": \"S05\"\n        },\n        {\n          \"pin\": \"J1.L05_GPIO34\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 6\n          },\n          \"label\": \"S06\"\n        },\n        {\n          \"pin\": \"J1.L06_GPIO35\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 7\n          },\n          \"label\": \"S07\"\n        },\n        {\n          \"pin\": \"J1.L07_GPIO32\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 8\n          },\n          \"label\": \"S08\"\n        },\n        {\n          \"pin\": \"J1.L08_GPIO33\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 9\n          },\n          \"label\": \"S09\"\n        },\n        {\n          \"pin\": \"J1.L09_GPIO25\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 10\n          },\n          \"label\": \"S10\"\n        },\n        {\n          \"pin\": \"J1.L10_GPIO26\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 11\n          },\n          \"label\": \"S11\"\n        },\n        {\n          \"pin\": \"J1.L11_GPIO27\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 12\n          },\n          \"label\": \"S12\"\n        },\n        {\n          \"pin\": \"J1.L12_GPIO14\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 13\n          },\n          \"label\": \"S13\"\n        },\n        {\n          \"pin\": \"J1.L13_GPIO12\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 14\n          },\n          \"label\": \"S14\"\n        },\n        {\n          \"pin\": \"J1.L14_GND\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 15\n          },\n          \"label\": \"S15\"\n        },\n        {\n          \"pin\": \"J1.L15_GPIO13\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 16\n          },\n          \"label\": \"S16\"\n        },\n        {\n          \"pin\": \"J1.L16_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 17\n          },\n          \"label\": \"S17\"\n        },\n        {\n          \"pin\": \"J1.L17_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 18\n          },\n          \"label\": \"S18\"\n        },\n        {\n          \"pin\": \"J1.L18_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 19\n          },\n          \"label\": \"S19\"\n        },\n        {\n          \"pin\": \"J1.L19_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 20\n          },\n          \"label\": \"S20\"\n        },\n        {\n          \"pin\": \"J1.L20_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 21\n          },\n          \"label\": \"S21\"\n        },\n        {\n          \"pin\": \"J1.R01_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 2\n          },\n          \"label\": \"I02\"\n        },\n        {\n          \"pin\": \"J1.R02_GPIO23\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 3\n          },\n          \"label\": \"I03\"\n        },\n        {\n          \"pin\": \"J1.R03_GPIO22\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 4\n          },\n          \"label\": \"I04\"\n        },\n        {\n          \"pin\": \"J1.R04_GPIO1\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 5\n          },\n          \"label\": \"I05\"\n        },\n        {\n          \"pin\": \"J1.R05_GPIO3\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 6\n          },\n          \"label\": \"I06\"\n        },\n        {\n          \"pin\": \"J1.R06_GPIO21\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 7\n          },\n          \"label\": \"I07\"\n        },\n        {\n          \"pin\": \"J1.R07_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 8\n          },\n          \"label\": \"I08\"\n        },\n        {\n          \"pin\": \"J1.R08_GPIO19\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 9\n          },\n          \"label\": \"I09\"\n        },\n        {\n          \"pin\": \"J1.R09_GPIO18\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 10\n          },\n          \"label\": \"I10\"\n        },\n        {\n          \"pin\": \"J1.R10_GPIO5\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 11\n          },\n          \"label\": \"I11\"\n        },\n        {\n          \"pin\": \"J1.R11_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 12\n          },\n          \"label\": \"I12\"\n        },\n        {\n          \"pin\": \"J1.R12_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 13\n          },\n          \"label\": \"I13\"\n        },\n        {\n          \"pin\": \"J1.R13_GPIO4\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 14\n          },\n          \"label\": \"I14\"\n        },\n        {\n          \"pin\": \"J1.R14_GPIO0\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 15\n          },\n          \"label\": \"I15\"\n        },\n        {\n          \"pin\": \"J1.R15_GPIO2\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 16\n          },\n          \"label\": \"I16\"\n        },\n        {\n          \"pin\": \"J1.R16_GPIO15\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 17\n          },\n          \"label\": \"I17\"\n        },\n        {\n          \"pin\": \"J1.R17_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 18\n          },\n          \"label\": \"I18\"\n        },\n        {\n          \"pin\": \"J1.R18_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 19\n          },\n          \"label\": \"I19\"\n        },\n        {\n          \"pin\": \"J1.R19_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 20\n          },\n          \"label\": \"I20\"\n        },\n        {\n          \"pin\": \"J1.R20_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 21\n          },\n          \"label\": \"I21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J2\",\n      \"kind\": \"eyes-header-keep-existing-100r\",\n      \"label\": \"Eyes header - keep existing 100R\",\n      \"value\": \"EYES - harness resistor retained\",\n      \"at\": {\n        \"col\": 1,\n        \"row\": 8\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J2.LEFT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 8\n          },\n          \"label\": \"Z08\"\n        },\n        {\n          \"pin\": \"J2.RIGHT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 9\n          },\n          \"label\": \"Z09\"\n        },\n        {\n          \"pin\": \"J2.GND\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 10\n          },\n          \"label\": \"Z10\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J3\",\n      \"kind\": \"servo-header-signal-5v-ground\",\n      \"label\": \"Servo header - signal 5V ground\",\n      \"value\": \"SERVO: SIG / +5 / GND\",\n      \"at\": {\n        \"col\": 26,\n        \"row\": 12\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J3.SIG\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 12\n          },\n          \"label\": \"A12\"\n        },\n        {\n          \"pin\": \"J3.5V\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 13\n          },\n          \"label\": \"A13\"\n        },\n        {\n          \"pin\": \"J3.GND\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 14\n          },\n          \"label\": \"A14\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J4\",\n      \"kind\": \"usb-socket-flying-lead-pads\",\n      \"label\": \"USB socket flying lead pads\",\n      \"value\": \"USB-C POWER IN - upright cradle\",\n      \"at\": {\n        \"col\": 20,\n        \"row\": 23\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J4.5V\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 23\n          },\n          \"label\": \"G23\"\n        },\n        {\n          \"pin\": \"J4.GND\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 24\n          },\n          \"label\": \"G24\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"D1\",\n      \"kind\": \"schottky-diode-10-16mm-pitch\",\n      \"label\": \"Schottky diode 10.16mm pitch\",\n      \"value\": \"1N5819 - band UP to J1\",\n      \"at\": {\n        \"col\": 5,\n        \"row\": 21\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"D1.A\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 25\n          },\n          \"label\": \"V25\"\n        },\n        {\n          \"pin\": \"D1.K\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 21\n          },\n          \"label\": \"V21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C1\",\n      \"kind\": \"capacitor-servo-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bulk 5.08mm pitch\",\n      \"value\": \"470uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 19\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C1.PLUS\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 19\n          },\n          \"label\": \"D19\"\n        },\n        {\n          \"pin\": \"C1.MINUS\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 19\n          },\n          \"label\": \"B19\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C2\",\n      \"kind\": \"capacitor-servo-bypass-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bypass 5.08mm pitch\",\n      \"value\": \"100nF ceramic\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 9\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C2.P\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 9\n          },\n          \"label\": \"D09\"\n        },\n        {\n          \"pin\": \"C2.N\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 9\n          },\n          \"label\": \"B09\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C3\",\n      \"kind\": \"capacitor-controller-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor controller bulk 5.08mm pitch\",\n      \"value\": \"100uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 2,\n        \"row\": 28\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C3.PLUS\",\n          \"hole\": {\n            \"col\": 2,\n            \"row\": 28\n          },\n          \"label\": \"Y28\"\n        },\n        {\n          \"pin\": \"C3.MINUS\",\n          \"hole\": {\n            \"col\": 4,\n            \"row\": 28\n          },\n          \"label\": \"W28\"\n        }\n      ]\n    }\n  ],\n  \"nets\": [\n    {\n      \"name\": \"EXT_5V\",\n      \"pins\": [\n        \"J4.5V\",\n        \"@20,20\",\n        \"@24,20\",\n        \"@24,19\",\n        \"@24,13\",\n        \"@24,9\",\n        \"C2.P\",\n        \"J3.5V\",\n        \"C1.PLUS\",\n        \"@20,26\",\n        \"@5,26\",\n        \"D1.A\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,20\"\n        },\n        {\n          \"a\": \"@20,20\",\n          \"b\": \"@24,20\"\n        },\n        {\n          \"a\": \"@24,20\",\n          \"b\": \"@24,19\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"@24,13\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"@24,9\"\n        },\n        {\n          \"a\": \"@24,9\",\n          \"b\": \"C2.P\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"J3.5V\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"C1.PLUS\"\n        },\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,26\"\n        },\n        {\n          \"a\": \"@20,26\",\n          \"b\": \"@5,26\"\n        },\n        {\n          \"a\": \"@5,26\",\n          \"b\": \"D1.A\"\n        }\n      ]\n    },\n    {\n      \"name\": \"MCU_5V\",\n      \"pins\": [\n        \"D1.K\",\n        \"J1.L20_5V\",\n        \"@2,21\",\n        \"C3.PLUS\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"J1.L20_5V\"\n        },\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"@2,21\"\n        },\n        {\n          \"a\": \"@2,21\",\n          \"b\": \"C3.PLUS\"\n        }\n      ]\n    },\n    {\n      \"name\": \"GND\",\n      \"pins\": [\n        \"J4.GND\",\n        \"@21,24\",\n        \"@21,21\",\n        \"@25,21\",\n        \"C1.MINUS\",\n        \"@25,14\",\n        \"C2.N\",\n        \"J3.GND\",\n        \"@19,24\",\n        \"@19,21\",\n        \"J1.R20_GND\",\n        \"@19,29\",\n        \"@4,29\",\n        \"C3.MINUS\",\n        \"@4,10\",\n        \"J2.GND\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J4.GND\",\n          \"b\": \"@21,24\"\n        },\n        {\n          \"a\": \"@21,24\",\n          \"b\": \"@21,21\"\n        },\n        {\n          \"a\": \"@21,21\",\n          \"b\": \"@25,21\"\n        },\n        {\n          \"a\": \"@25,21\",\n          \"b\": \"C1.MINUS\"\n        },\n        {\n          \"a\": \"C1.MINUS\",\n          \"b\": \"@25,14\"\n        },\n        {\n          \"a\": \"@25,14\",\n          \"b\": \"C2.N\"\n        },\n        {\n          \"a\": \"@25,14\",\n          \"b\": \"J3.GND\"\n        },\n        {\n          \"a\": \"J4.GND\",\n          \"b\": \"@19,24\"\n        },\n        {\n          \"a\": \"@19,24\",\n          \"b\": \"@19,21\"\n        },\n        {\n          \"a\": \"@19,21\",\n          \"b\": \"J1.R20_GND\"\n        },\n        {\n          \"a\": \"@19,24\",\n          \"b\": \"@19,29\"\n        },\n        {\n          \"a\": \"@19,29\",\n          \"b\": \"@4,29\"\n        },\n        {\n          \"a\": \"@4,29\",\n          \"b\": \"C3.MINUS\"\n        },\n        {\n          \"a\": \"@4,29\",\n          \"b\": \"@4,10\"\n        },\n        {\n          \"a\": \"@4,10\",\n          \"b\": \"J2.GND\"\n        }\n      ]\n    },\n    {\n      \"name\": \"SERVO_PWM\",\n      \"pins\": [\n        \"J1.R02_GPIO23\",\n        \"@20,3\",\n        \"@20,12\",\n        \"J3.SIG\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J1.R02_GPIO23\",\n          \"b\": \"@20,3\"\n        },\n        {\n          \"a\": \"@20,3\",\n          \"b\": \"@20,12\"\n        },\n        {\n          \"a\": \"@20,12\",\n          \"b\": \"J3.SIG\"\n        }\n      ]\n    },\n    {\n      \"name\": \"N1\",\n      \"pins\": [\n        \"J1.L07_GPIO32\",\n        \"J2.LEFT\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J1.L07_GPIO32\",\n          \"b\": \"J2.LEFT\"\n        }\n      ]\n    }\n  ],\n  \"problems\": {\n    \"hard\": 2,\n    \"soft\": 1\n  }\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "name_net",
+      "arguments": {
+        "net": "N1",
+        "name": "EYE_LEFT"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1 is now EYE_LEFT"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "colour_net",
+      "arguments": {
+        "net": "EYE_LEFT",
+        "colour": "#8e44ad"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "EYE_LEFT is #8e44ad"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "connect",
+      "arguments": {
+        "a": "J1.L08_GPIO33",
+        "b": "J2.RIGHT"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1: J1.L08_GPIO33 to J2.RIGHT"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "board",
+      "arguments": {}
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"name\": \"TwoSkulls v1 - USB UP - FIT CHECK REQUIRED (2)\",\n  \"board\": {\n    \"cols\": 26,\n    \"rows\": 32,\n    \"pitchMm\": 2.54\n  },\n  \"parts\": [\n    {\n      \"ref\": \"J1\",\n      \"kind\": \"freenove-v3-socket-spacing-verify\",\n      \"label\": \"Freenove v3 socket - spacing VERIFY\",\n      \"value\": \"WROVER v3 - antenna UP USB DOWN\",\n      \"at\": {\n        \"col\": 8,\n        \"row\": 2\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J1.L01_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 2\n          },\n          \"label\": \"S02\"\n        },\n        {\n          \"pin\": \"J1.L02_RST\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 3\n          },\n          \"label\": \"S03\"\n        },\n        {\n          \"pin\": \"J1.L03_GPIO36\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 4\n          },\n          \"label\": \"S04\"\n        },\n        {\n          \"pin\": \"J1.L04_GPIO39\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 5\n          },\n          \"label\": \"S05\"\n        },\n        {\n          \"pin\": \"J1.L05_GPIO34\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 6\n          },\n          \"label\": \"S06\"\n        },\n        {\n          \"pin\": \"J1.L06_GPIO35\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 7\n          },\n          \"label\": \"S07\"\n        },\n        {\n          \"pin\": \"J1.L07_GPIO32\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 8\n          },\n          \"label\": \"S08\"\n        },\n        {\n          \"pin\": \"J1.L08_GPIO33\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 9\n          },\n          \"label\": \"S09\"\n        },\n        {\n          \"pin\": \"J1.L09_GPIO25\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 10\n          },\n          \"label\": \"S10\"\n        },\n        {\n          \"pin\": \"J1.L10_GPIO26\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 11\n          },\n          \"label\": \"S11\"\n        },\n        {\n          \"pin\": \"J1.L11_GPIO27\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 12\n          },\n          \"label\": \"S12\"\n        },\n        {\n          \"pin\": \"J1.L12_GPIO14\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 13\n          },\n          \"label\": \"S13\"\n        },\n        {\n          \"pin\": \"J1.L13_GPIO12\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 14\n          },\n          \"label\": \"S14\"\n        },\n        {\n          \"pin\": \"J1.L14_GND\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 15\n          },\n          \"label\": \"S15\"\n        },\n        {\n          \"pin\": \"J1.L15_GPIO13\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 16\n          },\n          \"label\": \"S16\"\n        },\n        {\n          \"pin\": \"J1.L16_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 17\n          },\n          \"label\": \"S17\"\n        },\n        {\n          \"pin\": \"J1.L17_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 18\n          },\n          \"label\": \"S18\"\n        },\n        {\n          \"pin\": \"J1.L18_3V3\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 19\n          },\n          \"label\": \"S19\"\n        },\n        {\n          \"pin\": \"J1.L19_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 20\n          },\n          \"label\": \"S20\"\n        },\n        {\n          \"pin\": \"J1.L20_5V\",\n          \"hole\": {\n            \"col\": 8,\n            \"row\": 21\n          },\n          \"label\": \"S21\"\n        },\n        {\n          \"pin\": \"J1.R01_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 2\n          },\n          \"label\": \"I02\"\n        },\n        {\n          \"pin\": \"J1.R02_GPIO23\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 3\n          },\n          \"label\": \"I03\"\n        },\n        {\n          \"pin\": \"J1.R03_GPIO22\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 4\n          },\n          \"label\": \"I04\"\n        },\n        {\n          \"pin\": \"J1.R04_GPIO1\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 5\n          },\n          \"label\": \"I05\"\n        },\n        {\n          \"pin\": \"J1.R05_GPIO3\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 6\n          },\n          \"label\": \"I06\"\n        },\n        {\n          \"pin\": \"J1.R06_GPIO21\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 7\n          },\n          \"label\": \"I07\"\n        },\n        {\n          \"pin\": \"J1.R07_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 8\n          },\n          \"label\": \"I08\"\n        },\n        {\n          \"pin\": \"J1.R08_GPIO19\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 9\n          },\n          \"label\": \"I09\"\n        },\n        {\n          \"pin\": \"J1.R09_GPIO18\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 10\n          },\n          \"label\": \"I10\"\n        },\n        {\n          \"pin\": \"J1.R10_GPIO5\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 11\n          },\n          \"label\": \"I11\"\n        },\n        {\n          \"pin\": \"J1.R11_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 12\n          },\n          \"label\": \"I12\"\n        },\n        {\n          \"pin\": \"J1.R12_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 13\n          },\n          \"label\": \"I13\"\n        },\n        {\n          \"pin\": \"J1.R13_GPIO4\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 14\n          },\n          \"label\": \"I14\"\n        },\n        {\n          \"pin\": \"J1.R14_GPIO0\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 15\n          },\n          \"label\": \"I15\"\n        },\n        {\n          \"pin\": \"J1.R15_GPIO2\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 16\n          },\n          \"label\": \"I16\"\n        },\n        {\n          \"pin\": \"J1.R16_GPIO15\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 17\n          },\n          \"label\": \"I17\"\n        },\n        {\n          \"pin\": \"J1.R17_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 18\n          },\n          \"label\": \"I18\"\n        },\n        {\n          \"pin\": \"J1.R18_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 19\n          },\n          \"label\": \"I19\"\n        },\n        {\n          \"pin\": \"J1.R19_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 20\n          },\n          \"label\": \"I20\"\n        },\n        {\n          \"pin\": \"J1.R20_GND\",\n          \"hole\": {\n            \"col\": 18,\n            \"row\": 21\n          },\n          \"label\": \"I21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J2\",\n      \"kind\": \"eyes-header-keep-existing-100r\",\n      \"label\": \"Eyes header - keep existing 100R\",\n      \"value\": \"EYES - harness resistor retained\",\n      \"at\": {\n        \"col\": 1,\n        \"row\": 8\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J2.LEFT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 8\n          },\n          \"label\": \"Z08\"\n        },\n        {\n          \"pin\": \"J2.RIGHT\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 9\n          },\n          \"label\": \"Z09\"\n        },\n        {\n          \"pin\": \"J2.GND\",\n          \"hole\": {\n            \"col\": 1,\n            \"row\": 10\n          },\n          \"label\": \"Z10\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J3\",\n      \"kind\": \"servo-header-signal-5v-ground\",\n      \"label\": \"Servo header - signal 5V ground\",\n      \"value\": \"SERVO: SIG / +5 / GND\",\n      \"at\": {\n        \"col\": 26,\n        \"row\": 12\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J3.SIG\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 12\n          },\n          \"label\": \"A12\"\n        },\n        {\n          \"pin\": \"J3.5V\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 13\n          },\n          \"label\": \"A13\"\n        },\n        {\n          \"pin\": \"J3.GND\",\n          \"hole\": {\n            \"col\": 26,\n            \"row\": 14\n          },\n          \"label\": \"A14\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"J4\",\n      \"kind\": \"usb-socket-flying-lead-pads\",\n      \"label\": \"USB socket flying lead pads\",\n      \"value\": \"USB-C POWER IN - upright cradle\",\n      \"at\": {\n        \"col\": 20,\n        \"row\": 23\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"J4.5V\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 23\n          },\n          \"label\": \"G23\"\n        },\n        {\n          \"pin\": \"J4.GND\",\n          \"hole\": {\n            \"col\": 20,\n            \"row\": 24\n          },\n          \"label\": \"G24\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"D1\",\n      \"kind\": \"schottky-diode-10-16mm-pitch\",\n      \"label\": \"Schottky diode 10.16mm pitch\",\n      \"value\": \"1N5819 - band UP to J1\",\n      \"at\": {\n        \"col\": 5,\n        \"row\": 21\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"D1.A\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 25\n          },\n          \"label\": \"V25\"\n        },\n        {\n          \"pin\": \"D1.K\",\n          \"hole\": {\n            \"col\": 5,\n            \"row\": 21\n          },\n          \"label\": \"V21\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C1\",\n      \"kind\": \"capacitor-servo-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bulk 5.08mm pitch\",\n      \"value\": \"470uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 19\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C1.PLUS\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 19\n          },\n          \"label\": \"D19\"\n        },\n        {\n          \"pin\": \"C1.MINUS\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 19\n          },\n          \"label\": \"B19\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C2\",\n      \"kind\": \"capacitor-servo-bypass-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bypass 5.08mm pitch\",\n      \"value\": \"100nF ceramic\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 9\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C2.P\",\n          \"hole\": {\n            \"col\": 23,\n            \"row\": 9\n          },\n          \"label\": \"D09\"\n        },\n        {\n          \"pin\": \"C2.N\",\n          \"hole\": {\n            \"col\": 25,\n            \"row\": 9\n          },\n          \"label\": \"B09\"\n        }\n      ]\n    },\n    {\n      \"ref\": \"C3\",\n      \"kind\": \"capacitor-controller-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor controller bulk 5.08mm pitch\",\n      \"value\": \"100uF >=10V - polarity CHECK\",\n      \"at\": {\n        \"col\": 2,\n        \"row\": 28\n      },\n      \"rotation\": 0,\n      \"pins\": [\n        {\n          \"pin\": \"C3.PLUS\",\n          \"hole\": {\n            \"col\": 2,\n            \"row\": 28\n          },\n          \"label\": \"Y28\"\n        },\n        {\n          \"pin\": \"C3.MINUS\",\n          \"hole\": {\n            \"col\": 4,\n            \"row\": 28\n          },\n          \"label\": \"W28\"\n        }\n      ]\n    }\n  ],\n  \"nets\": [\n    {\n      \"name\": \"EXT_5V\",\n      \"pins\": [\n        \"J4.5V\",\n        \"@20,20\",\n        \"@24,20\",\n        \"@24,19\",\n        \"@24,13\",\n        \"@24,9\",\n        \"C2.P\",\n        \"J3.5V\",\n        \"C1.PLUS\",\n        \"@20,26\",\n        \"@5,26\",\n        \"D1.A\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,20\"\n        },\n        {\n          \"a\": \"@20,20\",\n          \"b\": \"@24,20\"\n        },\n        {\n          \"a\": \"@24,20\",\n          \"b\": \"@24,19\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"@24,13\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"@24,9\"\n        },\n        {\n          \"a\": \"@24,9\",\n          \"b\": \"C2.P\"\n        },\n        {\n          \"a\": \"@24,13\",\n          \"b\": \"J3.5V\"\n        },\n        {\n          \"a\": \"@24,19\",\n          \"b\": \"C1.PLUS\"\n        },\n        {\n          \"a\": \"J4.5V\",\n          \"b\": \"@20,26\"\n        },\n        {\n          \"a\": \"@20,26\",\n          \"b\": \"@5,26\"\n        },\n        {\n          \"a\": \"@5,26\",\n          \"b\": \"D1.A\"\n        }\n      ]\n    },\n    {\n      \"name\": \"MCU_5V\",\n      \"pins\": [\n        \"D1.K\",\n        \"J1.L20_5V\",\n        \"@2,21\",\n        \"C3.PLUS\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"J1.L20_5V\"\n        },\n        {\n          \"a\": \"D1.K\",\n          \"b\": \"@2,21\"\n        },\n        {\n          \"a\": \"@2,21\",\n          \"b\": \"C3.PLUS\"\n        }\n      ]\n    },\n    {\n      \"name\": \"GND\",\n      \"pins\": [\n        \"J4.GND\",\n        \"@21,24\",\n        \"@21,21\",\n        \"@25,21\",\n        \"C1.MINUS\",\n        \"@25,14\",\n        \"C2.N\",\n        \"J3.GND\",\n        \"@19,24\",\n        \"@19,21\",\n        \"J1.R20_GND\",\n        \"@19,29\",\n        \"@4,29\",\n        \"C3.MINUS\",\n        \"@4,10\",\n        \"J2.GND\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J4.GND\",\n          \"b\": \"@21,24\"\n        },\n        {\n          \"a\": \"@21,24\",\n          \"b\": \"@21,21\"\n        },\n        {\n          \"a\": \"@21,21\",\n          \"b\": \"@25,21\"\n        },\n        {\n          \"a\": \"@25,21\",\n          \"b\": \"C1.MINUS\"\n        },\n        {\n          \"a\": \"C1.MINUS\",\n          \"b\": \"@25,14\"\n        },\n        {\n          \"a\": \"@25,14\",\n          \"b\": \"C2.N\"\n        },\n        {\n          \"a\": \"@25,14\",\n          \"b\": \"J3.GND\"\n        },\n        {\n          \"a\": \"J4.GND\",\n          \"b\": \"@19,24\"\n        },\n        {\n          \"a\": \"@19,24\",\n          \"b\": \"@19,21\"\n        },\n        {\n          \"a\": \"@19,21\",\n          \"b\": \"J1.R20_GND\"\n        },\n        {\n          \"a\": \"@19,24\",\n          \"b\": \"@19,29\"\n        },\n        {\n          \"a\": \"@19,29\",\n          \"b\": \"@4,29\"\n        },\n        {\n          \"a\": \"@4,29\",\n          \"b\": \"C3.MINUS\"\n        },\n        {\n          \"a\": \"@4,29\",\n          \"b\": \"@4,10\"\n        },\n        {\n          \"a\": \"@4,10\",\n          \"b\": \"J2.GND\"\n        }\n      ]\n    },\n    {\n      \"name\": \"SERVO_PWM\",\n      \"pins\": [\n        \"J1.R02_GPIO23\",\n        \"@20,3\",\n        \"@20,12\",\n        \"J3.SIG\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J1.R02_GPIO23\",\n          \"b\": \"@20,3\"\n        },\n        {\n          \"a\": \"@20,3\",\n          \"b\": \"@20,12\"\n        },\n        {\n          \"a\": \"@20,12\",\n          \"b\": \"J3.SIG\"\n        }\n      ]\n    },\n    {\n      \"name\": \"EYE_LEFT\",\n      \"pins\": [\n        \"J1.L07_GPIO32\",\n        \"J2.LEFT\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J1.L07_GPIO32\",\n          \"b\": \"J2.LEFT\"\n        }\n      ]\n    },\n    {\n      \"name\": \"N1\",\n      \"pins\": [\n        \"J1.L08_GPIO33\",\n        \"J2.RIGHT\"\n      ],\n      \"wires\": [\n        {\n          \"a\": \"J1.L08_GPIO33\",\n          \"b\": \"J2.RIGHT\"\n        }\n      ]\n    }\n  ],\n  \"problems\": {\n    \"hard\": 2,\n    \"soft\": 1\n  }\n}"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "name_net",
+      "arguments": {
+        "net": "N1",
+        "name": "EYE_RIGHT"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "N1 is now EYE_RIGHT"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "colour_net",
+      "arguments": {
+        "net": "EYE_RIGHT",
+        "colour": "#d35400"
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "EYE_RIGHT is #d35400"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "lock_parts",
+      "arguments": {
+        "refs": [
+          "J1",
+          "J2",
+          "J3",
+          "J4",
+          "D1",
+          "C1",
+          "C2",
+          "C3"
+        ],
+        "locked": true
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "J1, J2, J3, J4, D1, C1, C2, C3 locked"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "name": "export_board",
+      "arguments": {
+        "download": false
+      }
+    },
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"id\": \"b299ba82-73bc-4d2a-a38b-790e3fd74f4a\",\n  \"name\": \"TwoSkulls v1 - USB UP - FIT CHECK REQUIRED (2)\",\n  \"board\": {\n    \"cols\": 26,\n    \"rows\": 32,\n    \"pitch\": 2.54,\n    \"margin\": 2.14\n  },\n  \"kinds\": {\n    \"freenove-v3-socket-spacing-verify\": {\n      \"id\": \"freenove-v3-socket-spacing-verify\",\n      \"label\": \"Freenove v3 socket - spacing VERIFY\",\n      \"source\": \"perfboarder\",\n      \"pins\": [\n        {\n          \"name\": \"L01_3V3\",\n          \"col\": 0,\n          \"row\": 0,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"L02_RST\",\n          \"col\": 0,\n          \"row\": 1\n        },\n        {\n          \"name\": \"L03_GPIO36\",\n          \"col\": 0,\n          \"row\": 2\n        },\n        {\n          \"name\": \"L04_GPIO39\",\n          \"col\": 0,\n          \"row\": 3\n        },\n        {\n          \"name\": \"L05_GPIO34\",\n          \"col\": 0,\n          \"row\": 4\n        },\n        {\n          \"name\": \"L06_GPIO35\",\n          \"col\": 0,\n          \"row\": 5\n        },\n        {\n          \"name\": \"L07_GPIO32\",\n          \"col\": 0,\n          \"row\": 6\n        },\n        {\n          \"name\": \"L08_GPIO33\",\n          \"col\": 0,\n          \"row\": 7\n        },\n        {\n          \"name\": \"L09_GPIO25\",\n          \"col\": 0,\n          \"row\": 8\n        },\n        {\n          \"name\": \"L10_GPIO26\",\n          \"col\": 0,\n          \"row\": 9\n        },\n        {\n          \"name\": \"L11_GPIO27\",\n          \"col\": 0,\n          \"row\": 10\n        },\n        {\n          \"name\": \"L12_GPIO14\",\n          \"col\": 0,\n          \"row\": 11\n        },\n        {\n          \"name\": \"L13_GPIO12\",\n          \"col\": 0,\n          \"row\": 12\n        },\n        {\n          \"name\": \"L14_GND\",\n          \"col\": 0,\n          \"row\": 13,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"L15_GPIO13\",\n          \"col\": 0,\n          \"row\": 14\n        },\n        {\n          \"name\": \"L16_3V3\",\n          \"col\": 0,\n          \"row\": 15,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"L17_3V3\",\n          \"col\": 0,\n          \"row\": 16,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"L18_3V3\",\n          \"col\": 0,\n          \"row\": 17,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"L19_5V\",\n          \"col\": 0,\n          \"row\": 18,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"L20_5V\",\n          \"col\": 0,\n          \"row\": 19,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"R01_GND\",\n          \"col\": 10,\n          \"row\": 0,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"R02_GPIO23\",\n          \"col\": 10,\n          \"row\": 1\n        },\n        {\n          \"name\": \"R03_GPIO22\",\n          \"col\": 10,\n          \"row\": 2\n        },\n        {\n          \"name\": \"R04_GPIO1\",\n          \"col\": 10,\n          \"row\": 3\n        },\n        {\n          \"name\": \"R05_GPIO3\",\n          \"col\": 10,\n          \"row\": 4\n        },\n        {\n          \"name\": \"R06_GPIO21\",\n          \"col\": 10,\n          \"row\": 5\n        },\n        {\n          \"name\": \"R07_GND\",\n          \"col\": 10,\n          \"row\": 6,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"R08_GPIO19\",\n          \"col\": 10,\n          \"row\": 7\n        },\n        {\n          \"name\": \"R09_GPIO18\",\n          \"col\": 10,\n          \"row\": 8\n        },\n        {\n          \"name\": \"R10_GPIO5\",\n          \"col\": 10,\n          \"row\": 9\n        },\n        {\n          \"name\": \"R11_GND\",\n          \"col\": 10,\n          \"row\": 10,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"R12_GND\",\n          \"col\": 10,\n          \"row\": 11,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"R13_GPIO4\",\n          \"col\": 10,\n          \"row\": 12\n        },\n        {\n          \"name\": \"R14_GPIO0\",\n          \"col\": 10,\n          \"row\": 13\n        },\n        {\n          \"name\": \"R15_GPIO2\",\n          \"col\": 10,\n          \"row\": 14\n        },\n        {\n          \"name\": \"R16_GPIO15\",\n          \"col\": 10,\n          \"row\": 15\n        },\n        {\n          \"name\": \"R17_GND\",\n          \"col\": 10,\n          \"row\": 16,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"R18_GND\",\n          \"col\": 10,\n          \"row\": 17,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"R19_GND\",\n          \"col\": 10,\n          \"row\": 18,\n          \"role\": \"power\"\n        },\n        {\n          \"name\": \"R20_GND\",\n          \"col\": 10,\n          \"row\": 19,\n          \"role\": \"power\"\n        }\n      ],\n      \"height\": 14\n    },\n    \"eyes-header-keep-existing-100r\": {\n      \"id\": \"eyes-header-keep-existing-100r\",\n      \"label\": \"Eyes header - keep existing 100R\",\n      \"source\": \"perfboarder\",\n      \"pins\": [\n        {\n          \"name\": \"LEFT\",\n          \"col\": 0,\n          \"row\": 0\n        },\n        {\n          \"name\": \"RIGHT\",\n          \"col\": 0,\n          \"row\": 1\n        },\n        {\n          \"name\": \"GND\",\n          \"col\": 0,\n          \"row\": 2\n        }\n      ],\n      \"height\": 8,\n      \"tags\": [\n        \"connector\"\n      ],\n      \"outward\": \"left\"\n    },\n    \"servo-header-signal-5v-ground\": {\n      \"id\": \"servo-header-signal-5v-ground\",\n      \"label\": \"Servo header - signal 5V ground\",\n      \"source\": \"perfboarder\",\n      \"pins\": [\n        {\n          \"name\": \"SIG\",\n          \"col\": 0,\n          \"row\": 0\n        },\n        {\n          \"name\": \"5V\",\n          \"col\": 0,\n          \"row\": 1\n        },\n        {\n          \"name\": \"GND\",\n          \"col\": 0,\n          \"row\": 2\n        }\n      ],\n      \"height\": 8,\n      \"tags\": [\n        \"connector\"\n      ],\n      \"outward\": \"right\"\n    },\n    \"usb-socket-flying-lead-pads\": {\n      \"id\": \"usb-socket-flying-lead-pads\",\n      \"label\": \"USB socket flying lead pads\",\n      \"source\": \"perfboarder\",\n      \"pins\": [\n        {\n          \"name\": \"5V\",\n          \"col\": 0,\n          \"row\": 0\n        },\n        {\n          \"name\": \"GND\",\n          \"col\": 0,\n          \"row\": 1\n        }\n      ],\n      \"height\": 3,\n      \"tags\": []\n    },\n    \"schottky-diode-10-16mm-pitch\": {\n      \"id\": \"schottky-diode-10-16mm-pitch\",\n      \"label\": \"Schottky diode 10.16mm pitch\",\n      \"source\": \"perfboarder\",\n      \"pins\": [\n        {\n          \"name\": \"A\",\n          \"col\": 0,\n          \"row\": 4\n        },\n        {\n          \"name\": \"K\",\n          \"col\": 0,\n          \"row\": 0\n        }\n      ],\n      \"height\": 3,\n      \"tags\": []\n    },\n    \"capacitor-servo-bulk-5-08mm-pitch\": {\n      \"id\": \"capacitor-servo-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bulk 5.08mm pitch\",\n      \"source\": \"perfboarder\",\n      \"pins\": [\n        {\n          \"name\": \"PLUS\",\n          \"col\": 0,\n          \"row\": 0\n        },\n        {\n          \"name\": \"MINUS\",\n          \"col\": 2,\n          \"row\": 0\n        }\n      ],\n      \"height\": 16,\n      \"tags\": []\n    },\n    \"capacitor-servo-bypass-5-08mm-pitch\": {\n      \"id\": \"capacitor-servo-bypass-5-08mm-pitch\",\n      \"label\": \"Capacitor servo bypass 5.08mm pitch\",\n      \"source\": \"perfboarder\",\n      \"pins\": [\n        {\n          \"name\": \"P\",\n          \"col\": 0,\n          \"row\": 0\n        },\n        {\n          \"name\": \"N\",\n          \"col\": 2,\n          \"row\": 0\n        }\n      ],\n      \"height\": 6,\n      \"tags\": []\n    },\n    \"capacitor-controller-bulk-5-08mm-pitch\": {\n      \"id\": \"capacitor-controller-bulk-5-08mm-pitch\",\n      \"label\": \"Capacitor controller bulk 5.08mm pitch\",\n      \"source\": \"perfboarder\",\n      \"pins\": [\n        {\n          \"name\": \"PLUS\",\n          \"col\": 0,\n          \"row\": 0\n        },\n        {\n          \"name\": \"MINUS\",\n          \"col\": 2,\n          \"row\": 0\n        }\n      ],\n      \"height\": 12,\n      \"tags\": []\n    }\n  },\n  \"parts\": [\n    {\n      \"ref\": \"J1\",\n      \"kind\": \"freenove-v3-socket-spacing-verify\",\n      \"at\": {\n        \"col\": 8,\n        \"row\": 2\n      },\n      \"rotation\": 0,\n      \"value\": \"WROVER v3 - antenna UP USB DOWN\",\n      \"locked\": true\n    },\n    {\n      \"ref\": \"J2\",\n      \"kind\": \"eyes-header-keep-existing-100r\",\n      \"at\": {\n        \"col\": 1,\n        \"row\": 8\n      },\n      \"rotation\": 0,\n      \"value\": \"EYES - harness resistor retained\",\n      \"locked\": true\n    },\n    {\n      \"ref\": \"J3\",\n      \"kind\": \"servo-header-signal-5v-ground\",\n      \"at\": {\n        \"col\": 26,\n        \"row\": 12\n      },\n      \"rotation\": 0,\n      \"value\": \"SERVO: SIG / +5 / GND\",\n      \"locked\": true\n    },\n    {\n      \"ref\": \"J4\",\n      \"kind\": \"usb-socket-flying-lead-pads\",\n      \"at\": {\n        \"col\": 20,\n        \"row\": 23\n      },\n      \"rotation\": 0,\n      \"value\": \"USB-C POWER IN - upright cradle\",\n      \"locked\": true\n    },\n    {\n      \"ref\": \"D1\",\n      \"kind\": \"schottky-diode-10-16mm-pitch\",\n      \"at\": {\n        \"col\": 5,\n        \"row\": 21\n      },\n      \"rotation\": 0,\n      \"value\": \"1N5819 - band UP to J1\",\n      \"locked\": true\n    },\n    {\n      \"ref\": \"C1\",\n      \"kind\": \"capacitor-servo-bulk-5-08mm-pitch\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 19\n      },\n      \"rotation\": 0,\n      \"value\": \"470uF >=10V - polarity CHECK\",\n      \"locked\": true\n    },\n    {\n      \"ref\": \"C2\",\n      \"kind\": \"capacitor-servo-bypass-5-08mm-pitch\",\n      \"at\": {\n        \"col\": 23,\n        \"row\": 9\n      },\n      \"rotation\": 0,\n      \"value\": \"100nF ceramic\",\n      \"locked\": true\n    },\n    {\n      \"ref\": \"C3\",\n      \"kind\": \"capacitor-controller-bulk-5-08mm-pitch\",\n      \"at\": {\n        \"col\": 2,\n        \"row\": 28\n      },\n      \"rotation\": 0,\n      \"value\": \"100uF >=10V - polarity CHECK\",\n      \"locked\": true\n    }\n  ],\n  \"nets\": [\n    {\n      \"name\": \"EXT_5V\",\n      \"pins\": [\n        \"J4.5V\",\n        \"@20,20\",\n        \"@24,20\",\n        \"@24,19\",\n        \"@24,13\",\n        \"@24,9\",\n        \"C2.P\",\n        \"J3.5V\",\n        \"C1.PLUS\",\n        \"@20,26\",\n        \"@5,26\",\n        \"D1.A\"\n      ],\n      \"colour\": \"#c0392b\",\n      \"wires\": [\n        [\n          \"J4.5V\",\n          \"@20,20\"\n        ],\n        [\n          \"@20,20\",\n          \"@24,20\"\n        ],\n        [\n          \"@24,20\",\n          \"@24,19\"\n        ],\n        [\n          \"@24,19\",\n          \"@24,13\"\n        ],\n        [\n          \"@24,13\",\n          \"@24,9\"\n        ],\n        [\n          \"@24,9\",\n          \"C2.P\"\n        ],\n        [\n          \"@24,13\",\n          \"J3.5V\"\n        ],\n        [\n          \"@24,19\",\n          \"C1.PLUS\"\n        ],\n        [\n          \"J4.5V\",\n          \"@20,26\"\n        ],\n        [\n          \"@20,26\",\n          \"@5,26\"\n        ],\n        [\n          \"@5,26\",\n          \"D1.A\"\n        ]\n      ]\n    },\n    {\n      \"name\": \"MCU_5V\",\n      \"pins\": [\n        \"D1.K\",\n        \"J1.L20_5V\",\n        \"@2,21\",\n        \"C3.PLUS\"\n      ],\n      \"colour\": \"#e67e22\",\n      \"wires\": [\n        [\n          \"D1.K\",\n          \"J1.L20_5V\"\n        ],\n        [\n          \"D1.K\",\n          \"@2,21\"\n        ],\n        [\n          \"@2,21\",\n          \"C3.PLUS\"\n        ]\n      ]\n    },\n    {\n      \"name\": \"GND\",\n      \"pins\": [\n        \"J4.GND\",\n        \"@21,24\",\n        \"@21,21\",\n        \"@25,21\",\n        \"C1.MINUS\",\n        \"@25,14\",\n        \"C2.N\",\n        \"J3.GND\",\n        \"@19,24\",\n        \"@19,21\",\n        \"J1.R20_GND\",\n        \"@19,29\",\n        \"@4,29\",\n        \"C3.MINUS\",\n        \"@4,10\",\n        \"J2.GND\"\n      ],\n      \"colour\": \"#2980b9\",\n      \"wires\": [\n        [\n          \"J4.GND\",\n          \"@21,24\"\n        ],\n        [\n          \"@21,24\",\n          \"@21,21\"\n        ],\n        [\n          \"@21,21\",\n          \"@25,21\"\n        ],\n        [\n          \"@25,21\",\n          \"C1.MINUS\"\n        ],\n        [\n          \"C1.MINUS\",\n          \"@25,14\"\n        ],\n        [\n          \"@25,14\",\n          \"C2.N\"\n        ],\n        [\n          \"@25,14\",\n          \"J3.GND\"\n        ],\n        [\n          \"J4.GND\",\n          \"@19,24\"\n        ],\n        [\n          \"@19,24\",\n          \"@19,21\"\n        ],\n        [\n          \"@19,21\",\n          \"J1.R20_GND\"\n        ],\n        [\n          \"@19,24\",\n          \"@19,29\"\n        ],\n        [\n          \"@19,29\",\n          \"@4,29\"\n        ],\n        [\n          \"@4,29\",\n          \"C3.MINUS\"\n        ],\n        [\n          \"@4,29\",\n          \"@4,10\"\n        ],\n        [\n          \"@4,10\",\n          \"J2.GND\"\n        ]\n      ]\n    },\n    {\n      \"name\": \"SERVO_PWM\",\n      \"pins\": [\n        \"J1.R02_GPIO23\",\n        \"@20,3\",\n        \"@20,12\",\n        \"J3.SIG\"\n      ],\n      \"colour\": \"#27ae60\",\n      \"wires\": [\n        [\n          \"J1.R02_GPIO23\",\n          \"@20,3\"\n        ],\n        [\n          \"@20,3\",\n          \"@20,12\"\n        ],\n        [\n          \"@20,12\",\n          \"J3.SIG\"\n        ]\n      ]\n    },\n    {\n      \"name\": \"EYE_LEFT\",\n      \"pins\": [\n        \"J1.L07_GPIO32\",\n        \"J2.LEFT\"\n      ],\n      \"colour\": \"#8e44ad\",\n      \"wires\": [\n        [\n          \"J1.L07_GPIO32\",\n          \"J2.LEFT\"\n        ]\n      ]\n    },\n    {\n      \"name\": \"EYE_RIGHT\",\n      \"pins\": [\n        \"J1.L08_GPIO33\",\n        \"J2.RIGHT\"\n      ],\n      \"colour\": \"#d35400\",\n      \"wires\": [\n        [\n          \"J1.L08_GPIO33\",\n          \"J2.RIGHT\"\n        ]\n      ]\n    }\n  ],\n  \"keepouts\": [],\n  \"notes\": [],\n  \"createdAt\": \"2026-10-15T23:57:13.674Z\",\n  \"updatedAt\": \"2026-10-15T23:57:14.232Z\"\n}"
+        }
+      ]
+    }
+  }
+]

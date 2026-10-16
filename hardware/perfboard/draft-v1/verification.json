@@ -1,0 +1,15 @@
+{
+  "parts": 8,
+  "nets": 6,
+  "resolved_part_pins": 56,
+  "wire_segments": 38,
+  "all_endpoints_resolve": true,
+  "all_nets_connected": true,
+  "actual_edges_match_intended_paths": true,
+  "downloaded_zip_matches_export": true,
+  "physical_fit_verified": false,
+  "electrical_load_tested": false,
+  "independent_review": "No electrical blocker; no foreign pin/junction crossings. Physical dimensions remain provisional.",
+  "mechanical_reservations": "Companion SVG and README; not encoded as Perfboarder keepouts",
+  "temporary_bridge": "Disabled in browser and temporary listeners stopped"
+}

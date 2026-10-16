@@ -1,0 +1,31 @@
+{
+  "parts": 8,
+  "nets": 6,
+  "valid_part_pins": 56,
+  "wire_segments": 36,
+  "all_nets_connected": true,
+  "foreign_pin_or_junction_intersections": [],
+  "physical_fit_verified": false,
+  "electrical_load_tested": false,
+  "insulated_flying_links": [
+    [
+      "@17,8",
+      "@19,9"
+    ],
+    [
+      "@17,10",
+      "@19,11"
+    ]
+  ],
+  "editor_round_trip_preserved_geometry_and_circuit": true,
+  "independent_review": "Electrical graphs/polarities pass; nominal mechanical calculations agree; RF/flying-link measurements still required.",
+  "editor_findings": [
+    "Unused supply pins",
+    "J1 overlaps underside rail junction",
+    "C1 under J1",
+    "C2 under J1"
+  ],
+  "mechanical_calculations": "mechanical-check.json",
+  "physical_flying_links": "Insulated and retained below exposed socket tails; actual vertical clearance unmeasured",
+  "RF_limit": "Fixed GPIO23 escape begins inside planning buffer; exact antenna position unmeasured"
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "col": 8,
+    "row": 21,
+    "vertical_colour": "#e67e22",
+    "horizontal_colour": "#2980b9"
+  },
+  {
+    "col": 8,
+    "row": 22,
+    "vertical_colour": "#e67e22",
+    "horizontal_colour": "#c0392b"
+  },
+  {
+    "col": 9,
+    "row": 21,
+    "vertical_colour": "#c0392b",
+    "horizontal_colour": "#2980b9"
+  },
+  {
+    "col": 11,
+    "row": 24,
+    "vertical_colour": "#2980b9",
+    "horizontal_colour": "#c0392b"
+  },
+  {
+    "col": 18,
+    "row": 25,
+    "vertical_colour": "#c0392b",
+    "horizontal_colour": "#2980b9"
+  }
+]
