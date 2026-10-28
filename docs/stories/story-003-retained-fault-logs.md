@@ -71,3 +71,14 @@ Do not mark complete until human verification. Cam subsequently authorized check
 - Cam requested committing and pushing this port to the TwoSkulls repository.
   Scope is Story 003 implementation, tests and documentation only; unrelated
   perfboard changes and earlier research notes remain outside this commit.
+
+### 2026-10-27 — Discoverable debugging workflow
+
+- Cam requested a general troubleshooting process and an obvious explanation of
+  automatic SD error logs. Existing firmware details were present but buried.
+- Added root README workflow, agent pointer and native README backlink. Covers
+  board-vs-computer paths, eight-slot rotation, staging files, no-reset serial
+  capture, pending/retry status, compact fallback limits, evidence preservation,
+  bounded experiments and separate host/device/human verification. Commands and
+  paths checked against the actual console, logger and serial helper sources.
+- Documentation only; no device actions or firmware behavior changes.

@@ -65,6 +65,10 @@ current-limiting resistor and separate 5 V servo supply with common ground.
 
 ## Diagnostics and commissioning
 
+Start with the [debugging workflow](../README.md#debugging-the-native-firmware)
+for collecting serial/SD evidence before rebooting, finding the card’s
+`diagnostics` folder on a computer, and isolating a failure.
+
 115200 baud serial commands:
 
 - `status`: current SD, source, media/peer readiness, callback timings, heaps and fault logger state.

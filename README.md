@@ -40,6 +40,89 @@
 
   Code originaly based off: Death_With_Skull_Synced_to_Audio
 
+## Debugging the native firmware
+
+The native shared Anthony/Jeff firmware includes automatic error retention to
+each skull’s SD card, with a compact internal-flash fallback if SD export fails.
+This requires the logger build from Story 003; that build has not yet been
+flashed/verified on the boards. Older firmware will not have these commands.
+Start here when audio stops, a show aborts, or a skull behaves unexpectedly.
+The Arduino instructions below describe the older runtime.
+
+### Where the error logs are
+
+- **On the board:** `/sdcard/diagnostics/fault-0.log` through `fault-7.log`.
+- **On a computer:** open the card’s **`diagnostics` folder at its root**. For
+  example, a card mounted as `/Volumes/SKULL` has
+  `/Volumes/SKULL/diagnostics/fault-0.log`; `sdcard` is the firmware mount point,
+  not another folder to create on the card.
+- Reports rotate through eight slots. Copy **all eight available files** to a
+  private incident folder before more tests overwrite older reports. Slot numbers
+  wrap; use report IDs, uptime and firmware hashes inside the files for context.
+  `pending.tmp` is staging evidence and may be incomplete; preserve it if present.
+- This is selected recent history around the first error, not continuous full
+  serial output. More errors coalesce while a report is pending. No report may
+  mean no selected fault, old firmware, unavailable logger memory, or failed export.
+
+### Capture evidence before changing anything
+
+1. Record which board/role, firmware build, trigger, audio file/show phase and
+   elapsed time failed, plus what was actually heard or seen. For TwoSkulls,
+   collect both Anthony and Jeff logs for the same incident.
+2. Attach 115200-baud serial **without resetting** and send `status`, then
+   `fault-log`. Keep the entire capture. Avoid rebooting, removing the card,
+   re-pairing, reflashing or running `fault-test` until the real fault is saved.
+   A full pending RAM report is more detailed than the roughly 1 KiB flash fallback.
+3. Read `pending`, `SD_attempts`, `SD_errno`, `NVS`, and `next_SD_ms` in status.
+   Writes wait for idle show/audio/startup/tone and audio-file cleanup;
+   busy or cancellation holds can defer export. Failed exports retry at most once
+   per 60 seconds while idle. `sd=1` alone does not prove writes work. After a
+   successful export/acknowledgement, `pending=0` and `fault-log` may say there is
+   no pending report: retrieve the saved SD files instead.
+4. Once work has stopped and evidence is captured, power the board down before
+   removing its card. Copy the `diagnostics` folder using a computer reader; also
+   preserve the exact implicated WAV/script/config privately. Do not format or
+   replace files as the first debugging step. Leave the original evidence intact.
+
+From the repository root, activate the ESP-IDF environment (with `pyserial`),
+choose the actual board’s serial port and a **new** capture filename, then:
+
+```sh
+python scripts/serial_probe.py --port /dev/cu.usbserial-REPLACE \
+  --output build/validation/incident-001.log --seconds 30 \
+  --send-after 1 --send status --send fault-log
+```
+
+The helper leaves reset disabled unless `--reset` is supplied. Close other
+monitors first so only one process owns the port. Repeat with separate port/file
+names for the second skull. Raw serial captures can contain provisioning data;
+keep them private under ignored `build/validation/`, and redact excerpts before
+checking them in. The filtered SD reports do not replace the full serial capture.
+
+### Isolate the cause and verify one change
+
+Use the error context to separate SD reads, speaker/peer readiness, playback
+scheduling and physical outputs. Reproduce one bounded case and change one
+variable at a time. Zero underruns or an ACK alone does not prove clean audible
+playback; software completion does not prove jaw motion. Use idle
+`asset /audio/<file>.wav` inspection and explicit local `play /audio/<file>.wav`
+to separate one board’s audio from paired coordination. Then verify the same case
+through the normal paired trigger on both boards.
+
+After saving the real incident, idle-only `fault-test` can check the logging path
+with a labelled synthetic error. Follow with `status` and inspect the new report;
+it does not reproduce the underlying failure. Pending compact reports can survive
+reboot, but a crash or power loss before persistence can lose RAM evidence. This
+logger is not a panic/core-dump facility. Keep Matter fabrics, speaker settings
+and original card assets intact during ordinary debugging.
+
+Record the observation, hypothesis, single change, test result and next step in
+the relevant story work log. For a nontrivial obstacle, make a bounded research
+pass on the general problem before adding retries or special cases. Record useful
+sources and distinguish host tests, device telemetry and human-observed behavior.
+See the [native firmware reference](firmware/README.md) for command details,
+build/upload procedures and logging implementation limits.
+
 ## Onboard SD card migration
 
 The firmware now targets the onboard MicroSD slot on the FREENOVE ESP32-WROVER
