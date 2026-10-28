@@ -621,4 +621,6 @@ The [qualification record](../validation/2026-10-15-code-qualification.md) prese
 failed captures and exact image identity. Primary internal-heap window minimum
 29379 bytes remains below the proposed 32 KiB diagnostic floor. Jeff actuators,
 measured acoustic offset, yard soak and uncontrolled-reset SD recovery remain
-open; late speaker return after the bounded retry episode needs explicit retry.
+open. The earlier late-speaker explicit-retry limitation is superseded by
+[Story002](story-002-continuous-speaker-reconnect.md); hardware qualification
+of that update on the two-skull pair remains pending.

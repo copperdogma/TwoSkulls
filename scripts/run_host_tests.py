@@ -25,6 +25,7 @@ def main():
         ("catalog", ["skull_catalog", "skull_wave"], None),
         ("config", ["skull_config"], None),
         ("secondary", [], None),
+        ("radio", [], "radio_stubs"),
         ("actuators", ["skull_actuators"], "actuator_stubs"),
         ("audio", ["skull_audio", "skull_wave"], "audio_stubs"),
         ("show", ["skull_show", "skull_catalog", "skull_wave"], "show_stubs"),

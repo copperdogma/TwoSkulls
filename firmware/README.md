@@ -73,10 +73,11 @@ current-limiting resistor and separate 5 V servo supply with common ground.
 - `trigger`: request a normal paired skit with the same gates as Matter On.
 - `play /audio/<filename>.wav`: explicit local playback diagnostic; uses the configured A/B role mask for scripts and bypasses the peer requirement.
 - `jaw-test`: repeat the gentle servo check while idle.
-- `retry`: up to three remembered-speaker attempts, with finite inquiry fallback, and
-  one peer discovery attempt while diagnostic audio is
-  idle, including restart of a failed media-start attempt. Classic inquiry lasts
-  10.24 seconds plus any name discovery; pairing mode must overlap that window.
+- `retry`: request an idle connection/media check and peer discovery attempt.
+  Both roles also reconnect their speaker automatically forever: three saved-address
+  attempts, a finite inquiry, then a fresh episode with five-second backoff.
+  Media-start retries continue until the stream is ready. Classic inquiry lasts
+  10.24 seconds plus any name discovery; first pairing requires discoverability.
   Start/state/candidate logs distinguish an absent configured speaker from a
   discovery path that never started.
 - `pairing`: print onboarding codes and, if uncommissioned, open a commissioning
@@ -110,11 +111,13 @@ After an exact configured-name speaker connects, its name/address are saved in
 a separate NVS blob. Reboots reconnect by address without needing discoverability.
 Classic remains nonconnectable/nondiscoverable, following the source-role policy.
 Unselected addresses are rejected. Up to three direct attempts use five-second
-backoff; a confirmed live ACL must tear down first (60-second bounded wait).
-An unresolved connection attempt is held after 75 seconds without starting an
-overlapping attempt. One finite
-name inquiry follows exhausted attempts, then explicit retry is required. It
-does not loop indefinitely on a rejecting peer. Abrupt board resets can leave
+backoff; a confirmed live ACL must tear down before another open.
+One finite name inquiry follows three failed saved-address attempts, then a new
+connection episode starts automatically after five seconds. This repeats indefinitely
+on both Anthony and Jeff, including when the speaker powers on late. Pending opens
+and ACL teardown remain event-gated; warnings after 75/60 seconds do not disable
+recovery, which resumes automatically when the stack completes the operation.
+Abrupt board resets can leave
 the speaker's old link alive temporarily, so reconnect can take longer than a
 clean first connection.
 
@@ -297,6 +300,6 @@ Console `reboot` is refused during playback, a pending show, startup speech,
 tones, or SD-file cleanup; retry it when idle. This prevents a deliberate reset
 from interrupting an SD transaction. It does not establish SD recovery after a
 panic/brownout/external reset; the observed card required a full power cycle
-after a forced reboot during playback. Speaker recovery makes a bounded episode
-of cached-address retries plus discovery. If a speaker remains off past that
-episode, explicit idle `retry` is required after it becomes available.
+after a forced reboot during playback. Speaker recovery repeats cached-address
+attempts and discovery indefinitely, so a speaker powered on late is retried
+automatically without a console command.

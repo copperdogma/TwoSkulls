@@ -3,6 +3,7 @@
 | Story | Status | Next gate |
 | --- | --- | --- |
 | [001 — Single-WROVER Anthony prototype](story-001-single-wrover-matter-prototype.md) | Identical image; all 11 paired skits clean, Marco/Polo ordering, Home and bounded recovery demonstrated | Measured acoustic timing, Jeff actuators, primary resource margin and yard/reset limits |
+| [002 — Continuous speaker reconnect](story-002-continuous-speaker-reconnect.md) | In Review | Paired-device delayed-speaker acceptance |
 
 Supporting [research record](../research/2026-10-14-single-wrover-research.md).
 The earlier [Arduino onboard-SD migration](../onboard-sd-migration.md) is a separate
