@@ -21,6 +21,8 @@ def run(args):
 def main():
     run([sys.executable, "-m", "unittest", "discover", "-s", "scripts/tests", "-v"])
     suites = [
+        ("fault_log", ["skull_fault_archive"], None),
+        ("fault_runtime", [], "fault_log_stubs"),
         ("wave", ["skull_wave"], None),
         ("catalog", ["skull_catalog", "skull_wave"], None),
         ("config", ["skull_config"], None),
@@ -42,6 +44,8 @@ def main():
             ]
             if stubs:
                 args += [f"-Iscripts/tests/{stubs}"]
+            if name == "fault_runtime":
+                args += ["-pthread"]
             if name == "audio":
                 args += ["-pthread", f'-DSKULL_AUDIO_SD_ROOT="{temporary / "audio-fixtures"}"']
             if name == "storage":

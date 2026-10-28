@@ -56,8 +56,9 @@ native layout is established, use `idf.py app-flash` for application updates;
 this preserves this board's Matter fabric and Wi-Fi data. Do not erase NVS on
 ordinary updates, and do not copy the previous C3's device/fabric credentials.
 
-SD pins are fixed: CLK14, CMD15, D0=2, 1-bit at 20 MHz. Card/config operations in
-this probe are read-only, and mount failure never formats the card. GPIO1 remains
+SD pins are fixed: CLK14, CMD15, D0=2, 1-bit at 20 MHz. Card/config reads and
+audio assets are unchanged, and mount failure never formats the card. Idle-only
+fault diagnostics now write the bounded reports described below. GPIO1 remains
 UART0 TX; the old trigger input is not installed. Servo signal is GPIO23
 for the native jaw output. Eye outputs use GPIO32/33. Preserve the existing
 current-limiting resistor and separate 5 V servo supply with common ground.
@@ -66,7 +67,9 @@ current-limiting resistor and separate 5 V servo supply with common ground.
 
 115200 baud serial commands:
 
-- `status`: current SD, source, media/peer readiness, callback timings and heaps.
+- `status`: current SD, source, media/peer readiness, callback timings, heaps and fault logger state.
+- `fault-log`: dump the pending RAM/recovered compact fault report over serial.
+- `fault-test`: idle-only controlled error to exercise normal capture and export.
 - `asset /audio/<filename>.wav`: inspect the actual card's parsed A/B intervals while idle.
 - `heap-start` / `heap-stop`: measure a bounded local heap-minimum window, then restore boot history.
 - `tone`: request a quiet test tone; ignored while unavailable/busy.
@@ -303,3 +306,29 @@ panic/brownout/external reset; the observed card required a full power cycle
 after a forced reboot during playback. Speaker recovery repeats cached-address
 attempts and discovery indefinitely, so a speaker powered on late is retried
 automatically without a console command.
+
+## Retained fault diagnostics
+
+Both Anthony and Jeff keep a bounded recent-event RAM ring. Selected application
+and SD-driver errors, show cancellation, startup link-loss interruption and
+Jeff setup timeout warnings freeze one report with
+firmware hash and uptime. Later faults coalesce while it is pending. Filtered
+configuration and provisioning logs are excluded.
+
+After show/startup/tone stop and the audio worker closes its file, the existing
+control task saves a compact fallback in the separate `skulls_fault` NVS namespace
+and exports the report to `/sdcard/diagnostics/fault-0.log` through `fault-7.log`.
+A single `pending.tmp` is written, flushed, synced, closed and readback-checked
+before replacement. Each report is at most 7167 bytes; retention is eight slots
+plus that one staging file. Failed exports keep the pending report and retry at
+most once per 60 seconds while idle. The logger does not remount the card.
+
+`fault-log` retrieves a pending report without needing a working SD card. After
+successful export and acknowledgement, inspect the SD files. An unacknowledged
+compact report can be recovered after reboot; it holds roughly the last 1 KiB,
+not all RAM history. Abrupt power loss before persistence can lose the report.
+This is ordinary error retention, not a panic/core-dump facility. No formatting,
+NVS erasure or flash partition changes are introduced.
+
+See [Story 003](../docs/stories/story-003-retained-fault-logs.md) for validation
+and outstanding device acceptance. The new firmware has not yet been flashed.

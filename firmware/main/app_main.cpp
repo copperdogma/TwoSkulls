@@ -23,6 +23,7 @@
 #include "skull_audio.h"
 #include "skull_catalog.h"
 #include "skull_show.h"
+#include "skull_fault_log.h"
 #include "skull_secondary.h"
 
 using namespace esp_matter;
@@ -109,7 +110,13 @@ void matter_event(const chip::DeviceLayer::ChipDeviceEvent *event, intptr_t) {
         ESP_LOGI(tag, "Matter fabric removed; use explicit commissioning-window command to re-add");
 }
 
+bool fault_log_idle() {
+    return !skull::show::busy() && skull::audio::quiescent() &&
+           !skull::startup::busy() && tone_frames.load() == 0;
+}
+
 void status() {
+    skull::faultlog::status();
     const auto radio = skull::radio::stats();
     const auto audio = skull::audio::stats();
     const auto actuators = skull::actuators::stats();
@@ -200,7 +207,7 @@ void diagnostic_task(void *) {
         skull::radio::Config config{card_config.speaker_name, card_config.secondary_mac, card_config.primary};
         ESP_ERROR_CHECK(skull::radio::start(config));
     }
-    ESP_LOGI(tag, "Skull ready. Commands: status, asset /audio/<file>.wav, heap-start, heap-stop, tone, trigger, pair /audio/<file>.wav, play /audio/<file>.wav, jaw-test, retry, pairing, reboot, factory-reset CONFIRM. Matter On requests a paired skit.");
+    ESP_LOGI(tag, "Skull ready. Commands: status, fault-log, fault-test, asset /audio/<file>.wav, heap-start, heap-stop, tone, trigger, pair /audio/<file>.wav, play /audio/<file>.wav, jaw-test, retry, pairing, reboot, factory-reset CONFIRM. Matter On requests a paired skit.");
     char line[256]{};
     size_t used = 0;
     int64_t next_status = 0;
@@ -214,11 +221,18 @@ void diagnostic_task(void *) {
             (skull::startup::playing() || tone_active || skull::show::busy() || skull::audio::busy());
         skull::actuators::tick(startup_animation.rms ? startup_animation.rms : show_animation.rms,
                               startup_animation.speaking || show_animation.speaking, audio_active);
+        // This control task owns show/prepare; quiescent includes worker FILE close.
+        skull::faultlog::poll(fault_log_idle(), skull::storage::mounted());
         char character;
         if (uart_read_bytes(UART_NUM_0, &character, 1, pdMS_TO_TICKS(20)) == 1) {
             if (character == '\r' || character == '\n') {
                 line[used] = '\0';
                 if (!std::strcmp(line, "status")) status();
+                else if (!std::strcmp(line, "fault-log")) skull::faultlog::dump();
+                else if (!std::strcmp(line, "fault-test")) {
+                    if (fault_log_idle()) skull::faultlog::test_fault();
+                    else ESP_LOGW(tag, "Fault test refused while show/audio/startup/tone active");
+                }
                 else if (!std::strncmp(line, "asset ", 6) && !skull::show::busy()) inspect_asset(line + 6);
                 else if (!std::strcmp(line, "heap-start") && !heap_window) {
                     heap_window = heap_caps_monitor_local_minimum_free_size_start() == ESP_OK;
@@ -268,9 +282,13 @@ extern "C" void app_main() {
     ESP_LOGI(tag, "TwoSkulls shared WROVER firmware (onboard SD, A2DP, BLE, Matter)");
     ESP_ERROR_CHECK(skull::actuators::init());
     ESP_ERROR_CHECK(nvs_flash_init()); // Never erase fabric/NVS automatically.
+    skull::faultlog::init();
     ESP_LOGI(tag, "PSRAM initialized=%d size=%u", esp_psram_is_initialized(), static_cast<unsigned>(esp_psram_get_size()));
     esp_err_t sd = skull::storage::mount_and_read_config(card_config);
     while (sd != ESP_OK) {
+        // Boot has no audio worker yet. Retain faults to flash only here;
+        // existing boot recovery owns card remounts, independent of the logger.
+        skull::faultlog::poll(true, false);
         const unsigned failure_blinks = skull::storage::mounted() ? 5 : 3;
         ESP_LOGW(tag, "Boot storage/config retry: %s; %u eye flashes", esp_err_to_name(sd), failure_blinks);
         skull::actuators::diagnostic(failure_blinks, true);
