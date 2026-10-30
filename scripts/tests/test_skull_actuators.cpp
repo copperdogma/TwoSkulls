@@ -82,9 +82,24 @@ esp_err_t ledc_update_duty(ledc_mode_t mode, ledc_channel_t channel)
     return ESP_OK;
 }
 
-int main()
+int main(int argc, char **argv)
 {
     using namespace skull::actuators;
+    // Optional trace mode consumes 20 ms RMS windows and exercises the actual
+    // production driver. Used by jaw_preflight.py with repository WAV assets.
+    if (argc == 2) {
+        FILE *input = std::fopen(argv[1], "r");
+        assert(input && init() == ESP_OK);
+        tick_after(20000, 0, false, true);
+        unsigned rms;
+        while (std::fscanf(input, "%u", &rms) == 1) {
+            assert(rms <= 65535);
+            tick_after(20000, static_cast<uint16_t>(rms), true, true);
+            std::printf("%u\n", duty[0]);
+        }
+        std::fclose(input);
+        return 0;
+    }
     actuator_test_ledc.channel_group[LEDC_LOW_SPEED_MODE].channel[0].conf1.duty_start = 1;
     diagnostic(2); // Boot may select an indicator before hardware/task startup.
     assert(init() == ESP_OK);
@@ -230,6 +245,32 @@ int main()
     expect_idle_jaw(0); // Due breath begins only after the check finishes.
     tick_after(1000000);
     expect_idle_jaw(15);
+
+    tick_after(20000); // Start speech from closed, independent of idle gesture.
+    for (int syllable = 0; syllable < 3; ++syllable) {
+        tick_after(20000, 2400, true);
+        assert(duty[0] >= jaw_duty(50)); // Opens promptly with softer acceleration.
+        tick_after(20000, 2400, true);
+        assert(duty[0] >= jaw_duty(70));
+        tick_after(20000, 2400, true);
+        assert(duty[0] >= jaw_duty(77));
+        const auto wide = duty[0];
+        tick_after(20000, 0, true); // Quiet within a speaking line must close.
+        assert(duty[0] < wide && duty[0] <= jaw_duty(36));
+        tick_after(20000, 0, true);
+        tick_after(20000, 0, true);
+        tick_after(20000, 0, true);
+        assert(duty[0] <= jaw_duty(3)); // Near closed within 80 ms, no long tail.
+    }
+    tick_after(20000);
+    for (int i = 0; i < 20; ++i) tick_after(20000, 150, true);
+    assert(duty[0] == jaw_duty(0)); // Recording noise cannot hold the jaw open.
+    tick_after(20000, 1800, true);
+    assert(duty[0] >= jaw_duty(38)); // Moderate speech gets useful travel.
+    tick_after(20000); // Non-speaking role closes immediately and clears history.
+    expect_idle_jaw(0);
+    tick_after(20000, 0, true);
+    assert(duty[0] == jaw_duty(0));
 
     for (int i = 0; i < 200; ++i) {
         tick_after(20000, 65535, true);

@@ -78,6 +78,7 @@ for collecting serial/SD evidence before rebooting, finding the card’s
 - `heap-start` / `heap-stop`: measure a bounded local heap-minimum window, then restore boot history.
 - `tone`: request a quiet test tone; ignored while unavailable/busy.
 - `trigger`: request a normal paired skit with the same gates as Matter On.
+- `pair /audio/<filename>.wav`: play a specific skit through the normal paired readiness/cooldown gates; requires Jeff.
 - `play /audio/<filename>.wav`: explicit local playback diagnostic; uses the configured A/B role mask for scripts and bypasses the peer requirement.
 - `jaw-test`: repeat the gentle servo check while idle.
 - `retry`: request an idle connection/media check and peer discovery attempt.
@@ -217,12 +218,44 @@ task is allocated. Eye brightness rises to 255 during startup speech.
 
 The startup loader computes 20 ms RMS windows in PSRAM after applying volume.
 The audio callback only publishes its consumed source-frame cursor; the control
-task reads the matching envelope and applies legacy amplitude/jaw smoothing.
+task reads the matching envelope and applies one fast speech-jaw follower.
+RMS 200 is the closed target and RMS 2400 reaches the existing 80-degree limit;
+rising/falling targets cover 68%/56% of the remaining distance each 20 ms tick.
+This preserves short speech peaks and closes between them without the old
+cascaded smoothing. See [Story 004](../docs/stories/story-004-expressive-speech-jaw.md)
+for Anthony’s accepted tuning trial and the remaining Jeff/paired qualification boundary.
 This tracks PCM delivery, so Bluetooth speaker buffering may make physical jaw
 motion lead the sound. Audible/visual timing still needs owner assessment.
 Tone diagnostics and full skit playback are separate: the quiet test tone does
 not drive jaw animation. Full skit and Marco audio use consumed PCM animation
 metadata; live synchronized Jeff acceptance remains pending.
+
+## Testing a chosen skit over serial
+
+At 115200 baud, send a complete line with the exact card filename, including
+spaces. For example:
+
+```text
+asset /audio/Skit - ju jubes.wav
+play /audio/Skit - ju jubes.wav
+```
+
+`asset` inspects the card's role intervals while idle. `play` requests one local
+playback, bypassing the peer requirement while retaining the configured A/B role
+mask. On Anthony, Jeff's lines are silent gaps. Wait until startup is finished,
+the speaker stream is ready and the current audio has stopped; the console
+reports `Local diagnostic play accepted` or `ignored` and completion/underruns.
+After the one-shot test, the usual show/Marco scheduling resumes automatically.
+The command accepts any catalogued WAV, not just the example above.
+
+For both skulls, send `pair /audio/Skit - ju jubes.wav` instead. This requires
+the configured speaker and Jeff to be ready, plus the normal show/cooldown gates.
+It plays that named skit once using the existing peer protocol.
+
+These commands are always present in the shared native firmware. No temporary
+startup selection or firmware rewrite is needed for another skit. Keep one
+interactive serial session open across commands: depending on the USB driver,
+opening a new connection can toggle reset lines even without `--reset`.
 
 ## Idle breathing
 

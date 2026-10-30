@@ -1,6 +1,7 @@
 #include "skull_actuators.h"
 
 #include <algorithm>
+#include <cmath>
 #include "driver/ledc.h"
 #include "esp_private/periph_ctrl.h"
 #include "hal/ledc_ll.h"
@@ -17,6 +18,14 @@ constexpr ledc_channel_t eye_right_channel = LEDC_CHANNEL_2;
 constexpr uint32_t dim = 100;
 constexpr uint32_t bright = 255;
 constexpr int jaw_max = 80;
+// RMS is already measured over 20 ms of PCM. Use one fast follower so
+// separate syllables survive instead of cascading two slow low-pass filters.
+constexpr double speech_noise_floor = 200.0;
+constexpr double speech_full_open_rms = 2400.0;
+// Cover 20% less distance per tick than the first articulated-motion trial
+// (0.85/0.70), softening rapid changes without restoring the old long tail.
+constexpr double speech_attack = 0.68;
+constexpr double speech_release = 0.56;
 constexpr int64_t check_half_us = 600000;
 constexpr int64_t breathing_interval_us = 7000000;
 constexpr int64_t breathing_movement_us = 2000000;
@@ -29,8 +38,7 @@ int64_t check_started = -1;
 int64_t last_tick = -1;
 int64_t last_breath_started = -1;
 int64_t breath_started = -1;
-double smoothed_amplitude = 0;
-int previous_jaw = 0;
+double speech_jaw = 0;
 uint32_t last_jaw_duty = 0;
 uint32_t last_eye_duty[2] = {dim, dim};
 Stats telemetry = {};
@@ -154,8 +162,7 @@ esp_err_t init()
     error = configure_channel(33, eye_right_channel, LEDC_TIMER_1, dim);
     if (checked(error, "right eye channel init") != ESP_OK) return error;
     last_eye_duty[0] = last_eye_duty[1] = dim;
-    previous_jaw = 0;
-    smoothed_amplitude = 0;
+    speech_jaw = 0;
     last_tick = -1;
     last_breath_started = -1;
     breath_started = -1;
@@ -204,14 +211,14 @@ void tick(uint16_t rms, bool speaking, bool audio_busy)
     if (speaking) {
         check_pending = false;
         breath_started = -1;
-        // Match skull_audio_animator.cpp's legacy amplitude and jaw smoothing.
-        smoothed_amplitude = 0.1 * rms + 0.9 * smoothed_amplitude;
-        double amplitude = std::min(smoothed_amplitude * 5.0, 15000.0);
-        if (amplitude < 1000.0) amplitude = 0;
-        const int target = static_cast<int>(amplitude * jaw_max / 15000.0);
-        jaw = static_cast<int>(0.2 * target + 0.8 * previous_jaw);
+        const double level = std::clamp((rms - speech_noise_floor) /
+                                       (speech_full_open_rms - speech_noise_floor), 0.0, 1.0);
+        const double target = level * jaw_max;
+        const double response = target > speech_jaw ? speech_attack : speech_release;
+        speech_jaw += response * (target - speech_jaw);
+        jaw = static_cast<int>(std::lround(speech_jaw));
     } else {
-        smoothed_amplitude = 0;
+        speech_jaw = 0;
         if (audio_busy) {
             // Audio preroll and quiet diagnostic tones also own the jaw. Never
             // resume an interrupted gesture when audio releases it.
@@ -254,7 +261,6 @@ void tick(uint16_t rms, bool speaking, bool audio_busy)
             }
         }
     }
-    previous_jaw = jaw;
     const uint32_t duty = jaw_duty(jaw);
     if (duty != last_jaw_duty) {
         const auto result = write_duty(jaw_channel, duty);
