@@ -1,6 +1,6 @@
 # Story 004 — More expressive speech jaw
 
-Status: Complete — Cam accepted the final softer Anthony tuning on 2026-10-30. Jeff upload / hardware and paired-show qualification are next, separate gates.
+Status: Complete — Cam accepted the final softer Anthony tuning on 2026-10-30. Jeff is now flashed and boot/config checks pass; Jeff physical and paired-show qualification remain separate gates.
 
 ## Intent and acceptance
 
@@ -262,3 +262,16 @@ physical acceptance remain separate.
   Raw logs, backups, firmware binaries, SDK dependencies and unrelated changes
   remain outside Git. Jeff has not been flashed or physically qualified here;
   the shared accepted binary is ready for that next authorized session.
+
+### Jeff update
+
+Cam attached Jeff and requested the update. Identified secondary role / Flip 6 /
+volume 60%, verified the original app exactly against the saved rollback image,
+then flashed the identical Anthony-accepted binary application-only. Flash hash
+and new boot/config/SD/PSRAM checks pass. See the
+[Jeff update record](../validation/2026-10-30-jeff-jaw-update.md) for identity,
+rollback verification, exact image and playback/physical acceptance boundary.
+
+Jeff then reconnected to the Flip 6 and completed startup PCM delivery. Device
+status has speaker=1 / stream=1 / radio fault=0. Physical jaw and coordinated
+paired acceptance remain separate; no user observation of those is inferred.
