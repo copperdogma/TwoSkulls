@@ -72,8 +72,28 @@ for collecting serial/SD evidence before rebooting, finding the card’s
 115200 baud serial commands:
 
 - `status`: current SD, source, media/peer readiness, callback timings, heaps and fault logger state.
+- `sd-retry`: boot-failure console only; request the next SD mount attempt now.
+  The failure console also supports `status` and `fault-log` before radio/audio
+  workers start. It allows no card writes, playback or resets. Startup performs
+  one quick retry, including one bounded CMD12 read-abort before reinitializing,
+  then waits 30 seconds between failures while diagnostics remain available.
+  DAT3/GPIO13 is pulled up even in 1-bit mode; GPIO12's strap is unchanged.
+  Persistent internal card-not-ready states may still need a true power cycle;
+  no GPIO-controlled card-power switch has been verified on this board.
 - `fault-log`: dump the pending RAM/recovered compact fault report over serial.
 - `fault-test`: idle-only controlled error to exercise normal capture and export.
+- `speaker-name`: read the speaker name on the installed SD card and the name
+  selected for the current boot.
+- `speaker-name JBL GO 2`: save an exact speaker name to `config.txt` over USB;
+  use `speaker-name JBL Flip 6` to switch Jeff back after the demonstration.
+  This is idle-only and requires a deliberate `reboot` to apply. It preserves
+  other config bytes/settings, validates/readback-checks the replacement and
+  retains the first original in `config.speaker.original`. Configs are bounded
+  to 4096 bytes; names must be 1–79 bytes without control characters, `=` or
+  leading/trailing whitespace. Unresolved `config.speaker.tmp` or
+  `config.speaker.previous` stops another write; preserve/recover these files
+  rather than deleting them blindly. The FAT transaction is recoverable, not
+  power-fail atomic. Keep power connected until the command returns.
 - `asset /audio/<filename>.wav`: inspect the actual card's parsed A/B intervals while idle.
 - `heap-start` / `heap-stop`: measure a bounded local heap-minimum window, then restore boot history.
 - `tone`: request a quiet test tone; ignored while unavailable/busy.
@@ -368,4 +388,5 @@ This is ordinary error retention, not a panic/core-dump facility. No formatting,
 NVS erasure or flash partition changes are introduced.
 
 See [Story 003](../docs/stories/story-003-retained-fault-logs.md) for validation
-and outstanding device acceptance. The new firmware has not yet been flashed.
+and its original acceptance boundary. See the [SD startup recovery record](../docs/stories/story-005-sd-startup-recovery.md)
+for Jeff's utility/startup update and device checks.

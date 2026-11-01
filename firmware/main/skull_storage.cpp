@@ -1,5 +1,12 @@
 #include "skull_storage.h"
 #include <cstdio>
+#include <cctype>
+#include <cerrno>
+#include <fcntl.h>
+#include <memory>
+#include <new>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <cstring>
 #include <strings.h>
 #include <dirent.h>
@@ -8,6 +15,10 @@
 #include "esp_log.h"
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
+#ifdef ESP_PLATFORM
+#include "esp_timer.h"
+#include "sd_protocol_defs.h"
+#endif
 
 #ifndef SKULL_STORAGE_ROOT
 #define SKULL_STORAGE_ROOT "/sdcard"
@@ -18,6 +29,106 @@ namespace {
 constexpr char tag[] = "skull_sd";
 bool is_mounted = false;
 sdmmc_card_t *mounted_card = nullptr;
+constexpr size_t config_limit = 4096;
+constexpr char config_path[] = SKULL_STORAGE_ROOT "/config.txt";
+constexpr char temp_path[] = SKULL_STORAGE_ROOT "/config.speaker.tmp";
+constexpr char previous_path[] = SKULL_STORAGE_ROOT "/config.speaker.previous";
+constexpr char original_path[] = SKULL_STORAGE_ROOT "/config.speaker.original";
+#ifdef ESP_PLATFORM
+unsigned mount_attempts = 0, trace_commands = 0;
+bool abort_before_init = false;
+uint32_t last_ocr = 0, ocr_polls = 0;
+esp_err_t last_ocr_error = ESP_OK;
+esp_err_t traced_transaction(int slot, sdmmc_command_t *command) {
+    if (abort_before_init) {
+        abort_before_init = false;
+        sdmmc_command_t stop{};
+        stop.opcode = MMC_STOP_TRANSMISSION;
+        stop.flags = SCF_CMD_AC | SCF_RSP_R1B;
+        stop.timeout_ms = 250;
+        const esp_err_t abort = sdmmc_host_do_transaction(slot, &stop);
+        ESP_LOGW(tag, "SD recovery CMD12 result=%s cmd_error=%s response=%08lx D0=%d D3=%d",
+                 esp_err_to_name(abort), esp_err_to_name(stop.error),
+                 static_cast<unsigned long>(stop.response[0]), gpio_get_level(GPIO_NUM_2), gpio_get_level(GPIO_NUM_13));
+    }
+    const int64_t started = esp_timer_get_time();
+    const esp_err_t result = sdmmc_host_do_transaction(slot, command);
+    if (command->opcode == SD_APP_OP_COND) {
+        last_ocr = command->response[0];
+        ++ocr_polls;
+        last_ocr_error = result == ESP_OK ? command->error : result;
+    }
+    if (trace_commands) {
+        --trace_commands;
+        ESP_LOGI(tag, "SD trace CMD%lu arg=%08lx result=%s cmd_error=%s response=%08lx bytes=%u us=%lld CMD=%d D0=%d D3=%d",
+                 static_cast<unsigned long>(command->opcode), static_cast<unsigned long>(command->arg),
+                 esp_err_to_name(result), esp_err_to_name(command->error),
+                 static_cast<unsigned long>(command->response[0]), static_cast<unsigned>(command->datalen),
+                 static_cast<long long>(esp_timer_get_time() - started), gpio_get_level(GPIO_NUM_15), gpio_get_level(GPIO_NUM_2), gpio_get_level(GPIO_NUM_13));
+    }
+    return result;
+}
+#endif
+
+bool exists(const char *path) {
+    struct stat info{};
+    return stat(path, &info) == 0 || errno != ENOENT;
+}
+bool same_settings(const Config &a, const Config &b) {
+    return a.primary == b.primary && a.volume_percent == b.volume_percent &&
+           !std::strcmp(a.secondary_mac, b.secondary_mac);
+}
+bool read_config_bytes(const char *path, char *bytes, size_t &length, Config &config) {
+    FILE *file = std::fopen(path, "rb");
+    if (!file) return false;
+    length = std::fread(bytes, 1, config_limit + 1, file);
+    bool ok = !std::ferror(file) && length <= config_limit &&
+              !std::memchr(bytes, 0, length);
+    if (ok) {
+        bytes[length] = 0;
+        std::rewind(file);
+        ok = parse_config(file, config);
+    }
+    if (std::fclose(file) != 0) ok = false;
+    return ok;
+}
+bool verify_bytes(const char *path, const char *bytes, size_t length, Config &config) {
+    FILE *file = std::fopen(path, "rb");
+    if (!file) return false;
+    char chunk[128];
+    size_t offset = 0;
+    bool ok = true;
+    while (ok && offset < length) {
+        const size_t count = length - offset < sizeof(chunk) ? length - offset : sizeof(chunk);
+        ok = std::fread(chunk, 1, count, file) == count &&
+             !std::memcmp(chunk, bytes + offset, count);
+        offset += count;
+    }
+    if (ok) ok = std::fgetc(file) == EOF && !std::ferror(file);
+    if (ok) { std::rewind(file); ok = parse_config(file, config); }
+    if (std::fclose(file) != 0) ok = false;
+    return ok;
+}
+// Exclusive creation never overwrites an old recovery/staging file. On failure
+// retain the partial file as evidence; a later command refuses to overwrite it.
+bool write_new(const char *path, const char *bytes, size_t length) {
+    const int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    if (fd < 0) return false;
+    FILE *file = fdopen(fd, "wb");
+    if (!file) { close(fd); return false; }
+    bool ok = std::fwrite(bytes, 1, length, file) == length;
+    if (std::fflush(file) != 0) ok = false;
+    if (ok && fsync(fileno(file)) != 0) ok = false;
+    if (std::fclose(file) != 0) ok = false;
+    return ok;
+}
+bool append(char *dest, size_t &used, const char *text, size_t length) {
+    if (length > config_limit - used) return false;
+    std::memcpy(dest + used, text, length);
+    used += length;
+    dest[used] = 0;
+    return true;
+}
 
 }
 
@@ -29,26 +140,129 @@ esp_err_t unmount_for_retry() {
     return result;
 }
 
+esp_err_t set_speaker_name(const char *name) {
+    if (!is_mounted) return ESP_FAIL;
+    if (!name) return ESP_ERR_INVALID_ARG;
+    const size_t name_length = std::strlen(name);
+    if (!name_length || name_length >= sizeof(Config{}.speaker_name) ||
+        std::isspace(static_cast<unsigned char>(name[0])) ||
+        std::isspace(static_cast<unsigned char>(name[name_length - 1]))) return ESP_ERR_INVALID_ARG;
+    for (size_t i = 0; i < name_length; ++i) {
+        const auto value = static_cast<unsigned char>(name[i]);
+        if (value < 32 || value == 127 || value == '=') return ESP_ERR_INVALID_ARG;
+    }
+    if (exists(temp_path) || exists(previous_path)) {
+        ESP_LOGE(tag, "Speaker update refused: retain/recover config.speaker staging files first");
+        return ESP_FAIL;
+    }
+    // Heap buffers keep this maintenance operation off the small control stack.
+    std::unique_ptr<char[]> original(new(std::nothrow) char[config_limit + 1]);
+    std::unique_ptr<char[]> candidate(new(std::nothrow) char[config_limit + 1]);
+    if (!original || !candidate) return ESP_FAIL;
+    size_t length = 0, used = 0;
+    Config before{}, after{};
+    if (!read_config_bytes(config_path, original.get(), length, before)) return ESP_FAIL;
+    bool replaced = false;
+    for (size_t offset = 0; offset < length;) {
+        size_t end = offset;
+        while (end < length && original[end] != '\n') ++end;
+        if (end < length) ++end;
+        size_t key = offset;
+        if (!offset && length >= 3 &&
+            static_cast<unsigned char>(original[0]) == 0xef &&
+            static_cast<unsigned char>(original[1]) == 0xbb &&
+            static_cast<unsigned char>(original[2]) == 0xbf) key += 3;
+        while (key < end && std::isspace(static_cast<unsigned char>(original[key]))) ++key;
+        size_t equals = key;
+        while (equals < end && original[equals] != '=') ++equals;
+        size_t key_end = equals;
+        while (key_end > key && std::isspace(static_cast<unsigned char>(original[key_end - 1]))) --key_end;
+        if (equals < end && key_end - key == 12 && !std::memcmp(original.get() + key, "speaker_name", 12)) {
+            size_t value = equals + 1, value_end = end;
+            while (value_end > equals + 1 && std::isspace(static_cast<unsigned char>(original[value_end - 1]))) --value_end;
+            while (value < value_end && std::isspace(static_cast<unsigned char>(original[value]))) ++value;
+            if (!append(candidate.get(), used, original.get() + offset, value - offset) ||
+                !append(candidate.get(), used, name, name_length) ||
+                !append(candidate.get(), used, original.get() + value_end, end - value_end)) return ESP_FAIL;
+            replaced = true;
+        } else if (!append(candidate.get(), used, original.get() + offset, end - offset)) return ESP_FAIL;
+        offset = end;
+    }
+    if (!replaced) return ESP_FAIL;
+    if (used == length && !std::memcmp(original.get(), candidate.get(), used)) return ESP_OK;
+    if (!write_new(temp_path, candidate.get(), used) ||
+        !verify_bytes(temp_path, candidate.get(), used, after) ||
+        std::strcmp(after.speaker_name, name) || !same_settings(before, after)) return ESP_FAIL;
+    if (!exists(original_path)) {
+        if (!write_new(original_path, original.get(), length) ||
+            !verify_bytes(original_path, original.get(), length, after)) return ESP_FAIL;
+    } else {
+        // Preserve the first valid original forever, including across reversal.
+        size_t backup_length = 0;
+        if (!read_config_bytes(original_path, original.get(), backup_length, after)) return ESP_FAIL;
+    }
+    // FatFs cannot rename over an existing target. All files are closed here.
+    // This is recoverable via the saved files, not power-fail atomic on FAT.
+    if (std::rename(config_path, previous_path) != 0) return ESP_FAIL;
+    if (std::rename(temp_path, config_path) != 0) {
+        if (std::rename(previous_path, config_path) != 0)
+            ESP_LOGE(tag, "Speaker update rollback failed: recover config.speaker.previous manually");
+        return ESP_FAIL;
+    }
+    if (!verify_bytes(config_path, candidate.get(), used, after) ||
+        std::strcmp(after.speaker_name, name) || !same_settings(before, after)) {
+        if (std::rename(config_path, temp_path) != 0 || std::rename(previous_path, config_path) != 0)
+            ESP_LOGE(tag, "Speaker update verification/rollback failed: preserve config.speaker files");
+        return ESP_FAIL;
+    }
+    if (unlink(previous_path) != 0)
+        ESP_LOGE(tag, "Speaker saved, but config.speaker.previous retained; recover before another update");
+    ESP_LOGI(tag, "SD speaker name saved and verified; takes effect after reboot");
+    return ESP_OK;
+}
+
 esp_err_t mount_and_read_config(Config &config) {
     config = Config{};
     if (!is_mounted) {
         sdmmc_host_t host = SDMMC_HOST_DEFAULT();
         host.max_freq_khz = 20000;
+#ifdef ESP_PLATFORM
+        trace_commands = ++mount_attempts <= 2 ? 8 : 0;
+        last_ocr = ocr_polls = 0;
+        last_ocr_error = ESP_OK;
+        // One bounded read-abort before the second attempt; no repeated aborts.
+        abort_before_init = mount_attempts == 2;
+        host.do_transaction = traced_transaction;
+        // DAT3 must remain high in 1-bit mode to prevent SPI mode selection.
+        // Do not change GPIO12's boot-strapping pull state.
+        gpio_input_enable(GPIO_NUM_13);
+#endif
         sdmmc_slot_config_t slot = SDMMC_SLOT_CONFIG_DEFAULT();
         slot.width = 1;
         slot.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
         gpio_set_pull_mode(GPIO_NUM_15, GPIO_PULLUP_ONLY);
         gpio_set_pull_mode(GPIO_NUM_2, GPIO_PULLUP_ONLY);
+        gpio_set_pull_mode(GPIO_NUM_13, GPIO_PULLUP_ONLY);
         esp_vfs_fat_sdmmc_mount_config_t mount{};
         mount.format_if_mount_failed = false;
         mount.max_files = 5;
         mount.allocation_unit_size = 16 * 1024;
         const esp_err_t result = esp_vfs_fat_sdmmc_mount(SKULL_STORAGE_ROOT, &host, &slot, &mount, &mounted_card);
         if (result != ESP_OK) {
+#ifdef ESP_PLATFORM
+            ESP_LOGW(tag, "SD startup attempt=%u ACMD41 polls=%lu last_OCR=%08lx ready=%d error=%s DAT3=%d",
+                     mount_attempts, static_cast<unsigned long>(ocr_polls), static_cast<unsigned long>(last_ocr),
+                     !!(last_ocr & (1ul << 31)), esp_err_to_name(last_ocr_error), gpio_get_level(GPIO_NUM_13));
+#endif
             ESP_LOGE(tag, "Onboard SDMMC 1-bit 20 MHz mount failed: %s (no format)", esp_err_to_name(result));
             return result;
         }
         is_mounted = true;
+#ifdef ESP_PLATFORM
+        // Diagnostics are boot-only; leave streaming reads on the SDK path.
+        mounted_card->host.do_transaction = sdmmc_host_do_transaction;
+        trace_commands = 0;
+#endif
         ESP_LOGI(tag, "Onboard SDMMC mounted, capacity=%llu MB",
                  static_cast<unsigned long long>(mounted_card->csd.capacity) * mounted_card->csd.sector_size / (1024 * 1024));
     }

@@ -1,6 +1,12 @@
 # TwoSkulls
  Two talking animatronic skulls (Halloween 2024)
 
+## JBL GO 2 experiment for next year
+
+The [JBL GO 2 connection report and 2027 reuse guide](docs/jbl-go2-speaker-report.md)
+records Jeff’s verified audible connection, how to repeat and roll back the
+experiment, and the proposed internal-speaker mounting checks.
+
   Two Chatting Skulls with Skull Jaws Synced to Audio
 
   On startup:
@@ -44,10 +50,14 @@
 
 The native shared Anthony/Jeff firmware includes automatic error retention to
 each skull’s SD card, with a compact internal-flash fallback if SD export fails.
-This requires the logger build from Story 003; that build has not yet been
-flashed/verified on the boards. Older firmware will not have these commands.
+This requires the logger build from Story 003. Older firmware may lack these
+commands; check the boot output and available commands on the attached board.
 Start here when audio stops, a show aborts, or a skull behaves unexpectedly.
 The Arduino instructions below describe the older runtime.
+
+On the newer startup-recovery build, `status`, `fault-log` and `sd-retry` also
+work while boot is waiting for SD initialization or valid config. Writes and
+playback remain disabled until valid config loads. See [Story 005](docs/stories/story-005-sd-startup-recovery.md).
 
 ### Where the error logs are
 

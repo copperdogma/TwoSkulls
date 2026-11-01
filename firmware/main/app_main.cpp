@@ -150,6 +150,65 @@ void status() {
              static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL)));
 }
 
+// Boot recovery has no audio worker/radio/show yet. Keep its command surface
+// read-only except for requesting another ordinary mount attempt.
+void wait_for_boot_storage_retry(esp_err_t error, unsigned attempt) {
+    const bool card_mounted = skull::storage::mounted();
+    const unsigned blinks = card_mounted ? 5 : 3;
+    const char *problem = !card_mounted ? "SD initialization/filesystem mount unavailable" :
+                          error == ESP_ERR_NOT_FOUND ? "SD mounted but config.txt missing" :
+                          error == ESP_ERR_INVALID_ARG ? "SD mounted but config.txt invalid" :
+                          "SD mounted but config.txt unavailable";
+    // One quick retry, then 30-second automatic intervals. Repeated failures
+    // remain observable instead of continuously churning card initialization.
+    const uint32_t wait_ms = attempt == 1 ? skull::actuators::diagnostic_duration_ms(blinks) : 30000;
+    const int64_t retry_at = esp_timer_get_time() + static_cast<int64_t>(wait_ms) * 1000;
+    ESP_LOGW(tag, "BOOT attempt=%u: %s (%s); %u eye flashes, next retry in %lu ms",
+             attempt, problem, esp_err_to_name(error), blinks, static_cast<unsigned long>(wait_ms));
+    if (attempt >= 2 && !card_mounted && error == ESP_ERR_TIMEOUT)
+        ESP_LOGW(tag, "Repeated SD startup timeout: standard reinitialization has not recovered access; card power recovery may be needed. Capture status/fault-log first");
+    ESP_LOGI(tag, "BOOT commands: status, fault-log, sd-retry. Config writes, playback and reset commands unavailable until valid card config loads");
+    skull::actuators::diagnostic(blinks, true);
+    // Preserve parser state across retry boundaries so a long command cannot
+    // become an executable suffix when an automatic mount attempt intervenes.
+    static char line[64]{};
+    static size_t used = 0;
+    static bool overflowed = false;
+    while (esp_timer_get_time() < retry_at) {
+        skull::actuators::tick(0, false);
+        // No SD writes in this path, even if FAT mounted but config is invalid.
+        skull::faultlog::poll(true, false);
+        char character;
+        if (uart_read_bytes(UART_NUM_0, &character, 1, pdMS_TO_TICKS(20)) != 1) continue;
+        if (character == '\r' || character == '\n') {
+            if (overflowed) ESP_LOGW(tag, "BOOT command discarded: overlong or invalid line");
+            else if (used) {
+                line[used] = 0;
+                if (!std::strcmp(line, "status")) {
+                    const int64_t remaining_ms = std::max<int64_t>(0, (retry_at - esp_timer_get_time()) / 1000);
+                    ESP_LOGI(tag, "BOOT attempt=%u valid_config=0 mounted=%d last_error=%s retry_in_ms=%llu state='%s'",
+                             attempt, card_mounted, esp_err_to_name(error),
+                             static_cast<unsigned long long>(remaining_ms), problem);
+                    status(); // All snapshots are safe before worker initialization.
+                } else if (!std::strcmp(line, "fault-log")) skull::faultlog::dump();
+                else if (!std::strcmp(line, "sd-retry")) {
+                    ESP_LOGI(tag, "BOOT manual SD retry requested");
+                    used = 0;
+                    overflowed = false;
+                    return;
+                } else ESP_LOGW(tag, "BOOT command unavailable; use status, fault-log or sd-retry");
+            }
+            used = 0;
+            overflowed = false;
+        } else if (!overflowed) {
+            const auto value = static_cast<unsigned char>(character);
+            if (value < 32 || value == 127) { used = 0; overflowed = true; }
+            else if (used < sizeof(line) - 1) line[used++] = character;
+            else { used = 0; overflowed = true; } // Discard the entire line, never execute a suffix.
+        }
+    }
+}
+
 void inspect_asset(const char *path) {
     if (!assets) return;
     for (size_t i = 0; i < assets->count; ++i) {
@@ -207,9 +266,10 @@ void diagnostic_task(void *) {
         skull::radio::Config config{card_config.speaker_name, card_config.secondary_mac, card_config.primary};
         ESP_ERROR_CHECK(skull::radio::start(config));
     }
-    ESP_LOGI(tag, "Skull ready. Commands: status, fault-log, fault-test, asset /audio/<file>.wav, heap-start, heap-stop, tone, trigger, pair /audio/<file>.wav, play /audio/<file>.wav, jaw-test, retry, pairing, reboot, factory-reset CONFIRM. Matter On requests a paired skit.");
+    ESP_LOGI(tag, "Skull ready. Commands: status, fault-log, fault-test, speaker-name [exact name], asset /audio/<file>.wav, heap-start, heap-stop, tone, trigger, pair /audio/<file>.wav, play /audio/<file>.wav, jaw-test, retry, pairing, reboot, factory-reset CONFIRM. Matter On requests a paired skit.");
     char line[256]{};
     size_t used = 0;
+    bool overflowed = false;
     int64_t next_status = 0;
     while (true) {
         skull::startup::poll(skull::radio::stream_ready());
@@ -227,11 +287,30 @@ void diagnostic_task(void *) {
         if (uart_read_bytes(UART_NUM_0, &character, 1, pdMS_TO_TICKS(20)) == 1) {
             if (character == '\r' || character == '\n') {
                 line[used] = '\0';
-                if (!std::strcmp(line, "status")) status();
+                if (overflowed) ESP_LOGW(tag, "Command discarded: overlong or invalid line");
+                else if (!std::strcmp(line, "status")) status();
                 else if (!std::strcmp(line, "fault-log")) skull::faultlog::dump();
                 else if (!std::strcmp(line, "fault-test")) {
                     if (fault_log_idle()) skull::faultlog::test_fault();
                     else ESP_LOGW(tag, "Fault test refused while show/audio/startup/tone active");
+                }
+                else if (!std::strcmp(line, "speaker-name") || !std::strncmp(line, "speaker-name ", 13)) {
+                    // This task also owns show preparation: no audio file can
+                    // open during this synchronous, idle-only transaction.
+                    if (skull::show::busy() || !skull::audio::quiescent() ||
+                        skull::startup::playing() || tone_frames.load() != 0) {
+                        ESP_LOGW(tag, "Speaker config refused while show/audio/startup/tone or SD file active");
+                    } else if (line[12] == ' ') {
+                        const esp_err_t saved = skull::storage::set_speaker_name(line + 13);
+                        if (saved == ESP_OK)
+                            ESP_LOGI(tag, "Speaker name saved and verified on SD: '%s'; reboot to apply (current boot '%s')", line + 13, card_config.speaker_name);
+                        else ESP_LOGE(tag, "Speaker name update failed: %s; inspect config and retained transaction files before retry", esp_err_to_name(saved));
+                    } else {
+                        skull::storage::Config saved;
+                        const esp_err_t read = skull::storage::mount_and_read_config(saved);
+                        if (read == ESP_OK) ESP_LOGI(tag, "SD speaker name: '%s'; current boot '%s'", saved.speaker_name, card_config.speaker_name);
+                        else ESP_LOGE(tag, "Speaker config read failed: %s", esp_err_to_name(read));
+                    }
                 }
                 else if (!std::strncmp(line, "asset ", 6) && !skull::show::busy()) inspect_asset(line + 6);
                 else if (!std::strcmp(line, "heap-start") && !heap_window) {
@@ -267,8 +346,13 @@ void diagnostic_task(void *) {
                 }
                 else if (used) ESP_LOGW(tag, "Unknown command");
                 used = 0;
-            } else if (used < sizeof(line) - 1) line[used++] = character;
-            else used = 0;
+                overflowed = false;
+            } else if (!overflowed) {
+                const auto value = static_cast<unsigned char>(character);
+                if (value < 32 || value == 127) { used = 0; overflowed = true; }
+                else if (used < sizeof(line) - 1) line[used++] = character;
+                else { used = 0; overflowed = true; }
+            }
         }
         if (esp_timer_get_time() >= next_status) {
             status();
@@ -283,26 +367,25 @@ extern "C" void app_main() {
     ESP_ERROR_CHECK(skull::actuators::init());
     ESP_ERROR_CHECK(nvs_flash_init()); // Never erase fabric/NVS automatically.
     skull::faultlog::init();
+    // Install once before SD setup, so failed boot still has diagnostics.
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_0, 1024, 0, 0, nullptr, 0));
     ESP_LOGI(tag, "PSRAM initialized=%d size=%u", esp_psram_is_initialized(), static_cast<unsigned>(esp_psram_get_size()));
     esp_err_t sd = skull::storage::mount_and_read_config(card_config);
+    unsigned storage_attempt = 1;
     while (sd != ESP_OK) {
         // Boot has no audio worker yet. Retain faults to flash only here;
         // existing boot recovery owns card remounts, independent of the logger.
         skull::faultlog::poll(true, false);
-        const unsigned failure_blinks = skull::storage::mounted() ? 5 : 3;
-        ESP_LOGW(tag, "Boot storage/config retry: %s; %u eye flashes", esp_err_to_name(sd), failure_blinks);
-        skull::actuators::diagnostic(failure_blinks, true);
-        const unsigned diagnostic_ticks = (skull::actuators::diagnostic_duration_ms(failure_blinks) + 19) / 20;
-        for (unsigned i = 0; i < diagnostic_ticks; ++i) {
-            skull::actuators::tick(0, false);
-            vTaskDelay(pdMS_TO_TICKS(20));
-        }
+        wait_for_boot_storage_retry(sd, storage_attempt);
         // No audio file or producer exists yet; remount permits a repaired or
         // reinserted card to recover without stale host/card state.
         const esp_err_t unmount = skull::storage::unmount_for_retry();
         if (unmount != ESP_OK) ESP_LOGW(tag, "Retry unmount: %s", esp_err_to_name(unmount));
+        if (storage_attempt != 0xffffffffu) ++storage_attempt;
         sd = skull::storage::mount_and_read_config(card_config);
     }
+    // Do not carry a partial boot-only command into the later runtime console.
+    ESP_ERROR_CHECK(uart_flush_input(UART_NUM_0));
     tag = card_config.primary ? "anthony" : "jeff";
     ESP_LOGI(tag, "Configured role=%s", card_config.primary ? "primary" : "secondary");
     const unsigned blinks = card_config.primary ? 4 : 2;
@@ -350,6 +433,5 @@ extern "C" void app_main() {
             else pairing();
         });
     } else ESP_ERROR_CHECK(skull::secondary::init());
-    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_0, 1024, 0, 0, nullptr, 0));
     ESP_ERROR_CHECK(xTaskCreate(diagnostic_task, "skull_diag", 6144, nullptr, 4, nullptr) == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
 }
