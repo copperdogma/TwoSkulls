@@ -247,7 +247,15 @@ esp_err_t mount_and_read_config(Config &config) {
         mount.format_if_mount_failed = false;
         mount.max_files = 5;
         mount.allocation_unit_size = 16 * 1024;
+#ifdef ESP_PLATFORM
+        const int64_t mount_started = esp_timer_get_time();
+#endif
         const esp_err_t result = esp_vfs_fat_sdmmc_mount(SKULL_STORAGE_ROOT, &host, &slot, &mount, &mounted_card);
+#ifdef ESP_PLATFORM
+        ESP_LOGI("lifecycle", "event=sd_mount_result attempt=%u duration_ms=%lld uptime_ms=%lld result=%s",
+                 mount_attempts, static_cast<long long>((esp_timer_get_time()-mount_started)/1000),
+                 static_cast<long long>(esp_timer_get_time()/1000), esp_err_to_name(result));
+#endif
         if (result != ESP_OK) {
 #ifdef ESP_PLATFORM
             ESP_LOGW(tag, "SD startup attempt=%u ACMD41 polls=%lu last_OCR=%08lx ready=%d error=%s DAT3=%d",

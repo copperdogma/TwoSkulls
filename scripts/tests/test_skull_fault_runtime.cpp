@@ -37,6 +37,7 @@ esp_err_t nvs_get_u64(nvs_handle_t h,const char *k,uint64_t *v){size_t n=sizeof(
 esp_err_t nvs_commit(nvs_handle_t){++mock::commits;return mock::commit_ok?ESP_OK:ESP_FAIL;}
 void nvs_close(nvs_handle_t){}
 namespace skull::faultlog {
+bool read_archive(const char *,unsigned,bool (*)(const uint8_t *,size_t,void *),void *){return false;}
 bool archive_report(const char *path,unsigned slot,const Report &r){
  assert(std::string(path)=="/sdcard/diagnostics"&&slot<archive_slots);
  ++mock::archive_calls;if(mock::archive_ok){mock::archived.assign(r.text,r.length);mock::archived_id=r.id;}return mock::archive_ok;
@@ -55,7 +56,7 @@ void reboot(){
 int main(){
  using namespace skull::faultlog;
  mock::nvs["simulated_matter_key"]={1,2,3};const auto matter=mock::nvs["simulated_matter_key"];
- init();test_fault();assert(core->pending&&mock::commits==0&&mock::archive_calls==0);
+ init();test_log("I","lifecycle","event=boot reset_reason=1");test_fault();assert(core->pending&&mock::commits==0&&mock::archive_calls==0);
  const uint64_t id=core->report.id;
  poll(false,true);assert(mock::commits==0); // no I/O during playback
  poll(true,false);assert(nv_saved&&mock::commits==1&&mock::archive_calls==0&&core->pending);
@@ -67,7 +68,7 @@ int main(){
  // Concurrent log capture stays RAM-only and cannot replace pending report.
  const unsigned commits=mock::commits;
  std::thread a([]{for(int i=0;i<200;++i)test_fault();});
- std::thread b([]{for(int i=0;i<200;++i)test_log("I","anthony","State=waiting");});
+ std::thread b([]{for(int i=0;i<200;++i){test_log("I","anthony","State=waiting");test_log("I","lifecycle","event=wifi_sample rssi_dbm=-60");}});
  a.join();b.join();assert(mock::commits==commits&&mock::archive_calls==1&&core->report.id==id);
  // Reboot while card is bad recovers compact report and original identity.
  reboot();assert(core->pending&&core->report.id==id&&nv_saved&&core->report.length<1024);

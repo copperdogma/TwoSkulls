@@ -19,5 +19,7 @@ void tick(bool initialization_finished, bool startup_active);
 // Active playback/handshake or queued work with a usable speaker. A greeting
 // waiting idle for an unavailable speaker leaves manual connection retry free.
 bool busy();
+// Atomic snapshot of the primary trigger acceptance gate.
+bool ready();
 const char *state_name();
 }

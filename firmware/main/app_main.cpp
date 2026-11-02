@@ -11,6 +11,7 @@
 #include "esp_psram.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
 #include "nvs_flash.h"
 #include <esp_matter.h>
 #include <app/server/Server.h>
@@ -39,6 +40,71 @@ bool internal_update = false; // Accessed only on Matter's system layer.
 skull::storage::Config card_config;
 skull::catalog::Catalog *assets = nullptr;
 bool heap_window = false; // Diagnostic task only.
+int64_t app_entry_us = 0;
+
+// Existing control task owns these snapshots. Polling does not start Wi-Fi on
+// the secondary role and never logs SSIDs, addresses or provisioning material.
+void lifecycle_poll() {
+    static bool startup_recorded = false, local_ready_recorded = false, ready_recorded = false;
+    static bool peer_seen = false, peer_was_ready = false;
+    static int64_t next_wifi = 0;
+    const int64_t time = esp_timer_get_time();
+    if (!startup_recorded && skull::startup::finished()) {
+        startup_recorded = true;
+        ESP_LOGI("lifecycle", "event=startup_finished boot_ms=%lld app_ms=%lld terminal=1",
+                 static_cast<long long>(time / 1000), static_cast<long long>((time - app_entry_us) / 1000));
+    }
+    if (!local_ready_recorded && assets && skull::startup::finished() && skull::radio::stream_ready()) {
+        local_ready_recorded = true;
+        ESP_LOGI("lifecycle", "event=local_ready boot_ms=%lld app_ms=%lld scope=local_audio peer=%d",
+                 static_cast<long long>(time / 1000), static_cast<long long>((time - app_entry_us) / 1000),
+                 card_config.primary ? skull::radio::peer_ready() : skull::secondary::connected());
+    }
+    const bool ready = card_config.primary ? skull::show::ready() :
+        assets && skull::startup::finished() && skull::radio::stream_ready() &&
+        !skull::show::busy() && !skull::audio::busy();
+    if (!ready_recorded && ready) {
+        ready_recorded = true;
+        ESP_LOGI("lifecycle", "event=ready boot_ms=%lld app_ms=%lld scope=%s",
+                 static_cast<long long>(time / 1000), static_cast<long long>((time - app_entry_us) / 1000),
+                 card_config.primary ? "paired_trigger" : "secondary_local_audio");
+    }
+    const bool peer = card_config.primary ? skull::radio::peer_ready() : skull::secondary::connected();
+    if (!peer_seen || peer != peer_was_ready) {
+        peer_seen = true; peer_was_ready = peer;
+        ESP_LOGI("lifecycle", "event=peer_ready boot_ms=%lld ready=%d role=%s scope=%s service_ready=%d",
+                 static_cast<long long>(time / 1000), peer, card_config.primary ? "primary" : "secondary",
+                 card_config.primary ? "client_ready" : "link_connected", skull::secondary::ready());
+    }
+    if (time < next_wifi) return;
+    const bool first_wifi = next_wifi == 0;
+    next_wifi = time + 30000000;
+    if (!card_config.primary) {
+        // Jeff deliberately has no Wi-Fi stack/network provisioning.
+        if (first_wifi)
+            ESP_LOGI("lifecycle", "event=wifi_sample boot_ms=%lld state=disabled_role", static_cast<long long>(time / 1000));
+        return;
+    }
+    wifi_ap_record_t ap{};
+    const esp_err_t wifi = esp_wifi_sta_get_ap_info(&ap);
+    if (wifi == ESP_OK)
+        ESP_LOGI("lifecycle", "event=wifi_sample boot_ms=%lld state=connected rssi_dbm=%d channel=%u",
+                 static_cast<long long>(time / 1000), ap.rssi, static_cast<unsigned>(ap.primary));
+    else
+        ESP_LOGI("lifecycle", "event=wifi_sample boot_ms=%lld state=unavailable result=%s",
+                 static_cast<long long>(time / 1000), esp_err_to_name(wifi));
+}
+
+esp_err_t boot_storage_attempt(unsigned attempt) {
+    const int64_t started = esp_timer_get_time();
+    ESP_LOGI("lifecycle", "event=sd_attempt boot_ms=%lld attempt=%u", static_cast<long long>(started / 1000), attempt);
+    const esp_err_t result = skull::storage::mount_and_read_config(card_config);
+    const int64_t ended = esp_timer_get_time();
+    ESP_LOGI("lifecycle", "event=sd_result boot_ms=%lld attempt=%u duration_ms=%lld scope=mount_and_config mounted=%d result=%s",
+             static_cast<long long>(ended / 1000), attempt, static_cast<long long>((ended - started) / 1000),
+             skull::storage::mounted(), esp_err_to_name(result));
+    return result;
+}
 
 // Startup PCM has priority over the explicit diagnostic tone.
 // No card I/O, logging, allocation or blocking in this provider.
@@ -111,8 +177,10 @@ void matter_event(const chip::DeviceLayer::ChipDeviceEvent *event, intptr_t) {
 }
 
 bool fault_log_idle() {
+    // Waiting startup PCM is immutable in PSRAM; this owner is the only task
+    // that can start it. It cannot start playback until synchronous I/O returns.
     return !skull::show::busy() && skull::audio::quiescent() &&
-           !skull::startup::busy() && tone_frames.load() == 0;
+           !skull::startup::playing() && tone_frames.load() == 0;
 }
 
 void status() {
@@ -266,7 +334,11 @@ void diagnostic_task(void *) {
         skull::radio::Config config{card_config.speaker_name, card_config.secondary_mac, card_config.primary};
         ESP_ERROR_CHECK(skull::radio::start(config));
     }
-    ESP_LOGI(tag, "Skull ready. Commands: status, fault-log, fault-test, speaker-name [exact name], asset /audio/<file>.wav, heap-start, heap-stop, tone, trigger, pair /audio/<file>.wav, play /audio/<file>.wav, jaw-test, retry, pairing, reboot, factory-reset CONFIRM. Matter On requests a paired skit.");
+    ESP_LOGI("lifecycle", "event=control_ready boot_ms=%lld app_ms=%lld gap_result=%s radio_started=%d",
+             static_cast<long long>(esp_timer_get_time() / 1000),
+             static_cast<long long>((esp_timer_get_time() - app_entry_us) / 1000),
+             esp_err_to_name(attached), attached == ESP_OK && (!card_config.primary || matter_ble_ready.load()) && *card_config.speaker_name);
+    ESP_LOGI(tag, "Skull ready. Commands: status, fault-log, fault-saved, fault-test, speaker-name [exact name], asset /audio/<file>.wav, heap-start, heap-stop, tone, trigger, pair /audio/<file>.wav, play /audio/<file>.wav, jaw-test, retry, pairing, reboot, factory-reset CONFIRM. Matter On requests a paired skit.");
     char line[256]{};
     size_t used = 0;
     bool overflowed = false;
@@ -281,6 +353,7 @@ void diagnostic_task(void *) {
             (skull::startup::playing() || tone_active || skull::show::busy() || skull::audio::busy());
         skull::actuators::tick(startup_animation.rms ? startup_animation.rms : show_animation.rms,
                               startup_animation.speaking || show_animation.speaking, audio_active);
+        lifecycle_poll();
         // This control task owns show/prepare; quiescent includes worker FILE close.
         skull::faultlog::poll(fault_log_idle(), skull::storage::mounted());
         char character;
@@ -290,6 +363,10 @@ void diagnostic_task(void *) {
                 if (overflowed) ESP_LOGW(tag, "Command discarded: overlong or invalid line");
                 else if (!std::strcmp(line, "status")) status();
                 else if (!std::strcmp(line, "fault-log")) skull::faultlog::dump();
+                else if (!std::strcmp(line, "fault-saved")) {
+                    if (fault_log_idle() && skull::storage::mounted()) skull::faultlog::dump_saved();
+                    else ESP_LOGW(tag, "Saved fault read refused: playback active or SD unavailable");
+                }
                 else if (!std::strcmp(line, "fault-test")) {
                     if (fault_log_idle()) skull::faultlog::test_fault();
                     else ESP_LOGW(tag, "Fault test refused while show/audio/startup/tone active");
@@ -363,15 +440,19 @@ void diagnostic_task(void *) {
 }
 
 extern "C" void app_main() {
+    app_entry_us = esp_timer_get_time();
     ESP_LOGI(tag, "TwoSkulls shared WROVER firmware (onboard SD, A2DP, BLE, Matter)");
     ESP_ERROR_CHECK(skull::actuators::init());
     ESP_ERROR_CHECK(nvs_flash_init()); // Never erase fabric/NVS automatically.
     skull::faultlog::init();
+    ESP_LOGI("lifecycle", "event=boot boot_ms=%lld app_entry_ms=%lld reset_reason=%d",
+             static_cast<long long>(esp_timer_get_time() / 1000),
+             static_cast<long long>(app_entry_us / 1000), static_cast<int>(esp_reset_reason()));
     // Install once before SD setup, so failed boot still has diagnostics.
     ESP_ERROR_CHECK(uart_driver_install(UART_NUM_0, 1024, 0, 0, nullptr, 0));
     ESP_LOGI(tag, "PSRAM initialized=%d size=%u", esp_psram_is_initialized(), static_cast<unsigned>(esp_psram_get_size()));
-    esp_err_t sd = skull::storage::mount_and_read_config(card_config);
     unsigned storage_attempt = 1;
+    esp_err_t sd = boot_storage_attempt(storage_attempt);
     while (sd != ESP_OK) {
         // Boot has no audio worker yet. Retain faults to flash only here;
         // existing boot recovery owns card remounts, independent of the logger.
@@ -382,12 +463,14 @@ extern "C" void app_main() {
         const esp_err_t unmount = skull::storage::unmount_for_retry();
         if (unmount != ESP_OK) ESP_LOGW(tag, "Retry unmount: %s", esp_err_to_name(unmount));
         if (storage_attempt != 0xffffffffu) ++storage_attempt;
-        sd = skull::storage::mount_and_read_config(card_config);
+        sd = boot_storage_attempt(storage_attempt);
     }
     // Do not carry a partial boot-only command into the later runtime console.
     ESP_ERROR_CHECK(uart_flush_input(UART_NUM_0));
     tag = card_config.primary ? "anthony" : "jeff";
     ESP_LOGI(tag, "Configured role=%s", card_config.primary ? "primary" : "secondary");
+    ESP_LOGI("lifecycle", "event=config_ready boot_ms=%lld attempts=%u role=%s",
+             static_cast<long long>(esp_timer_get_time() / 1000), storage_attempt, card_config.primary ? "primary" : "secondary");
     const unsigned blinks = card_config.primary ? 4 : 2;
     skull::actuators::diagnostic(blinks);
     ESP_LOGI(tag, "Boot eye diagnostic: %u flashes", blinks);
@@ -412,7 +495,12 @@ extern "C" void app_main() {
         }
     }
     skull::show::init(assets, card_config.primary);
-    ESP_ERROR_CHECK(skull::radio::init(provide_pcm));
+    const int64_t radio_started_us = esp_timer_get_time();
+    const esp_err_t radio_init = skull::radio::init(provide_pcm);
+    ESP_LOGI("lifecycle", "event=radio_init boot_ms=%lld duration_ms=%lld result=%s",
+             static_cast<long long>(esp_timer_get_time() / 1000),
+             static_cast<long long>((esp_timer_get_time() - radio_started_us) / 1000), esp_err_to_name(radio_init));
+    ESP_ERROR_CHECK(radio_init);
     if (card_config.primary) {
         node::config_t node_config{};
         std::strcpy(node_config.root_node.basic_information.node_label, "Anthony prototype");

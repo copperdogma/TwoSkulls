@@ -7,6 +7,8 @@
 #include <functional>
 #include <cstdio>
 #include <cstdarg>
+#include <string>
+#include <vector>
 using esp_err_t=int;
 constexpr int ESP_OK=0, ESP_BT_STATUS_SUCCESS=0, ESP_GATT_OK=0, ESP_A2D_MEDIA_CTRL_ACK_SUCCESS=0;
 constexpr size_t ESP_BD_ADDR_LEN=6;
@@ -44,6 +46,7 @@ constexpr int ESP_BT_GAP_DISCOVERY_STARTED=42;
 constexpr int ESP_BT_GAP_DISC_RES_EVT=43;
 constexpr int ESP_BT_GAP_DISC_STATE_CHANGED_EVT=44;
 constexpr int ESP_BT_GAP_PIN_REQ_EVT=45;
+constexpr int ESP_BT_GAP_READ_RSSI_DELTA_EVT=97;
 constexpr int ESP_BT_INQ_MODE_GENERAL_INQUIRY=46;
 constexpr int ESP_BT_IO_CAP_NONE=47;
 constexpr int ESP_BT_MODE_BTDM=48;
@@ -102,7 +105,7 @@ struct esp_bt_uuid_t { int len; union { uint16_t uuid16; uint8_t uuid128[16]; } 
 struct esp_a2d_cie_sbc_t { uint8_t ch_mode:4,samp_freq:4; uint8_t alloc_mthd:2,num_subbands:2,block_len:4; uint8_t min_bitpool,max_bitpool; };
 struct esp_a2d_mcc_t { int type; struct { esp_a2d_cie_sbc_t sbc_info; } cie; };
 struct esp_a2d_cb_param_t {
- struct { int state; esp_bd_addr_t remote_bda; } conn_stat;
+ struct { int state,disc_rsn; esp_bd_addr_t remote_bda; } conn_stat;
  struct { int state; } audio_stat;
  struct { int cmd,status; } media_ctrl_stat;
  struct { esp_a2d_mcc_t mcc; } audio_cfg;
@@ -137,6 +140,7 @@ struct esp_bt_gap_cb_param_t {
  struct { esp_bd_addr_t bda; int min_16_digit; } pin_req;
  struct { esp_bd_addr_t bda; int num_val; } cfm_req;
  struct { esp_bd_addr_t bda; int stat; } auth_cmpl;
+ struct { esp_bd_addr_t bda; int stat; int8_t rssi_delta; } read_rssi_delta;
  struct { esp_bd_addr_t bda; int stat,handle; } acl_conn_cmpl_stat;
  struct { esp_bd_addr_t bda; int reason,handle; } acl_disconn_cmpl_stat;
 };
@@ -144,10 +148,16 @@ struct esp_bt_controller_config_t {};
 #define BT_CONTROLLER_INIT_CONFIG_DEFAULT() esp_bt_controller_config_t{}
 namespace radio_mock {
 inline int64_t time=1;
-inline unsigned connects=0,disconnects=0,inquiries=0,media_requests=0;
-inline esp_err_t connect_result=ESP_OK,inquiry_result=ESP_OK;
+inline unsigned connects=0,disconnects=0,inquiries=0,media_requests=0,rssi_requests=0;
+inline esp_err_t connect_result=ESP_OK,inquiry_result=ESP_OK,rssi_result=ESP_OK;
 inline std::function<int(void*)> receive;
-inline void log(const char*,const char*,...) {}
+inline std::vector<std::string> logs;
+inline void log(const char* tag,const char* format,...) {
+    if (std::string(tag) != "lifecycle") return;
+    char message[384]; va_list args; va_start(args,format);
+    std::vsnprintf(message,sizeof(message),format,args); va_end(args);
+    logs.emplace_back(message);
+}
 }
 #define ESP_LOGI(...) radio_mock::log(__VA_ARGS__)
 #define ESP_LOGW(...) radio_mock::log(__VA_ARGS__)
@@ -157,6 +167,7 @@ inline int64_t esp_timer_get_time() { return radio_mock::time; }
 inline esp_err_t esp_a2d_source_connect(const uint8_t*) { ++radio_mock::connects; return radio_mock::connect_result; }
 inline esp_err_t esp_a2d_source_disconnect(const uint8_t*) { ++radio_mock::disconnects; return ESP_OK; }
 inline esp_err_t esp_bt_gap_start_discovery(int,int,int) { ++radio_mock::inquiries; return radio_mock::inquiry_result; }
+inline esp_err_t esp_bt_gap_read_rssi_delta(const uint8_t*) { ++radio_mock::rssi_requests; return radio_mock::rssi_result; }
 inline esp_err_t esp_a2d_media_ctrl(int) { ++radio_mock::media_requests; return ESP_OK; }
 inline uint8_t* esp_ble_resolve_adv_data(uint8_t*,int,uint8_t*) { return nullptr; }
 inline uint8_t* esp_bt_gap_resolve_eir_data(uint8_t*,int,uint8_t*) { return nullptr; }

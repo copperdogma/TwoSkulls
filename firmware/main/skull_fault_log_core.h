@@ -4,14 +4,17 @@
 #include <cstdio>
 #include <cstring>
 #include <algorithm>
+#include "skull_lifecycle.h"
 namespace skull::faultlog {
-constexpr size_t line_bytes=192, ring_lines=32, report_bytes=7168;
+constexpr size_t line_bytes=192, ring_lines=32, report_bytes=14336;
 constexpr unsigned archive_slots=8;
 constexpr int64_t retry_us=60000000;
 struct Report { uint64_t id=0; int64_t uptime_us=0; uint32_t length=0; char text[report_bytes]{}; };
 // Caller serializes capture/state changes. A pending report is immutable while
 // the owner performs I/O; further errors are coalesced rather than replacing it.
 struct Core {
+    Lifecycle lifecycle, context;
+    bool context_sealed=false;
     char recent[ring_lines][line_bytes]{};
     size_t head=0,count=0;
     uint32_t sequence=0,session=0,coalesced=0;
@@ -20,7 +23,10 @@ struct Core {
     Report report;
     void capture(const char *line,bool fault,int64_t time) {
         if(!line)return;
+        const bool life=Lifecycle::selected(line);
+        if(life)lifecycle.capture(line);
         if(frozen){if(fault&&coalesced!=UINT32_MAX)++coalesced;return;}
+        if(life&&!fault)return;
         const size_t bytes=std::min(std::strlen(line),line_bytes-1);
         std::memcpy(recent[head],line,bytes);recent[head][bytes]=0;
         head=(head+1)%ring_lines;count=std::min(count+1,ring_lines);
@@ -28,15 +34,38 @@ struct Core {
         if(pending){if(coalesced!=UINT32_MAX)++coalesced;return;}
         report.id=(uint64_t(session)<<32)|++sequence;
         report.uptime_us=time;report.length=0;
-        pending=frozen=true;coalesced=0;
+        pending=frozen=true;context_sealed=false;coalesced=0;
+    }
+    // Owner seals under the capture lock, then formats outside it. This includes
+    // measured SD results logged after a driver error and before the next poll.
+    void seal_context(){if(!context_sealed){context=lifecycle;context_sealed=true;}}
+    void append(const char *entry){
+        if(report.length>=report_bytes-2)return;
+        const size_t n=std::min<size_t>(std::strlen(entry),report_bytes-2-report.length);
+        std::memcpy(report.text+report.length,entry,n);report.length+=n;
+        if(!n||entry[n-1]!='\n')report.text[report.length++]='\n';
+        report.text[report.length]=0;
     }
     // Owner builds text outside the capture lock while history is frozen.
     // Caller must release frozen under its lock after this returns.
     void materialize(){
         if(!frozen)return;
+        seal_context();
         report.length=static_cast<uint32_t>(std::snprintf(report.text,report_bytes,
-            "TwoSkulls fault report v1 id=%016llx uptime_ms=%lld firmware=%s\n",
+            "TwoSkulls fault report v2 id=%016llx uptime_ms=%lld firmware=%s\n",
             static_cast<unsigned long long>(report.id),static_cast<long long>(report.uptime_us/1000),firmware));
+        append("Startup milestones (first per event, this boot):");
+        for(size_t i=0;i<Lifecycle::milestones;++i)if(context.first[i][0])append(context.first[i]);
+        append("Latest wireless observations (timestamps indicate sample age; missing means not observed):");
+        if(context.last_wifi[0])append(context.last_wifi);
+        if(context.last_speaker_signal[0])append(context.last_speaker_signal);
+        if(context.last_disconnect[0])append(context.last_disconnect);
+        char heading[112];std::snprintf(heading,sizeof(heading),
+            "Recent lifecycle events (overwritten=%u; context sealed at report materialization):",context.overwritten);
+        append(heading);
+        for(size_t i=0;i<context.count;++i)
+            append(context.recent[(context.head+Lifecycle::events-context.count+i)%Lifecycle::events]);
+        append("Recent application/driver events (frozen at first fault):");
         for(size_t i=0;i<count;++i){
             if(report.length>=report_bytes-2)break;
             const char *entry=recent[(head+ring_lines-count+i)%ring_lines];
@@ -66,7 +95,7 @@ inline bool select_line(const char *source,char *out,size_t capacity,bool &fault
     out[n]=0;
     if(std::strstr(out,"Card config ")||std::strstr(out,"password=")||std::strstr(out,"passphrase=")||
        std::strstr(out,"setup_code=")||std::strstr(out,"ssid="))return false;
-    const char *tags[]={") skull:",") anthony:",") jeff:",") skull_show:",") skull_sd:",") skull_radio:",") skull_startup:",") skull_actuators:",") sdmmc_cmd:",") sdmmc_req:",") sdspi_host:",") spi_master:",") diskio_sdmmc:"};
+    const char *tags[]={") lifecycle:",") skull:",") anthony:",") jeff:",") skull_show:",") skull_sd:",") skull_radio:",") skull_startup:",") skull_actuators:",") sdmmc_cmd:",") sdmmc_req:",") sdspi_host:",") spi_master:",") diskio_sdmmc:"};
     bool selected=false;for(const char *tag:tags)if(std::strstr(out,tag)){selected=true;break;}
     fault=n>2&&out[0]=='E'&&out[1]==' ';
     // TwoSkulls reports interrupted playback as a warning, including peer,

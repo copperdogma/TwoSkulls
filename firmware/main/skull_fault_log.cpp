@@ -42,7 +42,7 @@ int hook(const char *format,va_list args){
     return previous.load()(format,args);
 }
 void materialize(){
-    bool frozen;portENTER_CRITICAL(&mux);frozen=core->frozen;portEXIT_CRITICAL(&mux);
+    bool frozen;portENTER_CRITICAL(&mux);frozen=core->frozen;if(frozen)core->seal_context();portEXIT_CRITICAL(&mux);
     if(!frozen)return;
     core->materialize();
     portENTER_CRITICAL(&mux);core->frozen=false;portEXIT_CRITICAL(&mux);
@@ -160,6 +160,27 @@ void dump(){
         portEXIT_CRITICAL(&mux);
         if(!n)break;
         chunk[n]=0;ESP_LOGI(tag,"%s",chunk);i+=n;
+    }
+}
+void dump_saved(){
+    // Hex framing preserves exact file bytes despite interleaved radio logs.
+    struct Reader { unsigned slot; size_t offset; };
+    const auto consume=[](const uint8_t *data,size_t length,void *opaque)->bool{
+        auto &reader=*static_cast<Reader*>(opaque);
+        if(length>64)return false;
+        char encoded[129];
+        constexpr char digits[]="0123456789abcdef";
+        for(size_t i=0;i<length;++i){encoded[i*2]=digits[data[i]>>4];encoded[i*2+1]=digits[data[i]&15];}
+        encoded[length*2]=0;
+        ESP_LOGI("faultarchive","DATA slot=%u offset=%u hex=%s",reader.slot,unsigned(reader.offset),encoded);
+        reader.offset+=length;return true;
+    };
+    for(unsigned i=0;i<archive_slots;++i){
+        Reader reader{i,0};errno=0;
+        ESP_LOGI("faultarchive","BEGIN slot=%u",i);
+        const bool ok=read_archive("/sdcard/diagnostics",i,consume,&reader);
+        const int error=errno;
+        ESP_LOGI("faultarchive","END slot=%u bytes=%u ok=%d errno=%d",i,unsigned(reader.offset),ok,error);
     }
 }
 void test_fault(){ESP_LOGE("skull","FAULT_LOG_TEST controlled diagnostic; no SD/audio failure injected");}

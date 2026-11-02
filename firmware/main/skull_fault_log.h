@@ -8,6 +8,8 @@ void init();
 void poll(bool idle,bool card_mounted);
 void status();
 void dump();
+// Control owner only, idle and SD mounted: read fixed saved slots without writes.
+void dump_saved();
 // Idle CLI fixture, exercises production capture/persistence without corruption.
 void test_fault();
 }

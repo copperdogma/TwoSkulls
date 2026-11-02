@@ -27,7 +27,10 @@ bool primary_under_test = true;
 void reset(bool cached=true) {
     radio_mock::time=1;
     radio_mock::connects=radio_mock::disconnects=radio_mock::inquiries=radio_mock::media_requests=0;
-    radio_mock::connect_result=radio_mock::inquiry_result=ESP_OK;
+    radio_mock::connect_result=radio_mock::inquiry_result=radio_mock::rssi_result=ESP_OK;
+    radio_mock::rssi_requests=0; radio_mock::logs.clear();
+    speaker_attempt_us=speaker_connected_us=next_rssi_us=rssi_pending_until=0;
+    speaker_attempt_count=speaker_disconnect_count=0;
     faulted=false; overflow=false; attached=true; own_iface=1;
     speaker_up=peer_up=media_ready=false;
     primary_role=primary_under_test; peer_discovery_enabled=false;
@@ -148,6 +151,36 @@ void test_established_session_loss() {
     advance(1); assert(radio_mock::connects == before + 1);
     connected(); assert(speaker_connected());
 }
+
+bool logged(const char *text) {
+    return std::any_of(radio_mock::logs.begin(), radio_mock::logs.end(),
+                       [text](const std::string &line) { return line.find(text) != std::string::npos; });
+}
+void test_lifecycle_timings_and_rssi_cadence() {
+    reset(); seek();
+    advance(2000000); connected();
+    assert(logged("event=speaker_connect_attempt"));
+    assert(logged("attempt_ms=2000"));
+    advance(1); assert(radio_mock::rssi_requests==1 && rssi_pending_until);
+    Event sample=state(ESP_BT_GAP_READ_RSSI_DELTA_EVT,-12);sample.status=ESP_BT_STATUS_SUCCESS;
+    handle_classic(sample);
+    assert(!rssi_pending_until && logged("rssi_delta=-12 units=controller_delta_not_dbm"));
+    advance(29999999); assert(radio_mock::rssi_requests==1);
+    advance(1); assert(radio_mock::rssi_requests==2);
+    advance(5000000); assert(!rssi_pending_until && logged("state=timeout"));
+    disconnected();
+    assert(logged("event=speaker_disconnected") && logged("was_connected=1"));
+    assert(speaker_disconnect_count==1);
+    const auto count=radio_mock::rssi_requests;
+    advance(1000000);handle_classic(sample);
+    assert(radio_mock::rssi_requests==count && !rssi_pending_until);
+    // A controller failure stays observable and respects the same sample rate.
+    connected();radio_mock::rssi_result=ESP_ERR_INVALID_STATE;
+    advance(1);assert(logged("state=request_failed"));
+    advance(29999999);assert(radio_mock::rssi_requests==count+1);
+    advance(1);assert(radio_mock::rssi_requests==count+2);
+}
+
 int main() {
     for (bool primary : {true, false}) {
     primary_under_test = primary;
@@ -158,6 +191,7 @@ int main() {
     test_acl_teardown_late_and_ordering();
     test_media_retry_survives_old_budget();
     test_established_session_loss();
+    test_lifecycle_timings_and_rssi_cadence();
     }
     puts("Radio recovery: primary and secondary production-source virtual-clock scenarios passed.");
 }

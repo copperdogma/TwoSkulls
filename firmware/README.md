@@ -81,6 +81,10 @@ for collecting serial/SD evidence before rebooting, finding the card’s
   Persistent internal card-not-ready states may still need a true power cycle;
   no GPIO-controlled card-power switch has been verified on this board.
 - `fault-log`: dump the pending RAM/recovered compact fault report over serial.
+- `fault-saved`: read the eight fixed SD report slots over serial while idle.
+  `faultarchive` BEGIN/DATA/END records encode exact bytes as hex with offsets,
+  length and result. Missing slots report ENOENT; no files are changed. This can
+  take several seconds and holds the control owner until complete.
 - `fault-test`: idle-only controlled error to exercise normal capture and export.
 - `speaker-name`: read the speaker name on the installed SD card and the name
   selected for the current boot.
@@ -372,11 +376,13 @@ Jeff setup timeout warnings freeze one report with
 firmware hash and uptime. Later faults coalesce while it is pending. Filtered
 configuration and provisioning logs are excluded.
 
-After show/startup/tone stop and the audio worker closes its file, the existing
+After show/startup playback/tone stop and the audio worker closes its file, the existing
 control task saves a compact fallback in the separate `skulls_fault` NVS namespace
 and exports the report to `/sdcard/diagnostics/fault-0.log` through `fault-7.log`.
-A single `pending.tmp` is written, flushed, synced, closed and readback-checked
-before replacement. Each report is at most 7167 bytes; retention is eight slots
+Waiting silently for a missing speaker does not block export: startup PCM is
+already preloaded in PSRAM and only the control owner can start playback after
+synchronous I/O returns. A single `pending.tmp` is written, flushed, synced, closed and readback-checked
+before replacement. Each report is at most 14335 bytes; retention is eight slots
 plus that one staging file. Failed exports keep the pending report and retry at
 most once per 60 seconds while idle. The logger does not remount the card.
 
@@ -384,6 +390,35 @@ most once per 60 seconds while idle. The logger does not remount the card.
 successful export and acknowledgement, inspect the SD files. An unacknowledged
 compact report can be recovered after reboot; it holds roughly the last 1 KiB,
 not all RAM history. Abrupt power loss before persistence can lose the report.
+Reports now also include pinned startup milestones and a separate bounded
+lifecycle history: boot/reset reason, SD mount and config attempt durations/results,
+first successful SD recovery, radio setup, speaker connection/stream readiness,
+and first operational readiness. Primary readiness means the actual paired-trigger
+acceptance gate; secondary readiness is labelled local-audio readiness. Startup
+`finished` is a terminal state and does not prove an audible announcement.
+Boot timings use the SDK's monotonic uptime (not a measured power-rail timestamp);
+`app_ms` measures from application entry. The logger begins after actuator/NVS
+initialization, before SD; earlier failures are outside its capture window.
+
+First milestones survive status-ring churn for the current boot. Twelve recent
+lifecycle events wrap with an eviction count; latest Wi-Fi/speaker signal and
+speaker-disconnect observations remain separately available with sample timestamps.
+Speaker losses have a cumulative per-boot count. Both roles request an asynchronous
+Classic Bluetooth RSSI sample every 30 seconds while connected: `rssi_delta` is
+relative to the controller's Golden Receive Power Range, **not dBm**. Anthony
+samples Wi-Fi RSSI in dBm every 30 seconds; Jeff records Wi-Fi disabled for its
+role. Wi-Fi sampling can miss outages shorter than the interval. No new network
+service or Wi-Fi provisioning is added.
+
+Lifecycle capture is RAM-only in bounded PSRAM, without per-event SD writes or
+new tasks. A fault report seals lifecycle context when the control task next
+materializes it; the original application/driver ring still freezes at the first
+fault. This permits a driver's error and the enclosing SD attempt result/duration
+to appear together. Later events cannot change an already materialized report.
+The compact roughly 1 KiB reboot fallback retains only the report tail, so it
+cannot preserve the full lifecycle context. Full startup context requires the
+normal SD export before RAM is lost.
+
 This is ordinary error retention, not a panic/core-dump facility. No formatting,
 NVS erasure or flash partition changes are introduced.
 

@@ -86,6 +86,7 @@ bool busy() {
     // greeting_pending still gates local/paired/Home playback until recovery.
     return state != State::idle || requested.load() || (greeting_pending && radio::stream_ready());
 }
+bool ready() { return accepting.load(); }
 const char *state_name() {
     switch (state) {
     case State::idle: return "idle";

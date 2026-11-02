@@ -70,6 +70,9 @@ playback remain disabled until valid config loads. See [Story 005](docs/stories/
   private incident folder before more tests overwrite older reports. Slot numbers
   wrap; use report IDs, uptime and firmware hashes inside the files for context.
   `pending.tmp` is staging evidence and may be incomplete; preserve it if present.
+- Reports also retain startup timings, SD attempt results, speaker lifecycle and
+  sampled signal information from the current boot. See the
+  [lifecycle details](firmware/README.md#retained-fault-diagnostics).
 - This is selected recent history around the first error, not continuous full
   serial output. More errors coalesce while a report is pending. No report may
   mean no selected fault, old firmware, unavailable logger memory, or failed export.
@@ -84,11 +87,13 @@ playback remain disabled until valid config loads. See [Story 005](docs/stories/
    re-pairing, reflashing or running `fault-test` until the real fault is saved.
    A full pending RAM report is more detailed than the roughly 1 KiB flash fallback.
 3. Read `pending`, `SD_attempts`, `SD_errno`, `NVS`, and `next_SD_ms` in status.
-   Writes wait for idle show/audio/startup/tone and audio-file cleanup;
-   busy or cancellation holds can defer export. Failed exports retry at most once
+   Writes wait for idle show/audio/startup playback/tone and audio-file cleanup;
+   waiting silently for a missing speaker permits export on the updated build.
+   Busy or cancellation holds can defer export. Failed exports retry at most once
    per 60 seconds while idle. `sd=1` alone does not prove writes work. After a
    successful export/acknowledgement, `pending=0` and `fault-log` may say there is
-   no pending report: retrieve the saved SD files instead.
+   no pending report: use idle-only `fault-saved` over USB on the updated build
+   or retrieve the saved SD files instead.
 4. Once work has stopped and evidence is captured, power the board down before
    removing its card. Copy the `diagnostics` folder using a computer reader; also
    preserve the exact implicated WAV/script/config privately. Do not format or

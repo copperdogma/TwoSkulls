@@ -6,6 +6,7 @@
 | [002 — Continuous speaker reconnect](story-002-continuous-speaker-reconnect.md) | In Review | Paired-device delayed-speaker acceptance |
 | [003 — Retained fault logs](story-003-retained-fault-logs.md) | In Review | Both-role device export and paired playback acceptance |
 | [004 — Expressive speech jaw](story-004-expressive-speech-jaw.md) | Complete — softer Anthony tuning accepted | Jeff flashed; physical and paired qualification remain separate |
+| [006 — Lifecycle fault context](story-006-lifecycle-fault-context.md) | Jeff SD export/readback/reboot passed | Anthony and speaker/paired checks |
 
 Supporting [research record](../research/2026-10-14-single-wrover-research.md).
 The earlier [Arduino onboard-SD migration](../onboard-sd-migration.md) is a separate

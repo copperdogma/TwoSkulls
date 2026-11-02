@@ -76,6 +76,24 @@ uint16_t prepared{}, preparing{};
 bool long_write{}, notification_seen{}, read_issued{}, initial_read{}, abandon_open{};
 char pending[MAX_FILE + 1]{};
 int64_t deadline{}, read_at{}, setup_deadline{};
+int64_t speaker_attempt_us{}, speaker_connected_us{}, next_rssi_us{}, rssi_pending_until{};
+uint32_t speaker_attempt_count{}, speaker_disconnect_count{};
+
+void record_speaker_attempt(const char *method, esp_err_t result, int64_t started_us) {
+    speaker_attempt_us = started_us;
+    if (speaker_attempt_count != UINT32_MAX) ++speaker_attempt_count;
+    ESP_LOGI("lifecycle", "event=speaker_connect_attempt boot_ms=%lld attempt=%lu disconnects=%lu method=%s result=%s",
+             static_cast<long long>(started_us / 1000), static_cast<unsigned long>(speaker_attempt_count),
+             static_cast<unsigned long>(speaker_disconnect_count), method, esp_err_to_name(result));
+}
+void record_stream_ready() {
+    if (media_ready.load()) return;
+    const int64_t time = esp_timer_get_time();
+    ESP_LOGI("lifecycle", "event=speaker_stream_ready boot_ms=%lld connected_ms=%lld attempt_ms=%lld",
+             static_cast<long long>(time / 1000),
+             static_cast<long long>(speaker_connected_us ? (time - speaker_connected_us) / 1000 : -1),
+             static_cast<long long>(speaker_attempt_us ? (time - speaker_attempt_us) / 1000 : -1));
+}
 
 bool post(const Event &event) {
     if (queue && xQueueSend(queue, &event, 0) == pdTRUE) return true;
@@ -205,7 +223,9 @@ void seek() {
         if (known_speaker && reconnect_attempts < 3) {
             ++reconnect_attempts;
             reconnect_at = 0;
+            const int64_t attempt_started = now();
             const esp_err_t error = esp_a2d_source_connect(speaker_address);
+            record_speaker_attempt("cached", error, attempt_started);
             speaker_connecting = error == ESP_OK;
             if (speaker_connecting) speaker_connect_deadline = now() + 75000000;
             failed("configured speaker reconnect", error);
@@ -319,6 +339,9 @@ void classic_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *p) {
         }
         break;
     case ESP_BT_GAP_DISC_STATE_CHANGED_EVT: e.a = p->disc_st_chg.state; break;
+    case ESP_BT_GAP_READ_RSSI_DELTA_EVT:
+        std::memcpy(e.address, p->read_rssi_delta.bda, sizeof(e.address));
+        e.status = p->read_rssi_delta.stat; e.a = p->read_rssi_delta.rssi_delta; break;
     case ESP_BT_GAP_PIN_REQ_EVT: std::memcpy(e.address, p->pin_req.bda, 6); e.a = p->pin_req.min_16_digit; break;
     case ESP_BT_GAP_CFM_REQ_EVT: std::memcpy(e.address, p->cfm_req.bda, 6); e.a = p->cfm_req.num_val; break;
     case ESP_BT_GAP_AUTH_CMPL_EVT: std::memcpy(e.address, p->auth_cmpl.bda, 6); e.status = p->auth_cmpl.stat; break;
@@ -336,7 +359,7 @@ void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *p) {
     Event e{}; e.kind = Kind::a2dp; e.code = event;
     switch (event) {
     case ESP_A2D_CONNECTION_STATE_EVT:
-        e.a = p->conn_stat.state; std::memcpy(e.address, p->conn_stat.remote_bda, 6); break;
+        e.a = p->conn_stat.state; e.status = p->conn_stat.disc_rsn; std::memcpy(e.address, p->conn_stat.remote_bda, 6); break;
     case ESP_A2D_AUDIO_STATE_EVT: e.a = p->audio_stat.state; break;
     case ESP_A2D_MEDIA_CTRL_ACK_EVT: e.a = p->media_ctrl_stat.cmd; e.status = p->media_ctrl_stat.status; break;
     case ESP_A2D_AUDIO_CFG_EVT:
@@ -463,6 +486,16 @@ void handle_gatt(const Event &e) {
 }
 void handle_classic(const Event &e) {
     switch (e.code) {
+    case ESP_BT_GAP_READ_RSSI_DELTA_EVT:
+        if (!same(e.address, speaker_address) || !speaker_up.load() || !rssi_pending_until) break;
+        rssi_pending_until = 0;
+        if (e.status == ESP_BT_STATUS_SUCCESS)
+            ESP_LOGI("lifecycle", "event=speaker_rssi boot_ms=%lld state=sampled rssi_delta=%d units=controller_delta_not_dbm",
+                     static_cast<long long>(now() / 1000), e.a);
+        else
+            ESP_LOGI("lifecycle", "event=speaker_rssi boot_ms=%lld state=unavailable status=%d",
+                     static_cast<long long>(now() / 1000), e.status);
+        break;
     case ESP_BT_GAP_ACL_CONN_CMPL_STAT_EVT:
         if (!same(e.address, speaker_address)) break;
         ESP_LOGI(TAG, "Configured speaker ACL complete status=%d handle=%d", e.status, e.a);
@@ -475,6 +508,8 @@ void handle_classic(const Event &e) {
         ESP_LOGI(TAG, "Configured speaker ACL disconnected reason=%d handle=%d", e.status, e.a);
         if (speaker_acl_up && e.a != speaker_acl_handle) break;
         speaker_acl_up = false;
+        ESP_LOGI("lifecycle", "event=speaker_acl_disconnect boot_ms=%lld reason=%d",
+                 static_cast<long long>(now() / 1000), e.status);
         if (await_acl_down) {
             await_acl_down = false; acl_wait_deadline = 0;
             schedule_speaker_retry();
@@ -497,7 +532,9 @@ void handle_classic(const Event &e) {
         if (!inquiry && found_speaker && !speaker_up.load() && !speaker_connecting &&
             !speaker_acl_up && !await_acl_down) {
             reconnect_attempts = 0;
+            const int64_t attempt_started = now();
             esp_err_t error = esp_a2d_source_connect(speaker_address);
+            record_speaker_attempt("discovered", error, attempt_started);
             speaker_connecting = error == ESP_OK; failed("speaker connect", error);
             if (speaker_connecting) speaker_connect_deadline = now() + 75000000;
             else schedule_speaker_retry(true);
@@ -549,10 +586,24 @@ void handle_a2dp(const Event &e) {
             await_acl_down = false; acl_wait_deadline = 0;
             reconnect_attempts = 0; // A successful session starts a fresh recovery budget.
             reconnect_at = 0;
+            if (!speaker_up.load()) {
+                speaker_connected_us = now();
+                next_rssi_us = speaker_connected_us;
+                ESP_LOGI("lifecycle", "event=speaker_connected boot_ms=%lld attempt_ms=%lld attempts=%lu disconnects=%lu",
+                         static_cast<long long>(speaker_connected_us / 1000),
+                         static_cast<long long>(speaker_attempt_us ? (speaker_connected_us - speaker_attempt_us) / 1000 : -1),
+                         static_cast<unsigned long>(speaker_attempt_count), static_cast<unsigned long>(speaker_disconnect_count));
+            }
             speaker_connecting = false; speaker_up.store(true);
             save_speaker(); // Worker only, before starting PCM; never in callback.
             media_attempts = 0; try_media_start();
         } else if (e.a == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
+            if (speaker_up.load() && speaker_disconnect_count != UINT32_MAX) ++speaker_disconnect_count;
+            ESP_LOGI("lifecycle", "event=speaker_disconnected boot_ms=%lld was_connected=%d connected_ms=%lld reason=%d disconnects=%lu",
+                     static_cast<long long>(now() / 1000), speaker_up.load(),
+                     static_cast<long long>(speaker_connected_us ? (now() - speaker_connected_us) / 1000 : -1), e.status,
+                     static_cast<unsigned long>(speaker_disconnect_count));
+            speaker_connected_us = 0; rssi_pending_until = 0; next_rssi_us = 0;
             speaker_connect_deadline = 0;
             speaker_up.store(false); speaker_connecting = streaming = false;
             media_ready.store(false); media_retry_at = 0;
@@ -574,11 +625,16 @@ void handle_a2dp(const Event &e) {
             failed("A2DP start", esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_START));
         }
         if (e.a == ESP_A2D_MEDIA_CTRL_START && e.status == ESP_A2D_MEDIA_CTRL_ACK_SUCCESS) {
+            record_stream_ready();
             streaming = true; media_ready.store(true); media_retry_at = 0;
         }
     } else if (e.code == ESP_A2D_AUDIO_STATE_EVT) {
         const bool was_streaming = streaming;
         streaming = e.a == ESP_A2D_AUDIO_STATE_STARTED;
+        if (streaming) record_stream_ready();
+        else if (media_ready.load())
+            ESP_LOGI("lifecycle", "event=speaker_stream_lost boot_ms=%lld state=%d connected=%d",
+                     static_cast<long long>(now() / 1000), e.a, speaker_up.load());
         media_ready.store(streaming);
         if (streaming) media_retry_at = 0;
         else if (was_streaming && speaker_up.load()) { media_attempts = 0; media_retry_at = now() + 1000000; }
@@ -603,6 +659,8 @@ void worker(void *) {
             switch (e.kind) {
             case Kind::start: {
                 primary_role = e.a != 0;
+                ESP_LOGI("lifecycle", "event=radio_start boot_ms=%lld role=%s",
+                         static_cast<long long>(now() / 1000), primary_role ? "primary" : "secondary");
                 load_speaker();
                 ESP_LOGI(TAG, "Radio start: configured speaker='%s', peer selection=%s", speaker_name,
                          fixed_peer ? "configured address" : "exact legacy name");
@@ -694,6 +752,19 @@ void worker(void *) {
         }
         if (faulted.load()) continue;
         const int64_t time = now();
+        // One asynchronous controller sample per 30 seconds, no inquiry/scan,
+        // allocations or work in the PCM callback. Missing responses expire.
+        if (rssi_pending_until && time >= rssi_pending_until) {
+            rssi_pending_until = 0;
+            ESP_LOGI("lifecycle", "event=speaker_rssi boot_ms=%lld state=timeout", static_cast<long long>(time / 1000));
+        }
+        if (speaker_up.load() && !rssi_pending_until && time >= next_rssi_us) {
+            next_rssi_us = time + 30000000;
+            const esp_err_t rssi = esp_bt_gap_read_rssi_delta(speaker_address);
+            if (rssi == ESP_OK) rssi_pending_until = time + 5000000;
+            else ESP_LOGI("lifecycle", "event=speaker_rssi boot_ms=%lld state=request_failed result=%s",
+                          static_cast<long long>(time / 1000), esp_err_to_name(rssi));
+        }
         if (speaker_connect_deadline && time >= speaker_connect_deadline) {
             // The pinned SDK does not support cancelling A2DP while OPENING.
             // Keep observing until completion; never start an overlapping open.
