@@ -2,12 +2,12 @@
 
 Experiment date: November 1, 2026. Hardware: Jeff and Cam’s JBL GO 2.
 
-Follow-up verified the same day: Jeff now uses `speaker_name=JBL GO 2` on his
-installed SD card, with the reusable USB `speaker-name` utility and no experimental
-override. The setting survived a deliberate reboot, and Cam heard both the
-startup announcement and Polo clearly. Leave GO 2 selected for the demonstration;
-afterward use `speaker-name JBL Flip 6`, then `reboot`, to switch back while keeping
-the utility. See [the installed-card writing record](research/2026-11-01-speaker-config-writing.md)
+Final state after the successful demonstration: Jeff is back on
+`speaker_name=JBL Flip 6`, verified on SD and after reboot. The reusable USB
+`speaker-name` utility and startup mitigations remain installed, with no
+experimental override. Before restoration, SD selection of GO 2 survived reboot
+and Cam heard both startup speech and Polo clearly. To use GO 2 next year, change
+the setting with the utility below. See [the installed-card writing record](research/2026-11-01-speaker-config-writing.md)
 and [SD startup recovery record](research/2026-11-01-sd-startup-recovery.md).
 
 Jeff successfully connected to the GO 2 using the current native ESP32 firmware.
@@ -126,8 +126,8 @@ test. Reflashing that saved application at the verified application offset
 restores SD-based selection of Flip 6. Alternatively, rebuild with the option
 explicitly OFF and application-only flash. No factory reset is required.
 
-The follow-up at the top supersedes that state: SD now selects GO 2 and the
-override has been removed. Utility and startup source changes are retained on
+The final state at the top supersedes that state: SD again selects Flip 6 and
+the override has been removed. Utility and startup source changes are retained on
 `codex/jaw-articulation`; a pre-utility application rollback also removes those
 new commands. To restore just the speaker after the demo, use the retained
 utility rather than rolling back firmware.

@@ -103,3 +103,18 @@ it does not qualify arbitrary interrupted writes or every card startup fault.
 Leave GO 2 selected for Cam's demonstration. The later authorized speaker
 reversal is `speaker-name JBL Flip 6`, then `reboot`, once Cam says the demo is
 finished. Keep the utility/startup code. No Anthony or Death changes.
+
+## Demonstration closeout and speaker restoration
+
+Cam confirmed the demonstration worked and requested restoration plus check-in
+and push. Captured status/fault-log first: no pending report, mounted SD,
+same ELF prefix 474104357. `speaker-name JBL Flip 6` saved/readback-verified at
+uptime 29.032 s. Before reboot, query correctly distinguished persisted Flip 6
+from current-boot GO 2. After idle `reboot`, SD mounted on attempt 1 and read
+secondary/Flip 6/60%. Query at 31.242 s confirmed SD Flip 6/current boot Flip 6.
+No firmware rollback, factory reset or SD removal was needed. Utility and startup
+mitigations retained. Capture: `revert-flip6.log` in the private evidence folder.
+
+The Flip 6 did not appear in completed inquiry at closeout, so its new audible
+connection was not qualified. The requested speaker setting is restored and
+automatic connection attempts continue. No Anthony or Death changes.

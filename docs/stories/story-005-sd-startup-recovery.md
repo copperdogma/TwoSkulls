@@ -8,8 +8,8 @@ Date: November 1, 2026.
 Initialize and verify real SD access before starting playback, recover through
 supported software mechanisms where possible, and keep useful diagnostics
 available when the installed card cannot initialize. Preserve card contents and
-failure evidence. The speaker-name utility is installed, and GO 2 is selected
-on Jeff's SD card for Cam's demonstration.
+failure evidence. The speaker-name utility is installed. Cam's GO 2 demonstration
+worked; afterward the utility restored Flip 6, verified on SD and after reboot.
 
 ## Evidence and recovery experiment
 
