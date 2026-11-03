@@ -27,12 +27,30 @@ bool volume(const char *text, unsigned &result) {
     result = value;
     return true;
 }
+bool pulse(const char *text, unsigned &result) {
+    if (!*text) return false;
+    unsigned value = 0;
+    for (; *text; ++text) {
+        if (*text < '0' || *text > '9') return false;
+        // The bounded accumulator cannot overflow, even for a hostile input.
+        value = value * 10 + static_cast<unsigned>(*text - '0');
+        if (value > 2400) return false;
+    }
+    if (value < 544) return false;
+    result = value;
+    return true;
+}
+}
+bool valid_jaw_limits(unsigned closed_us, unsigned open_us) {
+    return closed_us >= 544 && closed_us <= 2400 &&
+           open_us >= 544 && open_us <= 2400 && closed_us != open_us;
 }
 bool parse_config(FILE *file, Config &config) {
     config = Config{};
     if (!file) return false;
     Config candidate;
     bool have_role = false, first_line = true;
+    bool have_jaw_closed = false, have_jaw_open = false;
     char buffer[256];
     while (std::fgets(buffer, sizeof buffer, file)) {
         if (!std::strchr(buffer, '\n') && !std::feof(file)) return false;
@@ -60,10 +78,17 @@ bool parse_config(FILE *file, Config &config) {
             if (!copy(candidate.secondary_mac, sizeof candidate.secondary_mac, value)) return false;
         } else if (!std::strcmp(key, "speaker_volume")) {
             if (!volume(value, candidate.volume_percent)) return false;
+        } else if (!std::strcmp(key, "jaw_closed_us")) {
+            if (have_jaw_closed || !pulse(value, candidate.jaw_closed_us)) return false;
+            have_jaw_closed = true;
+        } else if (!std::strcmp(key, "jaw_open_us")) {
+            if (have_jaw_open || !pulse(value, candidate.jaw_open_us)) return false;
+            have_jaw_open = true;
         }
         // Preserve legacy extensibility: well-formed unknown keys are ignored.
     }
-    if (std::ferror(file) || !have_role || !*candidate.speaker_name) return false;
+    if (std::ferror(file) || !have_role || !*candidate.speaker_name ||
+        !valid_jaw_limits(candidate.jaw_closed_us, candidate.jaw_open_us)) return false;
     config = candidate;
     return true;
 }

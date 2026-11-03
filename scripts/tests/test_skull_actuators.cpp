@@ -1,13 +1,17 @@
 // Exercises the actual production driver against deterministic hardware/time
 // stubs. This proves commanded waveforms and state transitions, not real motion.
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdio>
 #include <vector>
+#include <sys/wait.h>
+#include <unistd.h>
 #include "driver/ledc.h"
 #include "esp_private/periph_ctrl.h"
 #include "hal/ledc_ll.h"
 #include "skull_actuators.h"
+#include "skull_speaker_indicator.h"
 
 actuator_test_ledc_t actuator_test_ledc = {};
 
@@ -16,6 +20,10 @@ int64_t now_us = 10000000;
 std::vector<ledc_timer_config_t> timers;
 std::vector<ledc_channel_config_t> channels;
 std::array<uint32_t, 3> duty = {};
+std::array<uint32_t, 3> staged_duty = {};
+std::array<unsigned, 3> fail_set = {};
+std::array<unsigned, 3> fail_update = {};
+std::array<unsigned, 3> zero_attempts = {};
 unsigned updates = 0;
 unsigned resets = 0;
 std::array<unsigned, 3> sets = {};
@@ -32,7 +40,7 @@ void tick_at(int64_t us, uint16_t rms = 0, bool speaking = false, bool audio_bus
 }
 uint32_t jaw_duty(int degrees)
 {
-    return ((544U + degrees * 1856U / 180U) * 65536U + 10000U) / 20000U;
+    return ((544U + degrees * 824U / 80U) * 65536U + 10000U) / 20000U;
 }
 void expect_idle_jaw(int degrees)
 {
@@ -62,7 +70,7 @@ esp_err_t ledc_channel_config(const ledc_channel_config_t *config)
 {
     assert(timers.size() == 2);
     channels.push_back(*config);
-    duty[config->channel] = config->duty;
+    duty[config->channel] = staged_duty[config->channel] = config->duty;
     return ESP_OK;
 }
 esp_err_t ledc_set_duty(ledc_mode_t mode, ledc_channel_t channel, uint32_t value)
@@ -70,7 +78,9 @@ esp_err_t ledc_set_duty(ledc_mode_t mode, ledc_channel_t channel, uint32_t value
     assert(mode == LEDC_LOW_SPEED_MODE);
     assert(!actuator_test_ledc.channel_group[mode].channel[channel].conf1.duty_start);
     ++sets[channel];
-    duty[channel] = value;
+    if (!value) ++zero_attempts[channel];
+    if (fail_set[channel]) { --fail_set[channel]; return ESP_FAIL; }
+    staged_duty[channel] = value;
     return ESP_OK;
 }
 esp_err_t ledc_update_duty(ledc_mode_t mode, ledc_channel_t channel)
@@ -79,17 +89,41 @@ esp_err_t ledc_update_duty(ledc_mode_t mode, ledc_channel_t channel)
     assert(!actuator_test_ledc.channel_group[mode].channel[channel].conf1.duty_start);
     ++channel_updates[channel];
     ++updates;
+    if (fail_update[channel]) { --fail_update[channel]; return ESP_FAIL; }
+    duty[channel] = staged_duty[channel];
     return ESP_OK;
 }
 
 int main(int argc, char **argv)
 {
     using namespace skull::actuators;
+    // Policy boot age must remain independent of when control polling starts.
+    {
+        SpeakerIndicator missing;
+        missing.update(29980000, false);
+        assert(!missing.active);
+        missing.update(30000000, false);
+        assert(missing.active && missing.bright(30000000));
+        assert(missing.bright(30999999) && !missing.bright(31000000));
+        assert(!missing.bright(31999999) && missing.bright(32000000));
+        SpeakerIndicator late;
+        late.update(75000000, false);
+        assert(late.active && late.started_us == 75000000 && late.bright(75000000));
+        SpeakerIndicator early;
+        early.update(1000000, true);
+        assert(!early.active && early.connected_once);
+        early.update(2000000, false);
+        assert(early.active && early.bright(2000000));
+        early.update(3500000, true);
+        assert(!early.active);
+        early.update(4000000, false);
+        assert(early.active && early.started_us == 4000000 && early.bright(4000000));
+    }
     // Optional trace mode consumes 20 ms RMS windows and exercises the actual
     // production driver. Used by jaw_preflight.py with repository WAV assets.
     if (argc == 2) {
         FILE *input = std::fopen(argv[1], "r");
-        assert(input && init() == ESP_OK);
+        assert(input && init() == ESP_OK && configure_jaw(544, 1368));
         tick_after(20000, 0, false, true);
         unsigned rms;
         while (std::fscanf(input, "%u", &rms) == 1) {
@@ -118,7 +152,13 @@ int main(int argc, char **argv)
     assert(channels[1].gpio_num == 32 && channels[1].channel == LEDC_CHANNEL_1);
     assert(channels[2].gpio_num == 33 && channels[2].channel == LEDC_CHANNEL_2);
     assert(channels[1].timer_sel == LEDC_TIMER_1 && channels[2].timer_sel == LEDC_TIMER_1);
-    assert(duty[0] == 1783); // 544 us at 50 Hz, rounded to 16-bit PWM.
+    assert(duty[0] == 0); // No legacy closed pulse before SD settings load.
+    assert(jaw_state().mode == JawMode::disabled && !jaw_state().enabled);
+    assert(!configure_jaw(543, 1368) && !configure_jaw(544, 2401));
+    assert(!configure_jaw(1000, 1000));
+    assert(duty[0] == 0 && !jaw_manual_enter() && !jaw_resume());
+    assert(configure_jaw(544, 1368));
+    assert(duty[0] == 1783); // Calibrated closed command, rounded to 16-bit PWM.
     assert(duty[1] == 100 && duty[2] == 100);
 
     tick_after(40000000); // Late first diagnostic tick still begins at closed.
@@ -372,5 +412,245 @@ int main(int argc, char **argv)
     tick_after(20000);
     expect_eyes(100);
     assert(sets[1] == left_sets + 1 && resets == 1);
+
+    // Actual driver: connection loss owns only eye brightness, with exact
+    // one-second bright/dim halves and higher-priority diagnostic darkness.
+    speaker_connection(true);
+    tick_after(20000);
+    speaker_connection(false);
+    const int64_t warning_start = now_us;
+    tick_after(20000);
+    expect_eyes(255);
+    tick_at(warning_start + 980000);
+    expect_eyes(255);
+    tick_at(warning_start + 1000000, 2400, true, true);
+    expect_eyes(100);
+    assert(duty[0] >= jaw_duty(50)); // Warning cannot suppress speech motion.
+    tick_at(warning_start + 1980000, 2400, true, true);
+    expect_eyes(100); // Speech brightness cannot erase warning's dim phase.
+    tick_at(warning_start + 2000000, 2400, true, true);
+    expect_eyes(255);
+    tick_at(warning_start + 5500000); // Skip elapsed phases without replay.
+    expect_eyes(100);
+    diagnostic(2, true);
+    tick_after(20000);
+    const int64_t diagnostic_start = now_us;
+    expect_eyes(255);
+    tick_at(diagnostic_start + 200000);
+    expect_eyes(0);
+    tick_at(diagnostic_start + 800000);
+    expect_eyes(0); // Repeating diagnostic gap stays dark over the warning.
+    diagnostic(0);
+    tick_after(20000);
+    expect_eyes(255); // Warning phase continues underneath the diagnostic.
+    diagnostic(1);
+    tick_after(20000);
+    tick_after(400000, 2400, true, true);
+    expect_eyes(255); // One-shot completion resumes current warning phase.
+    tick_at(warning_start + 7000000, 2400, true, true);
+    expect_eyes(100);
+    speaker_connection(true);
+    tick_after(20000, 2400, true, true);
+    expect_eyes(255); // Reconnect clears immediately to speech brightness.
+    tick_after(20000);
+    expect_eyes(100);
+    speaker_connection(false);
+    tick_after(20000);
+    expect_eyes(255); // Every new loss restarts with a full bright half.
+    speaker_connection(true);
+    tick_after(20000);
+    expect_eyes(100);
+    // Conservative manual tuning: exclusive hold, no entry pulse jump, bounded
+    // individual commands, fixed session envelope and no hidden auto gestures.
+    const auto pulse_duty = [](unsigned pulse) { return (pulse * 65536U + 10000U) / 20000U; };
+    tick_after(20000, 0, false, true); // Establish known closed command.
+    const unsigned held = jaw_state().applied_us;
+    const auto before_enter = duty[0];
+    assert(held == 544 && jaw_manual_enter());
+    assert(jaw_state().mode == JawMode::manual && duty[0] == before_enter);
+    assert(jaw_state().minimum_us == 544 && jaw_state().maximum_us == 1418);
+    assert(!jaw_manual_enter());
+    test(); // Legacy manual test cannot override calibration ownership.
+    tick_after(20000, 65535, true, true);
+    assert(duty[0] == before_enter); // Even unexpected audio cannot move it.
+    assert(!jaw_manual_target(543) && !jaw_manual_target(570)); // >25 us jump.
+    assert(!jaw_manual_step(0) && !jaw_manual_step(26) && !jaw_manual_step(-26));
+    assert(jaw_manual_step(10));
+    assert(jaw_state().requested_us == 554 && jaw_state().applied_us == 544);
+    tick_after(20000);
+    assert(jaw_state().applied_us == 554 && duty[0] == pulse_duty(554));
+    assert(jaw_manual_step(1));
+    tick_after(20000);
+    assert(jaw_state().applied_us == 555);
+    assert(jaw_manual_step(-1));
+    tick_after(20000);
+    assert(jaw_state().applied_us == 554);
+
+    // Pending register updates do not masquerade as applied motion, and a
+    // burst cannot accumulate farther than 25 us beyond the applied command.
+    hw.channel[0].conf1.duty_start = 1;
+    assert(jaw_manual_target(579));
+    tick_after(20000);
+    assert(jaw_state().applied_us == 554 && jaw_state().requested_us == 579);
+    assert(!jaw_manual_step(1));
+    jaw_disable();
+    assert(jaw_state().mode == JawMode::disabled && jaw_state().enabled);
+    assert(jaw_state().applied_us == 554); // Disable is pending, not falsely done.
+    tick_after(20000, 65535, true, true);
+    assert(duty[0] == pulse_duty(554));
+    hw.channel[0].conf1.duty_start = 0;
+    tick_after(20000);
+    assert(!jaw_state().enabled && jaw_state().applied_us == 0 && duty[0] == 0);
+    tick_after(10000000, 65535, true, true);
+    assert(duty[0] == 0); // Disable is latched despite speech/breath cadence.
+    assert(!jaw_manual_target(554));
+
+    // Re-entry from disabled is explicit and restores only the last held pulse.
+    assert(jaw_manual_enter());
+    tick_after(20000);
+    assert(duty[0] == pulse_duty(554));
+    while (jaw_state().applied_us < 1418) {
+        const unsigned target = std::min(1418U, jaw_state().applied_us + 25);
+        assert(jaw_manual_target(target));
+        tick_after(20000);
+    }
+    assert(!jaw_manual_step(1)); // No automatic sweep or envelope expansion.
+    const auto manual_peak = duty[0];
+    assert(!configure_jaw(0, 1200) && !configure_jaw(600, 2401));
+    assert(jaw_state().closed_us == 544 && jaw_state().open_us == 1368);
+    assert(configure_jaw(600, 1200)); // Save/apply changes no held command.
+    assert(duty[0] == manual_peak && jaw_state().applied_us == 1418);
+    assert(jaw_state().minimum_us == 544 && jaw_state().maximum_us == 1418);
+    tick_after(20000, 65535, true, true);
+    assert(duty[0] == manual_peak);
+    assert(jaw_resume()); // Explicit return, never jump to new closed pulse.
+    assert(!jaw_resume());
+    unsigned previous = 1418;
+    for (int i = 0; i < 100; ++i) {
+        tick_after(20000, 0, false, true);
+        const auto actual = jaw_state().applied_us;
+        assert(previous >= actual && previous - actual <= 10);
+        previous = actual;
+    }
+    assert(previous == 600);
+
+    // Reversed per-skull endpoints retain direction and independent bounds.
+    assert(jaw_manual_enter());
+    assert(configure_jaw(1200, 600));
+    assert(jaw_state().applied_us == 600);
+    jaw_disable();
+    assert(jaw_resume());
+    for (int i = 0; i < 60; ++i) tick_after(20000, 0, false, true);
+    assert(jaw_state().applied_us == 1200);
+    for (int i = 0; i < 20; ++i) tick_after(20000, 65535, true, true);
+    assert(jaw_state().applied_us == 600);
+    assert(jaw_manual_enter());
+    assert(jaw_state().minimum_us == 550 && jaw_state().maximum_us == 1250);
+    assert(jaw_manual_target(610));
+    tick_after(20000);
+    const auto lease_start = now_us;
+    tick_at(lease_start + 89960000, 65535, true, true);
+    assert(jaw_state().mode == JawMode::manual && duty[0] == pulse_duty(610));
+    tick_at(lease_start + 90000000, 65535, true, true);
+    assert(jaw_state().mode == JawMode::disabled && duty[0] == 0);
+    assert(!jaw_manual_target(610));
+    tick_after(100000000, 65535, true, true);
+    assert(duty[0] == 0);
+
+    // An expired lease is also enforced before accepting a command, without
+    // waiting for the next 20 ms tick, and no invalid input renews the lease.
+    assert(jaw_manual_enter());
+    tick_after(20000);
+    now_us += 90000000;
+    assert(!jaw_manual_step(1));
+    assert(jaw_state().mode == JawMode::disabled && duty[0] == 0);
+    assert(jaw_manual_enter());
+    tick_after(20000);
+    assert(!jaw_manual_target(2000));
+    tick_after(90000000);
+    assert(jaw_state().mode == JawMode::disabled && duty[0] == 0);
+    // A deferred final resume step does not prematurely remove the slew guard
+    // if the automatic target changes before that command was applied.
+    assert(jaw_manual_enter());
+    tick_after(20000);
+    while (jaw_state().applied_us < 1190) {
+        assert(jaw_manual_target(std::min(1190U, jaw_state().applied_us + 25)));
+        tick_after(20000);
+    }
+    assert(jaw_resume());
+    hw.channel[0].conf1.duty_start = 1;
+    tick_after(20000, 0, false, true); // Wants1200 but remains1190.
+    assert(jaw_state().applied_us == 1190 && jaw_state().requested_us == 1200);
+    hw.channel[0].conf1.duty_start = 0;
+    tick_after(20000, 65535, true, true); // New target opens toward600.
+    assert(jaw_state().applied_us == 1180); // Still no more than10us/tick.
+    jaw_disable();
+    assert(duty[0] == 0);
+    // Each child starts with the same healthy deterministic driver state.
+    // Faults intentionally latch until reboot, so isolation also verifies there
+    // is no in-process init/manual/resume path that clears the latch.
+    for (unsigned scenario = 0; scenario < 4; ++scenario) {
+        const pid_t child = fork();
+        assert(child >= 0);
+        if (child == 0) {
+            assert(jaw_manual_enter());
+            tick_after(20000);
+            const auto held_us = jaw_state().applied_us;
+            assert(held_us && duty[0] != 0);
+            const auto zero_before = zero_attempts[0];
+            if (scenario == 0) {
+                // Eye set failure immediately removes a healthy jaw's pulses.
+                fail_set[1] = 1;
+                tick_after(20000, 65535, true, true);
+                assert(zero_attempts[0] == zero_before + 1 && duty[0] == 0);
+                assert(!jaw_state().enabled && jaw_state().applied_us == 0);
+            } else if (scenario == 1) {
+                // Eye update failure with two failed jaw-stop set attempts.
+                fail_update[1] = 1;
+                fail_set[0] = 2;
+                tick_after(20000, 65535, true, true);
+                assert(jaw_state().enabled && jaw_state().applied_us == held_us);
+                assert(zero_attempts[0] == zero_before + 1 && duty[0] != 0);
+                jaw_disable(); // STOP retries despite ready=false.
+                assert(zero_attempts[0] == zero_before + 2 && jaw_state().enabled);
+                tick_after(90000000); // Timer polling still retries the zero.
+                assert(zero_attempts[0] == zero_before + 3 && duty[0] == 0);
+            } else if (scenario == 2) {
+                // Both a requested jaw update and its first zero update fail.
+                assert(jaw_manual_step(1));
+                fail_update[0] = 2;
+                tick_after(20000);
+                assert(jaw_state().enabled && jaw_state().applied_us == held_us);
+                assert(zero_attempts[0] == zero_before + 1 && duty[0] != 0);
+                hw.channel[0].conf1.duty_start = 1;
+                jaw_disable();
+                tick_after(90000000);
+                assert(zero_attempts[0] == zero_before + 1 && jaw_state().enabled);
+                hw.channel[0].conf1.duty_start = 0;
+                jaw_disable();
+                assert(zero_attempts[0] == zero_before + 2 && duty[0] == 0);
+            } else {
+                assert(jaw_manual_step(1));
+                fail_set[0] = 2; // Requested set and first zero set both fail.
+                tick_after(20000);
+                assert(jaw_state().enabled && jaw_state().applied_us == held_us);
+                assert(zero_attempts[0] == zero_before + 1);
+                tick_after(20000);
+                assert(zero_attempts[0] == zero_before + 2 && duty[0] == 0);
+            }
+            assert(jaw_state().faulted && jaw_state().mode == JawMode::disabled);
+            assert(jaw_state().requested_us == 0 && jaw_state().applied_us == 0);
+            assert(!jaw_state().enabled);
+            assert(init() == ESP_FAIL && !configure_jaw(544, 1368));
+            assert(!jaw_manual_enter() && !jaw_resume() && !jaw_manual_target(600));
+            test();
+            tick_after(100000000, 65535, true, true);
+            assert(duty[0] == 0 && jaw_state().mode == JawMode::disabled);
+            _exit(0);
+        }
+        int status = 0;
+        assert(waitpid(child, &status, 0) == child);
+        assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    }
     std::puts("Actuator command tests passed");
 }

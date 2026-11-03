@@ -19,6 +19,7 @@ sdmmc_card_t fake_card{{4096, 512}};
 void defaults(const skull::storage::Config &config) {
     assert(!*config.speaker_name && !*config.secondary_mac);
     assert(!config.primary && config.volume_percent == 100);
+    assert(config.jaw_closed_us == 544 && config.jaw_open_us == 1368);
 }
 void write_config(const char *text) { std::ofstream(SKULL_STORAGE_ROOT "/config.txt", std::ios::binary) << text; }
 std::string read(const char *name = "config.txt") {
@@ -26,7 +27,8 @@ std::string read(const char *name = "config.txt") {
     return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 }
 void clear_update_files() {
-    for (const auto *name : {"config.speaker.tmp", "config.speaker.previous", "config.speaker.original"})
+    for (const auto *name : {"config.speaker.tmp", "config.speaker.previous", "config.speaker.original",
+                           "config.jaw.tmp", "config.jaw.previous", "config.jaw.original"})
         fs::remove_all(std::string(SKULL_STORAGE_ROOT) + "/" + name);
 }
 }
@@ -50,6 +52,8 @@ int main() {
     fs::create_directories(SKULL_STORAGE_ROOT "/audio");
     Config config;
     assert(set_speaker_name("JBL GO 2") != ESP_OK); // Unmounted never creates files.
+    assert(set_jaw_limits(600, 1400) != ESP_OK);
+    assert(!fs::exists(SKULL_STORAGE_ROOT "/config.jaw.tmp"));
     assert(!fs::exists(SKULL_STORAGE_ROOT "/config.speaker.tmp"));
     std::strcpy(config.speaker_name, "stale"); config.volume_percent = 2;
     assert(mount_and_read_config(config) == ESP_FAIL && !mounted()); defaults(config);
@@ -121,6 +125,96 @@ int main() {
     write_config(oversized.c_str());
     assert(set_speaker_name("JBL GO 2") != ESP_OK && read() == oversized);
     assert(!fs::exists(SKULL_STORAGE_ROOT "/config.speaker.tmp"));
+    clear_update_files();
+    write_config(original.c_str());
+    for (const auto limits : {std::pair<unsigned, unsigned>{543, 1368}, {544, 2401}, {600, 600}, {0, 0}}) {
+        assert(set_jaw_limits(limits.first, limits.second) == ESP_ERR_INVALID_ARG);
+        assert(read() == original);
+        assert(!fs::exists(SKULL_STORAGE_ROOT "/config.jaw.tmp"));
+    }
+    assert(set_jaw_limits(600, 1400) == ESP_OK);
+    const std::string with_jaw = original + "jaw_closed_us=600\r\njaw_open_us=1400\r\n";
+    assert(read() == with_jaw); // All unrelated bytes preserved, CRLF additions.
+    assert(read("config.jaw.original") == original);
+    assert(!fs::exists(SKULL_STORAGE_ROOT "/config.jaw.tmp"));
+    assert(!fs::exists(SKULL_STORAGE_ROOT "/config.jaw.previous"));
+    assert(mount_and_read_config(config) == ESP_OK);
+    assert(config.jaw_closed_us == 600 && config.jaw_open_us == 1400);
+    assert(!config.primary && config.volume_percent == 60 && !std::strcmp(config.speaker_name, "JBL Flip 6"));
+    assert(set_jaw_limits(600, 1400) == ESP_OK && read() == with_jaw);
+    assert(set_jaw_limits(2094, 1950) == ESP_OK); // Reversed servo direction.
+    assert(mount_and_read_config(config) == ESP_OK);
+    assert(config.jaw_closed_us == 2094 && config.jaw_open_us == 1950);
+    assert(read("config.jaw.original") == original); // First original never replaced.
+    assert(set_speaker_name("JBL GO 2") == ESP_OK);
+    assert(mount_and_read_config(config) == ESP_OK);
+    assert(config.jaw_closed_us == 2094 && config.jaw_open_us == 1950);
+    assert(!std::strcmp(config.speaker_name, "JBL GO 2"));
+    clear_update_files();
+    const std::string formatted = "\xef\xbb\xbf jaw_closed_us = 600  \r\n# Keep me\r\n"
+                                  "role=secondary\r\nspeaker_name=Jeff\r\n jaw_open_us = 1400\t\r\n"
+                                  "wifi_password=private=fixture\r\n";
+    write_config(formatted.c_str());
+    assert(set_jaw_limits(610, 1410) == ESP_OK);
+    std::string formatted_wanted = formatted;
+    formatted_wanted.replace(formatted_wanted.find("600"), 3, "610");
+    formatted_wanted.replace(formatted_wanted.find("1400"), 4, "1410");
+    assert(read() == formatted_wanted); // Only numeric values changed.
+    clear_update_files();
+    const std::string no_final_lf = "role=secondary\nspeaker_name=Jeff";
+    write_config(no_final_lf.c_str());
+    assert(set_jaw_limits(600, 1400) == ESP_OK);
+    assert(read() == no_final_lf + "\njaw_closed_us=600\njaw_open_us=1400\n");
+    clear_update_files();
+    const std::string one_key = "role=secondary\nspeaker_name=Jeff\njaw_open_us=1400\n";
+    write_config(one_key.c_str());
+    assert(set_jaw_limits(600, 1410) == ESP_OK);
+    assert(read() == "role=secondary\nspeaker_name=Jeff\njaw_open_us=1410\njaw_closed_us=600\n");
+    clear_update_files();
+    write_config(original.c_str());
+    for (const char *stale : {"config.jaw.tmp", "config.jaw.previous", "config.speaker.tmp", "config.speaker.previous"}) {
+        const auto path = std::string(SKULL_STORAGE_ROOT) + "/" + stale;
+        std::ofstream(path) << "retain recovery evidence";
+        assert(set_jaw_limits(600, 1400) != ESP_OK && read() == original);
+        assert(set_speaker_name("JBL GO 2") != ESP_OK && read() == original);
+        assert(read(stale) == "retain recovery evidence");
+        fs::remove(path);
+    }
+    // Model power loss between the two FAT renames: do not create a default
+    // config or silently finish a transaction while the valid old file and new
+    // candidate are evidence awaiting explicit recovery.
+    std::ofstream(SKULL_STORAGE_ROOT "/config.jaw.tmp", std::ios::binary) << with_jaw;
+    fs::rename(SKULL_STORAGE_ROOT "/config.txt", SKULL_STORAGE_ROOT "/config.jaw.previous");
+    assert(mount_and_read_config(config) == ESP_ERR_NOT_FOUND); defaults(config);
+    assert(set_jaw_limits(610, 1410) != ESP_OK);
+    assert(set_speaker_name("JBL GO 2") != ESP_OK);
+    assert(!fs::exists(SKULL_STORAGE_ROOT "/config.txt"));
+    assert(read("config.jaw.previous") == original && read("config.jaw.tmp") == with_jaw);
+    fs::rename(SKULL_STORAGE_ROOT "/config.jaw.previous", SKULL_STORAGE_ROOT "/config.txt");
+    fs::remove(SKULL_STORAGE_ROOT "/config.jaw.tmp");
+    // A failed save cannot claim either endpoint persisted or destroy evidence.
+    std::ofstream(SKULL_STORAGE_ROOT "/config.jaw.original") << "corrupt backup";
+    assert(set_jaw_limits(600, 1400) != ESP_OK && read() == original);
+    assert(read("config.jaw.original") == "corrupt backup");
+    assert(read("config.jaw.tmp") == with_jaw);
+    assert(set_jaw_limits(610, 1410) != ESP_OK && read("config.jaw.tmp") == with_jaw);
+    clear_update_files();
+    for (const char *invalid : {"role=secondary\nspeaker_name=Jeff\njaw_open_us=1400\njaw_open_us=1500\n",
+                                "role=secondary\nspeaker_name=Jeff\njaw_closed_us=0\n"}) {
+        write_config(invalid);
+        assert(set_jaw_limits(600, 1400) != ESP_OK && read() == invalid);
+        assert(!fs::exists(SKULL_STORAGE_ROOT "/config.jaw.tmp"));
+    }
+    // Appending missing keys must refuse a bounded config with no remaining room.
+    // Use multiple short comment lines so the parser remains valid.
+    std::string bounded = "role=secondary\nspeaker_name=Jeff\n";
+    while (bounded.size() + 201 <= 4070) bounded += std::string(200, '#') + "\n";
+    bounded += "#" + std::string(4070 - bounded.size() - 2, 'x') + "\n";
+    assert(bounded.size() == 4070);
+    write_config(bounded.c_str());
+    assert(set_jaw_limits(600, 1400) != ESP_OK && read() == bounded);
+    assert(!fs::exists(SKULL_STORAGE_ROOT "/config.jaw.tmp"));
+    clear_update_files();
     write_config("role=secondary\nspeaker_name=Jeff\n");
     unmount_result = ESP_FAIL;
     assert(unmount_for_retry() == ESP_FAIL && mounted());

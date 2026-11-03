@@ -142,7 +142,7 @@ static void boot_and_cooldown() {
 static void readiness_gates() {
     using namespace mock;
     setup(); enabled(); speaker = false; tick(); assert(!skull::show::trigger());
-    speaker = true; peer = false; tick(); assert(!skull::show::trigger());
+    speaker = true; peer = false; tick(); assert(skull::show::command_ready());
     peer = true; audio_busy = true; tick(); assert(!skull::show::trigger());
     audio_busy = false; tick(0, true, true); assert(!skull::show::trigger());
     tick(); assert(prepares == 1 && !skull::show::trigger());
@@ -159,13 +159,16 @@ static void handshake_and_no_backlog() {
     tick(1); assert(prepares == 1 && starts == 1 && requests == 1);
     assert(skull::show::trigger()); assert(!skull::show::trigger());
 }
-static void stale_trigger_consumed() {
+static void queued_trigger_plays_solo_without_peer() {
     using namespace mock;
     setup(); enabled(); assert(skull::show::trigger());
-    peer = false; tick(); peer = true; tick();
-    assert(prepares == 1 && requests == 0); // Only a fresh greeting, no stale Home show.
-    assert(!std::strcmp(prepared->path, "/audio/Marco.wav"));
+    peer = false; tick();
+    assert(prepares == 1 && requests == 0);
+    assert(!std::strcmp(prepared->path, assets.assets[0].path));
     assert(!skull::show::trigger());
+    audio_ready = true; tick(); assert(starts == 1 && requests == 0);
+    finish(); tick(20000000);
+    assert(!skull::show::busy() && prepares == 1 && starts == 1 && requests == 0);
 }
 static void rejected() {
     using namespace mock;
@@ -221,7 +224,7 @@ static void queued_trigger_counts_as_busy() {
     setup(); enabled(); assert(!skull::show::busy());
     assert(skull::show::trigger()); assert(skull::show::busy());
     assert(!skull::show::local(assets.assets[0].path));
-    peer = false; tick(); assert(!skull::show::busy() && prepares == 0);
+    peer = false; tick(); assert(skull::show::busy() && prepares == 1 && requests == 0);
 }
 static void local_diagnostic_bypasses_peer() {
     using namespace mock;
@@ -230,7 +233,7 @@ static void local_diagnostic_bypasses_peer() {
     assert(skull::show::local(assets.assets[0].path));
     assert(!skull::show::local(assets.assets[1].path));
     audio_ready = true; tick(); assert(starts == 1 && requests == 0 && flashes == 0);
-    finish(); tick(20000000); assert(!skull::show::trigger());
+    finish(); tick(20000000); assert(skull::show::trigger());
 }
 static void named_paired_keeps_handshake() {
     using namespace mock;
@@ -380,6 +383,7 @@ static void greeting_startup_and_pcm_ordering() {
     assert(prepares == 0 && requests == 0 && !skull::show::trigger());
     tick(); assert(prepares == 1 && skull::show::busy());
     assert(!skull::show::trigger() && !skull::show::paired(assets.assets[0].path));
+    assert(!skull::show::command_ready() && !skull::show::play_skit(assets.assets[0].path));
     assert(!skull::show::local(assets.assets[0].path));
     audio_ready = true; tick(); assert(starts == 1 && requests == 0);
     tick(1000000); assert(requests == 0); // No early Polo while Marco PCM remains.
@@ -389,6 +393,7 @@ static void greeting_startup_and_pcm_ordering() {
     assert(requested_paths == std::vector<std::string>({"/audio/Polo.wav"}));
     assert(events == std::vector<std::string>({"prepare", "start", "request"}));
     assert(!std::strcmp(skull::show::state_name(), "awaiting-polo"));
+    assert(!skull::show::command_ready() && !skull::show::play_skit(assets.assets[0].path));
     assert(!skull::show::trigger() && !skull::show::paired(assets.assets[0].path));
     reply = skull::radio::PeerResult::accepted; tick();
     assert(!skull::show::busy() && prepares == 1 && starts == 1);
@@ -486,12 +491,159 @@ static void paired_peer_loss_after_start_finishes_locally() {
     assert(starts == 1 && cancels == 0 && skull::show::busy());
     finish(); tick(20000000); assert(!skull::show::busy() && prepares == 1 && starts == 1 && requests == 1);
 }
+static void remote_skit_validation_and_startup() {
+    using namespace mock;
+    setup();
+    assert(!skull::show::command_ready() && !skull::show::play_skit(assets.assets[0].path));
+    assert(!*skull::show::current_path());
+    tick(); tick(9999999);
+    assert(!skull::show::command_ready() && !skull::show::play_skit(assets.assets[0].path));
+    tick(1); assert(skull::show::command_ready());
+    for (const char *path : {static_cast<const char *>(nullptr), "", "/audio/missing.wav",
+                            "/audio/../audio/Skit - sample.wav", "/audio/Marco.wav", "/audio/Polo.wav"})
+        assert(!skull::show::play_skit(path));
+    assert(prepares == 0 && requests == 0 && skull::show::command_ready());
+    tick(0, true, true);
+    assert(!skull::show::command_ready() && !skull::show::play_skit(assets.assets[0].path));
+}
+static void remote_primary_solo_and_cooldown() {
+    using namespace mock;
+    peer = false; setup(); enabled();
+    assert(skull::show::command_ready() && skull::show::play_skit(assets.assets[0].path));
+    assert(prepares == 1 && flashes == 1 && requests == 0);
+    assert(!std::strcmp(skull::show::current_path(), assets.assets[0].path));
+    assert(!skull::show::command_ready() && !skull::show::play_skit(assets.assets[0].path));
+    audio_ready = true; tick(); assert(starts == 1 && requests == 0);
+    finish(); assert(!*skull::show::current_path());
+    assert(!skull::show::command_ready() && !skull::show::play_skit(assets.assets[0].path));
+    tick(9999999); assert(!skull::show::play_skit(assets.assets[0].path));
+    tick(1); assert(skull::show::command_ready() && skull::show::play_skit(assets.assets[0].path));
+    assert(prepares == 2 && starts == 1 && requests == 0);
+}
+static void remote_primary_paired_ack_ordering() {
+    using namespace mock;
+    setup(); enabled(); assert(skull::show::play_skit(assets.assets[0].path));
+    audio_ready = true; tick(); assert(requests == 1 && starts == 0);
+    assert(!skull::show::play_skit(assets.assets[0].path));
+    reply = skull::radio::PeerResult::accepted; tick(); assert(starts == 1);
+    assert(events == std::vector<std::string>({"prepare", "request", "start"}));
+    finish(); tick(20000000); assert(prepares == 1 && requests == 1 && starts == 1);
+}
+static void remote_secondary_local_only() {
+    using namespace mock;
+    setup(false); enabled(); secondary_connected = true;
+    assert(skull::show::command_ready() && skull::show::play_skit(assets.assets[0].path));
+    assert(!skull::show::command_ready());
+    audio_ready = true; tick(); assert(starts == 1 && requests == 0 && responses_accepted == 0);
+    assert(events == std::vector<std::string>({"prepare", "start"}));
+    finish(); tick(10000000); secondary_connected = false;
+    assert(skull::show::command_ready() && skull::show::play_skit(assets.assets[0].path));
+    assert(prepares == 2 && requests == 0);
+}
+static void remote_missing_speaker_and_prepare_failure() {
+    using namespace mock;
+    setup(false); enabled(); speaker = false; tick();
+    assert(!skull::show::command_ready() && !skull::show::play_skit(assets.assets[0].path));
+    speaker = true; prepare_ok = false; tick();
+    assert(skull::show::command_ready() && !skull::show::play_skit(assets.assets[0].path));
+    assert(!skull::show::busy() && !*skull::show::current_path());
+    prepare_ok = true; assert(skull::show::play_skit(assets.assets[0].path));
+}
+static void remote_route_is_not_promoted_mid_prepare() {
+    using namespace mock;
+    peer = false; setup(); enabled(); assert(skull::show::play_skit(assets.assets[0].path));
+    // A later peer edge may schedule the normal greeting, but cannot attach a
+    // peer request to this already accepted solo playback.
+    peer = true; audio_ready = true; tick();
+    assert(starts == 1 && requests == 0 && prepares == 1);
+}
+static void remote_paired_failure_never_replays_solo() {
+    using namespace mock;
+    setup(); enabled(); assert(skull::show::play_skit(assets.assets[0].path));
+    audio_ready = true; tick(); assert(requests == 1 && starts == 0);
+    peer = false; reply = skull::radio::PeerResult::disconnected; tick();
+    assert(cancels == 1 && starts == 0);
+    audio_busy = false; tick(); tick(30000000);
+    assert(!skull::show::busy() && prepares == 1 && requests == 1 && starts == 0);
+}
+static void remote_greeting_and_queued_trigger_own_gate() {
+    using namespace mock;
+    setup(); enabled(); assert(skull::show::trigger());
+    assert(!skull::show::command_ready() && !skull::show::play_skit(assets.assets[0].path));
+    assert(prepares == 0);
+}
+static void jaw_tuning_blocks_every_primary_start() {
+    using namespace mock;
+    setup(); enabled();
+    assert(skull::show::trigger()); // A racing Matter request must be dropped.
+    skull::show::set_jaw_inhibited(true);
+    assert(!skull::show::ready() && !skull::show::command_ready());
+    assert(!skull::show::trigger());
+    assert(!skull::show::local(assets.assets[0].path));
+    assert(!skull::show::paired(assets.assets[0].path));
+    assert(!skull::show::play_skit(assets.assets[0].path));
+    peer = false; scanning = true; tick(10000000);
+    peer = true; tick(10000000); // No greeting/Marco, including after resume.
+    assert(prepares == 0 && starts == 0 && requests == 0);
+    skull::show::set_jaw_inhibited(false); tick();
+    assert(prepares == 0 && !skull::show::busy());
+    assert(skull::show::play_skit(assets.assets[0].path));
+    assert(prepares == 1);
+}
+static void jaw_tuning_rejects_secondary_without_replay() {
+    using namespace mock;
+    setup(false); enabled();
+    skull::show::set_jaw_inhibited(true);
+    incoming_request(assets.assets[0].path); tick();
+    assert(secondary_busy && responses_rejected == 1);
+    assert(responses_accepted == 0 && prepares == 0);
+    assert(!skull::show::local(assets.assets[0].path));
+    skull::show::set_jaw_inhibited(false); tick();
+    assert(prepares == 0 && responses_rejected == 1);
+    incoming_request(assets.assets[0].path); tick();
+    assert(prepares == 1); // Only a fresh request can run after explicit resume.
+}
+static void jaw_stop_cancels_preaccepted_pair() {
+    using namespace mock;
+    setup(); enabled(); awaiting();
+    skull::show::set_jaw_inhibited(true);
+    reply = skull::radio::PeerResult::accepted;
+    tick();
+    assert(cancels == 1 && starts == 0 && requests == 1);
+    audio_busy = false; tick();
+    skull::show::set_jaw_inhibited(false); tick();
+    assert(starts == 0 && prepares == 1); // No resumed preaccepted show.
+}
+static void jaw_stop_cancels_preparation_before_start() {
+    using namespace mock;
+    setup(false); enabled();
+    assert(skull::show::local(assets.assets[0].path));
+    skull::show::set_jaw_inhibited(true);
+    audio_ready = true; tick();
+    assert(cancels == 1 && starts == 0 && requests == 0);
+}
+static void jaw_stop_cancels_greeting_tail_before_polo() {
+    using namespace mock;
+    peer=false;setup();tick();peer=true;tick();audio_ready=true;tick();
+    assert(starts==1&&requests==0);
+    finish(); // Marco finished; Polo has not yet been requested.
+    skull::show::set_jaw_inhibited(true);tick(300000);
+    assert(cancels==1&&requests==0);
+    skull::show::set_jaw_inhibited(false);tick(20000000);
+    assert(requests==0&&prepares==1); // No replay of the canceled greeting.
+}
+
 int main() {
     struct Test { const char *name; void (*run)(); };
     const Test tests[] = {
+        {"jaw calibration rejects all primary starts and queued replay", jaw_tuning_blocks_every_primary_start},
+        {"jaw calibration rejects secondary requests without replay", jaw_tuning_rejects_secondary_without_replay},
+        {"jaw STOP cancels preaccepted peer ACK start", jaw_stop_cancels_preaccepted_pair},
+        {"jaw STOP cancels prepared audio start", jaw_stop_cancels_preparation_before_start},
+        {"jaw STOP cancels greeting tail before peer request", jaw_stop_cancels_greeting_tail_before_polo},
         {"boot/cooldown", boot_and_cooldown}, {"readiness gates", readiness_gates},
         {"prepare/request/ACK/start and no backlog", handshake_and_no_backlog},
-        {"stale trigger discarded", stale_trigger_consumed}, {"rejection/no replay", rejected},
+        {"queued trigger plays solo without peer", queued_trigger_plays_solo_without_peer}, {"rejection/no replay", rejected},
         {"peer timeout/cancel hold", peer_timeout_hold}, {"prebuffer timeout", prebuffer_timeout},
         {"peer lost while buffering", peer_vanishes_during_prepare}, {"request rejected", request_failure},
         {"speaker disconnect/no replay", disconnect_during_playback},
@@ -529,6 +681,14 @@ int main() {
         {"dormant greeting discarded on peer loss", dormant_greeting_disconnected_peer_is_discarded},
         {"missing Marco does not retry greeting", missing_greeting_asset_does_not_retry},
         {"paired show peer loss after start finishes locally", paired_peer_loss_after_start_finishes_locally},
+        {"remote skit catalog/startup validation", remote_skit_validation_and_startup},
+        {"remote primary solo/cooldown", remote_primary_solo_and_cooldown},
+        {"remote primary paired ACK ordering", remote_primary_paired_ack_ordering},
+        {"remote secondary local only", remote_secondary_local_only},
+        {"remote missing speaker/prepare failure", remote_missing_speaker_and_prepare_failure},
+        {"remote solo route stays solo", remote_route_is_not_promoted_mid_prepare},
+        {"remote paired failure never replays solo", remote_paired_failure_never_replays_solo},
+        {"remote respects queued trigger", remote_greeting_and_queued_trigger_own_gate},
     };
     // Controller globals intentionally live for one firmware boot. Fork starts
     // each independent scenario from pristine process state without test-only

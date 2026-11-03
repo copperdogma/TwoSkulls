@@ -1,0 +1,283 @@
+title: Halloween
+views:
+- title: Props
+  path: props
+  icon: mdi:halloween
+  type: masonry
+  cards:
+  - type: entities
+    title: Jeff player
+    show_header_toggle: false
+    entities:
+    - entity: select.jeff_skit
+      name: Skit
+      icon: mdi:playlist-play
+    - type: conditional
+      conditions:
+      - entity: button.jeff_play_selected_skit
+        state_not: unavailable
+      row:
+        type: button
+        entity: button.jeff_play_selected_skit
+        name: Play selected skit
+        icon: mdi:play-circle
+        action_name: ▶ Play
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.jeff_play_selected_skit
+    - type: conditional
+      conditions:
+      - entity: button.jeff_play_selected_skit
+        state: unavailable
+      row:
+        entity: button.jeff_play_selected_skit
+        type: simple-entity
+        name: Play
+        icon: mdi:play-circle-outline
+        tap_action:
+          action: none
+    - entity: sensor.jeff_current_skit
+      name: Now playing
+      icon: mdi:music-note
+      tap_action:
+        action: none
+    - type: button
+      name: Jaw calibration
+      icon: mdi:tune-vertical
+      action_name: Tune jaw
+      tap_action:
+        action: navigate
+        navigation_path: /dashboard-halloween/jeff-jaw
+  - type: entities
+    title: Jeff status
+    show_header_toggle: false
+    entities:
+    - entity: binary_sensor.jeff_speaker_connected
+      name: Bluetooth speaker
+    - entity: binary_sensor.jeff_peer_connected
+      name: Anthony connection
+    - entity: binary_sensor.jeff_sd_mounted
+      name: SD card mounted
+    - entity: sensor.jeff_wi_fi_signal
+      name: Wi-Fi signal
+    - entity: binary_sensor.jeff_error_report_pending
+      name: Pending error
+    - entity: sensor.jeff_saved_report_count
+      name: Saved reports
+    - type: button
+      name: Saved SD logs
+      icon: mdi:file-document-outline
+      action_name: Open reports
+      tap_action:
+        action: perform-action
+        perform_action: button.press
+        target:
+          entity_id: button.jeff_open_saved_reports
+    - type: button
+      name: All diagnostics
+      icon: mdi:information-outline
+      action_name: View
+      tap_action:
+        action: navigate
+        navigation_path: /config/devices/device/02bcc0af0c0f46aa9cc81d9764a6c703
+- title: Jeff jaw tuning
+  path: jeff-jaw
+  icon: mdi:tune-vertical
+  subview: true
+  cards:
+  - type: markdown
+    content: '## Jeff jaw tuning
+
+      Watch the jaw while tuning. **No automatic endpoint sweep.**
+
+      Start with **1 µs** steps and back off if opening causes binding or strain.
+
+      Teeth contact on closing is normal: Jeff''s push-only rod retracts freely.
+
+      Pulse values are commands, not measured angles.
+
+      Close the browser only after **Disable jaw output** or **Resume normal movement**.
+
+      Connection loss or 90 seconds without accepted tuning input disables
+
+      pulses; movement stays disabled until you explicitly take control again.
+
+
+      Exact target changes are limited to **25 µs** per command; the session allows
+
+      **50 µs** beyond the saved range. Existing cards use legacy defaults until the first Save.
+
+      '
+  - type: entities
+    title: Control mode
+    show_header_toggle: false
+    entities:
+    - entity: sensor.jeff_jaw_mode
+      name: Mode
+      tap_action:
+        action: none
+    - entity: sensor.jeff_jaw_result
+      name: Last tuning result
+      tap_action:
+        action: none
+    - type: button
+      entity: button.jeff_jaw_enter
+      name: Take manual control
+      action_name: Enter tuning
+      tap_action:
+        action: perform-action
+        perform_action: button.press
+        target:
+          entity_id: button.jeff_jaw_enter
+    - type: button
+      entity: button.jeff_jaw_stop
+      name: Disable jaw output
+      icon: mdi:stop-circle
+      action_name: STOP
+      tap_action:
+        action: perform-action
+        perform_action: button.press
+        target:
+          entity_id: button.jeff_jaw_stop
+    - type: button
+      entity: button.jeff_jaw_resume
+      name: Resume normal movement
+      action_name: Resume
+      tap_action:
+        action: perform-action
+        perform_action: button.press
+        confirmation:
+          text: Resume normal jaw movement using the saved SD endpoints? Unsaved endpoint edits will be discarded.
+        target:
+          entity_id: button.jeff_jaw_resume
+  - type: conditional
+    conditions: &id001
+    - entity: sensor.jeff_jaw_mode
+      state: manual
+    card:
+      type: entities
+      title: Manual position
+      show_header_toggle: false
+      entities:
+      - entity: number.jeff_jaw_target
+        name: Exact target (µs)
+      - entity: sensor.jeff_jaw_command_us
+        name: Requested pulse
+        tap_action:
+          action: none
+      - type: button
+        entity: button.jeff_jaw_close_fine
+        name: Close 1 µs
+        icon: mdi:minus
+        action_name: Close 1 µs
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.jeff_jaw_close_fine
+      - type: button
+        entity: button.jeff_jaw_open_fine
+        name: Open 1 µs
+        icon: mdi:plus
+        action_name: Open 1 µs
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.jeff_jaw_open_fine
+      - type: button
+        entity: button.jeff_jaw_close_coarse
+        name: Close 10 µs
+        icon: mdi:minus-box
+        action_name: Close 10 µs
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.jeff_jaw_close_coarse
+      - type: button
+        entity: button.jeff_jaw_open_coarse
+        name: Open 10 µs
+        icon: mdi:plus-box
+        action_name: Open 10 µs
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.jeff_jaw_open_coarse
+  - type: conditional
+    conditions: *id001
+    card:
+      type: entities
+      title: Draft endpoints — save explicitly
+      show_header_toggle: false
+      entities:
+      - entity: sensor.jeff_jaw_draft_closed_us
+        name: Draft closed
+        tap_action:
+          action: none
+      - type: button
+        entity: button.jeff_jaw_capture_closed
+        name: Use this position as closed
+        action_name: Set closed
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.jeff_jaw_capture_closed
+      - entity: sensor.jeff_jaw_draft_open_us
+        name: Draft open
+        tap_action:
+          action: none
+      - type: button
+        entity: button.jeff_jaw_capture_open
+        name: Use this position as open
+        action_name: Set open
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.jeff_jaw_capture_open
+      - entity: binary_sensor.jeff_jaw_dirty
+        name: Unsaved endpoint changes
+        tap_action:
+          action: none
+      - type: button
+        entity: button.jeff_jaw_save
+        name: Save both endpoints to SD
+        action_name: Save
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          confirmation:
+            text: Have you physically checked both draft positions? Save these endpoints for all normal jaw movement
+              and future boots?
+          target:
+            entity_id: button.jeff_jaw_save
+      - type: button
+        entity: button.jeff_jaw_discard
+        name: Discard endpoint edits (jaw stays here)
+        action_name: Discard
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.jeff_jaw_discard
+  - type: entities
+    title: Configured endpoints
+    show_header_toggle: false
+    entities:
+    - entity: sensor.jeff_jaw_closed_us
+      name: Closed endpoint
+      tap_action:
+        action: none
+    - entity: sensor.jeff_jaw_open_us
+      name: Open endpoint
+      tap_action:
+        action: none
+    - entity: sensor.jeff_jaw_applied_us
+      name: Last applied pulse (0 = output disabled)
+      tap_action:
+        action: none

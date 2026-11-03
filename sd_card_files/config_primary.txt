@@ -1,3 +1,7 @@
 role=primary
 speaker_name=JBL Flip 5
 speaker_volume=100
+# Per-skull calibration: commanded pulse widths in microseconds.
+# Preserve these legacy endpoints until physically tuned; no automatic sweep.
+jaw_closed_us=544
+jaw_open_us=1368

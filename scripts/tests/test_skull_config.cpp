@@ -17,6 +17,7 @@ bool parse(const std::string &text, Config &config) {
 void defaults(const Config &config) {
     assert(!*config.speaker_name && !*config.secondary_mac);
     assert(!config.primary && config.volume_percent == 100);
+    assert(config.jaw_closed_us == 544 && config.jaw_open_us == 1368);
 }
 int main() {
     Config config;
@@ -47,5 +48,32 @@ int main() {
     assert(!parse("role=primary\n", config)); defaults(config);
     assert(parse("role=secondary\nspeaker_name=Jeff\n", config));
     assert(config.volume_percent == 100 && !config.primary && !*config.secondary_mac);
+    assert(config.jaw_closed_us == 544 && config.jaw_open_us == 1368);
+    const std::string base = "role=secondary\nspeaker_name=Jeff\n";
+    assert(parse(base + " jaw_closed_us = 600 \r\n jaw_open_us = 1400 \r\n", config));
+    assert(config.jaw_closed_us == 600 && config.jaw_open_us == 1400);
+    assert(parse(base + "jaw_closed_us=2094\njaw_open_us=1950\n", config));
+    assert(config.jaw_closed_us == 2094 && config.jaw_open_us == 1950); // Reversed linkage.
+    assert(parse(base + "jaw_open_us=2400\n", config));
+    assert(config.jaw_closed_us == 544 && config.jaw_open_us == 2400);
+    assert(parse(base + "jaw_closed_us=000600\n", config));
+    assert(config.jaw_closed_us == 600 && config.jaw_open_us == 1368);
+    for (const char *bad : {"-1", "+600", "543", "2401", "600.0", "600x", "", "4294967296000000", "6 00"}) {
+        for (const char *key : {"jaw_closed_us", "jaw_open_us"}) {
+            assert(!parse(base + key + "=" + bad + "\n", config));
+            defaults(config);
+        }
+    }
+    for (const char *bad : {"jaw_closed_us=600\njaw_closed_us=600\n",
+                           "jaw_open_us=1400\njaw_open_us=1500\n",
+                           "jaw_closed_us=600\njaw_open_us=600\n",
+                           "jaw_open_us=544\n", "jaw_closed_us=1368\n"}) {
+        assert(!parse(base + bad, config)); defaults(config);
+    }
+    assert(skull::storage::valid_jaw_limits(544, 2400));
+    assert(skull::storage::valid_jaw_limits(2400, 544));
+    assert(!skull::storage::valid_jaw_limits(544, 544));
+    assert(!skull::storage::valid_jaw_limits(543, 2400));
+    assert(!skull::storage::valid_jaw_limits(544, 2401));
     std::puts("config tests passed");
 }

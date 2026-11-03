@@ -137,6 +137,18 @@ void poll(bool idle,bool card_mounted){
     portENTER_CRITICAL(&mux);core->acknowledged();portEXIT_CRITICAL(&mux);
     slot=(slot+1)%archive_slots;
 }
+Snapshot snapshot(){
+    if(!core)return {false,0};
+    portENTER_CRITICAL(&mux);
+    const Snapshot saved{core->pending,core->report.id?core->report.id:
+        (compact->version==disk_version?compact->id:0)};
+    portEXIT_CRITICAL(&mux);return saved;
+}
+Lifecycle::Metrics metrics(){
+    if(!core)return {};
+    portENTER_CRITICAL(&mux);const auto saved=core->lifecycle.metrics;portEXIT_CRITICAL(&mux);
+    return saved;
+}
 void status(){
     if(!core){ESP_LOGI(tag,"Fault logger disabled (allocation unavailable)");return;}
     bool pending;uint32_t coalesced;uint64_t id;

@@ -7,6 +7,10 @@
 | [003 — Retained fault logs](story-003-retained-fault-logs.md) | In Review | Both-role device export and paired playback acceptance |
 | [004 — Expressive speech jaw](story-004-expressive-speech-jaw.md) | Complete — softer Anthony tuning accepted | Jeff flashed; physical and paired qualification remain separate |
 | [006 — Lifecycle fault context](story-006-lifecycle-fault-context.md) | Jeff SD export/readback/reboot passed | Anthony and speaker/paired checks |
+| [007 — Home Assistant diagnostics and skits](story-007-home-assistant.md) | Jeff HA/MQTT validated; In Review | Positive audio and Anthony/paired hardware |
+| [008 — Missing-speaker eye warning](story-008-speaker-eye-warning.md) | Implemented; host tests and Jeff boot warning passed | Connection-loss visual check and Anthony |
+| [009 — Mac Mini whole-house HA hub](story-009-mac-mini-home-assistant-hub.md) | Live; Mini/Jeff UI, logs and service recovery passed | Phone URL, addressing and host power/reboot qualification |
+| [010 — SD jaw calibration and HA tuning](story-010-sd-jaw-calibration.md) | Complete for Jeff; calibrated 654/1404 us saved and owner-verified after reboot | Anthony deployment/calibration; paired qualification |
 
 Supporting [research record](../research/2026-10-14-single-wrover-research.md).
 The earlier [Arduino onboard-SD migration](../onboard-sd-migration.md) is a separate

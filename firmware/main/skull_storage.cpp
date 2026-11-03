@@ -34,6 +34,9 @@ constexpr char config_path[] = SKULL_STORAGE_ROOT "/config.txt";
 constexpr char temp_path[] = SKULL_STORAGE_ROOT "/config.speaker.tmp";
 constexpr char previous_path[] = SKULL_STORAGE_ROOT "/config.speaker.previous";
 constexpr char original_path[] = SKULL_STORAGE_ROOT "/config.speaker.original";
+constexpr char jaw_temp_path[] = SKULL_STORAGE_ROOT "/config.jaw.tmp";
+constexpr char jaw_previous_path[] = SKULL_STORAGE_ROOT "/config.jaw.previous";
+constexpr char jaw_original_path[] = SKULL_STORAGE_ROOT "/config.jaw.original";
 #ifdef ESP_PLATFORM
 unsigned mount_attempts = 0, trace_commands = 0;
 bool abort_before_init = false;
@@ -76,7 +79,15 @@ bool exists(const char *path) {
 }
 bool same_settings(const Config &a, const Config &b) {
     return a.primary == b.primary && a.volume_percent == b.volume_percent &&
+           a.jaw_closed_us == b.jaw_closed_us && a.jaw_open_us == b.jaw_open_us &&
            !std::strcmp(a.secondary_mac, b.secondary_mac);
+}
+bool same_config(const Config &a, const Config &b) {
+    return same_settings(a, b) && !std::strcmp(a.speaker_name, b.speaker_name);
+}
+bool unresolved_update() {
+    return exists(temp_path) || exists(previous_path) ||
+           exists(jaw_temp_path) || exists(jaw_previous_path);
 }
 bool read_config_bytes(const char *path, char *bytes, size_t &length, Config &config) {
     FILE *file = std::fopen(path, "rb");
@@ -130,6 +141,42 @@ bool append(char *dest, size_t &used, const char *text, size_t length) {
     return true;
 }
 
+// Every writer shares a validated, byte-exact readback/rollback path. FAT has
+// no overwrite-rename: originals and staging files are retained on failure.
+esp_err_t install_config(char *original, size_t original_length,
+        const char *candidate, size_t candidate_length, const Config &expected,
+        const char *staging, const char *previous, const char *backup) {
+    if (candidate_length == original_length &&
+        !std::memcmp(original, candidate, original_length)) return ESP_OK;
+    Config after{};
+    if (!write_new(staging, candidate, candidate_length) ||
+        !verify_bytes(staging, candidate, candidate_length, after) ||
+        !same_config(expected, after)) return ESP_FAIL;
+    if (!exists(backup)) {
+        if (!write_new(backup, original, original_length) ||
+            !verify_bytes(backup, original, original_length, after)) return ESP_FAIL;
+    } else {
+        // A first valid original remains untouched across later calibrations.
+        size_t backup_length = 0;
+        if (!read_config_bytes(backup, original, backup_length, after)) return ESP_FAIL;
+    }
+    if (std::rename(config_path, previous) != 0) return ESP_FAIL;
+    if (std::rename(staging, config_path) != 0) {
+        if (std::rename(previous, config_path) != 0)
+            ESP_LOGE(tag, "Config update rollback failed: preserve recovery files");
+        return ESP_FAIL;
+    }
+    if (!verify_bytes(config_path, candidate, candidate_length, after) ||
+        !same_config(expected, after)) {
+        if (std::rename(config_path, staging) != 0 || std::rename(previous, config_path) != 0)
+            ESP_LOGE(tag, "Config verification/rollback failed: preserve recovery files");
+        return ESP_FAIL;
+    }
+    if (unlink(previous) != 0)
+        ESP_LOGE(tag, "Config saved, but previous file retained; recover before another update");
+    return ESP_OK;
+}
+
 }
 
 bool mounted() { return is_mounted; }
@@ -151,8 +198,8 @@ esp_err_t set_speaker_name(const char *name) {
         const auto value = static_cast<unsigned char>(name[i]);
         if (value < 32 || value == 127 || value == '=') return ESP_ERR_INVALID_ARG;
     }
-    if (exists(temp_path) || exists(previous_path)) {
-        ESP_LOGE(tag, "Speaker update refused: retain/recover config.speaker staging files first");
+    if (unresolved_update()) {
+        ESP_LOGE(tag, "Speaker update refused: retain/recover config staging files first");
         return ESP_FAIL;
     }
     // Heap buffers keep this maintenance operation off the small control stack.
@@ -160,7 +207,7 @@ esp_err_t set_speaker_name(const char *name) {
     std::unique_ptr<char[]> candidate(new(std::nothrow) char[config_limit + 1]);
     if (!original || !candidate) return ESP_FAIL;
     size_t length = 0, used = 0;
-    Config before{}, after{};
+    Config before{};
     if (!read_config_bytes(config_path, original.get(), length, before)) return ESP_FAIL;
     bool replaced = false;
     for (size_t offset = 0; offset < length;) {
@@ -189,36 +236,81 @@ esp_err_t set_speaker_name(const char *name) {
         offset = end;
     }
     if (!replaced) return ESP_FAIL;
-    if (used == length && !std::memcmp(original.get(), candidate.get(), used)) return ESP_OK;
-    if (!write_new(temp_path, candidate.get(), used) ||
-        !verify_bytes(temp_path, candidate.get(), used, after) ||
-        std::strcmp(after.speaker_name, name) || !same_settings(before, after)) return ESP_FAIL;
-    if (!exists(original_path)) {
-        if (!write_new(original_path, original.get(), length) ||
-            !verify_bytes(original_path, original.get(), length, after)) return ESP_FAIL;
-    } else {
-        // Preserve the first valid original forever, including across reversal.
-        size_t backup_length = 0;
-        if (!read_config_bytes(original_path, original.get(), backup_length, after)) return ESP_FAIL;
-    }
-    // FatFs cannot rename over an existing target. All files are closed here.
-    // This is recoverable via the saved files, not power-fail atomic on FAT.
-    if (std::rename(config_path, previous_path) != 0) return ESP_FAIL;
-    if (std::rename(temp_path, config_path) != 0) {
-        if (std::rename(previous_path, config_path) != 0)
-            ESP_LOGE(tag, "Speaker update rollback failed: recover config.speaker.previous manually");
+    Config expected = before;
+    std::strcpy(expected.speaker_name, name);
+    const auto result = install_config(original.get(), length, candidate.get(), used,
+                                       expected, temp_path, previous_path, original_path);
+    if (result == ESP_OK) ESP_LOGI(tag, "SD speaker name saved and verified; takes effect after reboot");
+    return result;
+}
+
+esp_err_t set_jaw_limits(unsigned closed_us, unsigned open_us) {
+    if (!is_mounted) return ESP_FAIL;
+    if (!valid_jaw_limits(closed_us, open_us)) return ESP_ERR_INVALID_ARG;
+    if (unresolved_update()) {
+        ESP_LOGE(tag, "Jaw update refused: retain/recover config staging files first");
         return ESP_FAIL;
     }
-    if (!verify_bytes(config_path, candidate.get(), used, after) ||
-        std::strcmp(after.speaker_name, name) || !same_settings(before, after)) {
-        if (std::rename(config_path, temp_path) != 0 || std::rename(previous_path, config_path) != 0)
-            ESP_LOGE(tag, "Speaker update verification/rollback failed: preserve config.speaker files");
-        return ESP_FAIL;
+    std::unique_ptr<char[]> original(new(std::nothrow) char[config_limit + 1]);
+    std::unique_ptr<char[]> candidate(new(std::nothrow) char[config_limit + 1]);
+    if (!original || !candidate) return ESP_FAIL;
+    size_t length = 0, used = 0;
+    Config before{};
+    if (!read_config_bytes(config_path, original.get(), length, before)) return ESP_FAIL;
+    const char *keys[] = {"jaw_closed_us", "jaw_open_us"};
+    char values[2][12];
+    std::snprintf(values[0], sizeof values[0], "%u", closed_us);
+    std::snprintf(values[1], sizeof values[1], "%u", open_us);
+    bool replaced[2] = {};
+    for (size_t offset = 0; offset < length;) {
+        size_t end = offset;
+        while (end < length && original[end] != '\n') ++end;
+        if (end < length) ++end;
+        size_t key = offset;
+        if (!offset && length >= 3 &&
+            static_cast<unsigned char>(original[0]) == 0xef &&
+            static_cast<unsigned char>(original[1]) == 0xbb &&
+            static_cast<unsigned char>(original[2]) == 0xbf) key += 3;
+        while (key < end && std::isspace(static_cast<unsigned char>(original[key]))) ++key;
+        size_t equals = key;
+        while (equals < end && original[equals] != '=') ++equals;
+        size_t key_end = equals;
+        while (key_end > key && std::isspace(static_cast<unsigned char>(original[key_end - 1]))) --key_end;
+        int found = -1;
+        for (int i = 0; i < 2; ++i) {
+            if (equals < end && key_end - key == std::strlen(keys[i]) &&
+                !std::memcmp(original.get() + key, keys[i], key_end - key)) found = i;
+        }
+        if (found >= 0) {
+            size_t value = equals + 1, value_end = end;
+            while (value_end > equals + 1 && std::isspace(static_cast<unsigned char>(original[value_end - 1]))) --value_end;
+            while (value < value_end && std::isspace(static_cast<unsigned char>(original[value]))) ++value;
+            if (!append(candidate.get(), used, original.get() + offset, value - offset) ||
+                !append(candidate.get(), used, values[found], std::strlen(values[found])) ||
+                !append(candidate.get(), used, original.get() + value_end, end - value_end)) return ESP_FAIL;
+            replaced[found] = true;
+        } else if (!append(candidate.get(), used, original.get() + offset, end - offset)) return ESP_FAIL;
+        offset = end;
     }
-    if (unlink(previous_path) != 0)
-        ESP_LOGE(tag, "Speaker saved, but config.speaker.previous retained; recover before another update");
-    ESP_LOGI(tag, "SD speaker name saved and verified; takes effect after reboot");
-    return ESP_OK;
+    // Match the existing first newline style while leaving original bytes intact.
+    const char *newline = "\n";
+    const char *first_lf = std::strchr(original.get(), '\n');
+    if (first_lf && first_lf > original.get() && first_lf[-1] == '\r') newline = "\r\n";
+    for (int i = 0; i < 2; ++i) {
+        if (replaced[i]) continue;
+        if (used && candidate[used - 1] != '\n' && !append(candidate.get(), used, newline, std::strlen(newline))) return ESP_FAIL;
+        if (!append(candidate.get(), used, keys[i], std::strlen(keys[i])) ||
+            !append(candidate.get(), used, "=", 1) ||
+            !append(candidate.get(), used, values[i], std::strlen(values[i])) ||
+            !append(candidate.get(), used, newline, std::strlen(newline))) return ESP_FAIL;
+    }
+    Config expected = before;
+    expected.jaw_closed_us = closed_us;
+    expected.jaw_open_us = open_us;
+    const auto result = install_config(original.get(), length, candidate.get(), used,
+                                       expected, jaw_temp_path, jaw_previous_path, jaw_original_path);
+    if (result == ESP_OK) ESP_LOGI(tag, "SD jaw limits saved and verified: closed=%u us open=%u us", closed_us, open_us);
+    return result;
 }
 
 esp_err_t mount_and_read_config(Config &config) {

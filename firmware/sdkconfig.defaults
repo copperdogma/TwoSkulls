@@ -62,3 +62,8 @@ CONFIG_USE_TEST_SERIAL_NUMBER="ANTHONY-WROVER-PROTOTYPE"
 # A2DP SBC encoding at 160 MHz starved IDLE0 on the JBL Flip 6 bench.
 # Preserve scheduler yields; qualify 240 MHz with the same paired catalogue.
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# PUBACK-paced log export needs prompt outbox service between control-task ticks.
+# The SDK default 1000 ms poll stalls each next frame on quiet connections.
+CONFIG_MQTT_USE_CUSTOM_CONFIG=y
+CONFIG_MQTT_POLL_READ_TIMEOUT_MS=50

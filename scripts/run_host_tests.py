@@ -21,6 +21,10 @@ def run(args):
 def main():
     run([sys.executable, "-m", "unittest", "discover", "-s", "scripts/tests", "-v"])
     suites = [
+        ("jaw_control", [], None),
+        ("log_export", ["skull_log_export"], None),
+        ("ha_model", ["skull_ha_model"], None),
+        ("network_config", ["skull_network_config"], None),
         ("fault_log", ["skull_fault_archive"], None),
         ("fault_runtime", [], "fault_log_stubs"),
         ("wave", ["skull_wave"], None),

@@ -187,6 +187,24 @@ void test_max_context_report_keeps_fault_tail() {
     assert(std::strstr(core.report.text,"event=speaker_stream_ready"));
 }
 
+void test_lifecycle_metric_samples() {
+    Lifecycle life;
+    life.capture("I (10) lifecycle: event=sd_result attempt=1 duration_ms=8 result=ESP_FAIL");
+    life.capture("I (20) lifecycle: event=sd_mount_result attempt=2 duration_ms=111 result=ESP_OK");
+    life.capture("I (21) lifecycle: event=sd_result attempt=2 duration_ms=141 result=ESP_OK");
+    life.capture("I (30) lifecycle: event=control_ready boot_ms=3409");
+    life.capture("I (40) lifecycle: event=speaker_connected boot_ms=4000");
+    life.capture("I (41) lifecycle: event=speaker_rssi state=sampled rssi_delta=-5");
+    assert(life.metrics.bluetooth_rssi_delta==-5);
+    life.capture("I (42) lifecycle: event=speaker_rssi state=timeout");
+    assert(life.metrics.bluetooth_rssi_delta==-999);
+    life.capture("I (43) lifecycle: event=speaker_rssi state=sampled rssi_delta=0");
+    life.capture("I (44) lifecycle: event=speaker_disconnected disconnects=1");
+    assert(life.metrics.bluetooth_rssi_delta==-999 && life.metrics.speaker_disconnects==1);
+    assert(life.metrics.sd_mount_ms==111 && life.metrics.sd_config_ms==141);
+    assert(life.metrics.sd_attempts==2 && life.metrics.sd_failures==1);
+    assert(life.metrics.control_ready_ms==3409 && life.metrics.speaker_connected_ms==4000);
+}
 void test_retry_cadence() {
     Cadence cadence;
     assert(!cadence.due(0, false, true));
@@ -328,6 +346,7 @@ int main() {
     test_ring_freeze_and_coalescing();
     test_selection_and_bounds();
     test_retry_cadence();
+    test_lifecycle_metric_samples();
     test_lifecycle_survives_noise_and_freezes();
     test_max_context_report_keeps_fault_tail();
     test_archive_rotation_and_audio_preservation(root);

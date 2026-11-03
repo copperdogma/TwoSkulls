@@ -43,8 +43,42 @@ experiment, and the proposed internal-speaker mounting checks.
   3 - SD card mount failed; retrying
   5 - failed to load config.txt; retrying
 
+Native speaker warning: both eyes alternate **1 second bright / 1 second dim**
+after 30 seconds since boot without a Bluetooth speaker, or immediately after an
+established speaker connection drops. Reconnecting clears it. The counted boot,
+SD and config patterns above take priority; jaw animation continues independently.
+See [Story 008](docs/stories/story-008-speaker-eye-warning.md).
+
 
   Code originaly based off: Death_With_Skull_Synced_to_Audio
+
+## Home Assistant (native firmware)
+
+**For another AI setting this up in another prop project:** start with the
+[Home Assistant prop-integration guide](docs/home-assistant-prop-integration.md).
+It covers the reusable MQTT contract, firmware/configuration boundaries, grouped
+native dashboard, saved logs, setup/migration, validation and known limits.
+
+The live **Home** server now runs on the Mac Mini at
+[192.168.1.80:8123](http://192.168.1.80:8123/dashboard-halloween/props), with the
+approved grouped Halloween dashboard. The laptop server containers are stopped;
+see [Story009](docs/stories/story-009-mac-mini-home-assistant-hub.md) for migration
+proof, maintenance ownership and remaining limits.
+
+[Story 007](docs/stories/story-007-home-assistant.md) adds MQTT discovery,
+diagnostics, all validated SD skits as a selector, and a separate Play button.
+Jeff's Wi-Fi/MQTT, HA selection, no-speaker refusal, offline indication and
+reconnect behavior have passed device checks. Positive audio, paired behavior
+and Anthony's new build remain separate qualification.
+
+Anthony now accepts a skit while Jeff is absent and plays his own A part; when
+Jeff is ready at acceptance it uses the existing paired transaction. Direct HA
+control of Jeff plays his B part. Selecting a skit never starts playback.
+See the [native HA setup](firmware/README.md#home-assistant-mqtt) for configuration.
+The updated device page also has **Open saved reports**: the small
+[HA report bridge](home_assistant/custom_components/twoskulls_diagnostics/README.md)
+reads the fixed SD log slots and shows their complete text in HA Notifications.
+Idle activity and build fingerprints make the status easier to interpret.
 
 ## Debugging the native firmware
 

@@ -2,9 +2,21 @@
 #include <cstddef>
 #include <cstring>
 #include <algorithm>
+#include <cstdint>
+#include <cstdlib>
 namespace skull::faultlog {
 // First milestones survive for this boot; bounded recent events wrap separately.
 struct Lifecycle {
+    struct Metrics {
+        int64_t control_ready_ms=-1,sd_mount_ms=-1,sd_config_ms=-1,speaker_connected_ms=-1;
+        int64_t bluetooth_rssi_delta=-999;
+        uint32_t sd_attempts=0,sd_failures=0,speaker_disconnects=0;
+    } metrics;
+    static int64_t number(const char *line,const char *key,int64_t fallback=-1){
+        const char *value=std::strstr(line,key);if(!value)return fallback;
+        value+=std::strlen(key);char *end=nullptr;const auto result=std::strtoll(value,&end,10);
+        return end==value?fallback:result;
+    }
     static constexpr size_t bytes=192, events=12, milestones=14;
     char first[milestones][bytes]{};
     char recent[events][bytes]{};
@@ -34,6 +46,24 @@ struct Lifecycle {
         if(!std::strncmp(start,"wifi_sample ",12))copy(last_wifi,line);
         if(!std::strncmp(start,"speaker_rssi ",13))copy(last_speaker_signal,line);
         if(!std::strncmp(start,"speaker_disconnected ",21))copy(last_disconnect,line);
+        if(!std::strncmp(start,"control_ready ",14)&&metrics.control_ready_ms<0)
+            metrics.control_ready_ms=number(start,"boot_ms=");
+        if(success&&!std::strncmp(start,"sd_mount_result ",16)&&metrics.sd_mount_ms<0)
+            metrics.sd_mount_ms=number(start,"duration_ms=");
+        if(!std::strncmp(start,"sd_result ",10)){
+            const auto attempt=number(start,"attempt=",0);
+            if(attempt>0)metrics.sd_attempts=uint32_t(attempt);
+            if(success&&metrics.sd_config_ms<0)metrics.sd_config_ms=number(start,"duration_ms=");
+            if(!success&&metrics.sd_failures!=UINT32_MAX)++metrics.sd_failures;
+        }
+        if(!std::strncmp(start,"speaker_connected ",18)&&metrics.speaker_connected_ms<0)
+            metrics.speaker_connected_ms=number(start,"boot_ms=");
+        if(!std::strncmp(start,"speaker_disconnected ",21)){
+            metrics.bluetooth_rssi_delta=-999;
+            metrics.speaker_disconnects=uint32_t(number(start,"disconnects=",metrics.speaker_disconnects));
+        }
+        if(!std::strncmp(start,"speaker_rssi ",13))
+            metrics.bluetooth_rssi_delta=std::strstr(start,"state=sampled")?number(start,"rssi_delta=",-999):-999;
         copy(recent[head],line);head=(head+1)%events;
         if(count<events)++count;else if(overwritten!=~0u)++overwritten;
     }

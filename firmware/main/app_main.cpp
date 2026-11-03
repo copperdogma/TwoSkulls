@@ -26,6 +26,7 @@
 #include "skull_show.h"
 #include "skull_fault_log.h"
 #include "skull_secondary.h"
+#include "skull_network.h"
 
 using namespace esp_matter;
 using namespace chip::app::Clusters;
@@ -79,8 +80,8 @@ void lifecycle_poll() {
     if (time < next_wifi) return;
     const bool first_wifi = next_wifi == 0;
     next_wifi = time + 30000000;
-    if (!card_config.primary) {
-        // Jeff deliberately has no Wi-Fi stack/network provisioning.
+    if (!card_config.primary && !skull::network::wifi_started()) {
+        // Jeff can now use optional SD-provided Wi-Fi without starting Matter.
         if (first_wifi)
             ESP_LOGI("lifecycle", "event=wifi_sample boot_ms=%lld state=disabled_role", static_cast<long long>(time / 1000));
         return;
@@ -132,7 +133,8 @@ int32_t provide_pcm(uint8_t *data, int32_t length) {
 }
 
 bool request_tone() {
-    if (!skull::radio::stream_ready() || skull::startup::busy() || skull::audio::busy() || skull::show::busy()) return false;
+    if (skull::actuators::jaw_state().mode != skull::actuators::JawMode::automatic ||
+        !skull::radio::stream_ready() || skull::startup::busy() || skull::audio::busy() || skull::show::busy()) return false;
     uint32_t expected = 0;
     if (!tone_frames.compare_exchange_strong(expected, 13230)) return false;
     triggers.fetch_add(1, std::memory_order_relaxed);
@@ -155,7 +157,7 @@ esp_err_t attribute_update(attribute::callback_type_t type, uint16_t endpoint, u
         value->type != ESP_MATTER_VAL_TYPE_BOOLEAN || !value->val.b) return ESP_OK;
     const bool accepted = skull::show::trigger();
     if (accepted) triggers.fetch_add(1, std::memory_order_relaxed);
-    ESP_LOGI(tag, "Matter skit trigger %s", accepted ? "accepted" : "ignored (startup/busy/cooldown/speaker/Jeff unavailable)");
+    ESP_LOGI(tag, "Matter skit trigger %s", accepted ? "accepted" : "ignored (startup/busy/cooldown/speaker unavailable)");
     chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(300), reset_momentary, nullptr);
     return ESP_OK;
 }
@@ -184,10 +186,15 @@ bool fault_log_idle() {
 }
 
 void status() {
+    skull::network::status();
     skull::faultlog::status();
     const auto radio = skull::radio::stats();
     const auto audio = skull::audio::stats();
     const auto actuators = skull::actuators::stats();
+    const auto jaw = skull::actuators::jaw_state();
+    ESP_LOGI(tag, "JAW mode=%u requested_us=%u applied_us=%u enabled=%d closed_us=%u open_us=%u manual_bounds=%u..%u faulted=%d (command state, not position feedback)",
+             static_cast<unsigned>(jaw.mode), jaw.requested_us, jaw.applied_us, jaw.enabled,
+             jaw.closed_us, jaw.open_us, jaw.minimum_us, jaw.maximum_us, jaw.faulted);
     ESP_LOGI(tag, "ACTUATORS deferred=%lu max_pending_us=%llu pending_channels=%u stuck=%d",
              static_cast<unsigned long>(actuators.deferred_updates),
              static_cast<unsigned long long>(actuators.max_pending_us),
@@ -344,6 +351,7 @@ void diagnostic_task(void *) {
     bool overflowed = false;
     int64_t next_status = 0;
     while (true) {
+        skull::show::set_jaw_inhibited(skull::actuators::jaw_state().mode != skull::actuators::JawMode::automatic);
         skull::startup::poll(skull::radio::stream_ready());
         const bool tone_active = tone_frames.load(std::memory_order_relaxed) != 0;
         skull::show::tick(skull::startup::finished(), skull::startup::playing() || tone_active);
@@ -351,11 +359,14 @@ void diagnostic_task(void *) {
         const auto show_animation = skull::audio::animation();
         const bool audio_active = skull::radio::stream_ready() &&
             (skull::startup::playing() || tone_active || skull::show::busy() || skull::audio::busy());
+        skull::actuators::speaker_connection(skull::radio::speaker_connected());
         skull::actuators::tick(startup_animation.rms ? startup_animation.rms : show_animation.rms,
                               startup_animation.speaking || show_animation.speaking, audio_active);
         lifecycle_poll();
         // This control task owns show/prepare; quiescent includes worker FILE close.
         skull::faultlog::poll(fault_log_idle(), skull::storage::mounted());
+        skull::network::poll(fault_log_idle());
+        skull::show::set_jaw_inhibited(skull::actuators::jaw_state().mode != skull::actuators::JawMode::automatic);
         char character;
         if (uart_read_bytes(UART_NUM_0, &character, 1, pdMS_TO_TICKS(20)) == 1) {
             if (character == '\r' || character == '\n') {
@@ -366,6 +377,12 @@ void diagnostic_task(void *) {
                 else if (!std::strcmp(line, "fault-saved")) {
                     if (fault_log_idle() && skull::storage::mounted()) skull::faultlog::dump_saved();
                     else ESP_LOGW(tag, "Saved fault read refused: playback active or SD unavailable");
+                }
+                else if (!std::strncmp(line, "mqtt-config ", 12)) {
+                    if (fault_log_idle()) {
+                        const bool saved=skull::network::configure_mqtt(line+12);
+                        ESP_LOGI(tag,"MQTT broker configuration %s; credentials redacted; reboot to apply",saved?"saved":"rejected");
+                    } else ESP_LOGW(tag,"MQTT configuration refused while playback active");
                 }
                 else if (!std::strcmp(line, "fault-test")) {
                     if (fault_log_idle()) skull::faultlog::test_fault();
@@ -468,6 +485,9 @@ extern "C" void app_main() {
     // Do not carry a partial boot-only command into the later runtime console.
     ESP_ERROR_CHECK(uart_flush_input(UART_NUM_0));
     tag = card_config.primary ? "anthony" : "jeff";
+    // Eyes can diagnose SD recovery before this point, but no jaw pulse may
+    // use an obsolete closed endpoint before the per-skull card is read.
+    ESP_ERROR_CHECK(skull::actuators::configure_jaw(card_config.jaw_closed_us, card_config.jaw_open_us) ? ESP_OK : ESP_ERR_INVALID_ARG);
     ESP_LOGI(tag, "Configured role=%s", card_config.primary ? "primary" : "secondary");
     ESP_LOGI("lifecycle", "event=config_ready boot_ms=%lld attempts=%u role=%s",
              static_cast<long long>(esp_timer_get_time() / 1000), storage_attempt, card_config.primary ? "primary" : "secondary");
@@ -521,5 +541,6 @@ extern "C" void app_main() {
             else pairing();
         });
     } else ESP_ERROR_CHECK(skull::secondary::init());
+    skull::network::init(card_config.primary, assets);
     ESP_ERROR_CHECK(xTaskCreate(diagnostic_task, "skull_diag", 6144, nullptr, 4, nullptr) == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
 }

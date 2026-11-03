@@ -18,10 +18,12 @@ State state = State::idle;
 catalog::Catalog *assets = nullptr;
 const catalog::Asset *selected = nullptr;
 bool primary = true, initialization_seen = false, coordinated = false;
+bool startup_blocked = true;
 bool discovery_enabled = false;
 bool peer_was_ready = false, greeting_pending = false, greeting_marco = false;
 uint32_t incoming_token = 0;
 std::atomic<bool> accepting{false}, requested{false};
+std::atomic<bool> jaw_inhibited{false};
 int64_t deadline = 0, cooldown_until = 0, marco_at = 0;
 int64_t now() { return esp_timer_get_time(); }
 void discovery(bool enabled) {
@@ -37,7 +39,7 @@ const catalog::Asset *find(const char *path) {
     return nullptr;
 }
 bool begin(const catalog::Asset *next, bool pair) {
-    if (!next || state != State::idle || !radio::stream_ready() || audio::busy()) return false;
+    if (jaw_inhibited.load() || !next || state != State::idle || !radio::stream_ready() || audio::busy()) return false;
     if (!audio::prepare(next)) return false;
     selected = next; coordinated = pair;
     accepting.store(false);
@@ -64,6 +66,7 @@ void init(catalog::Catalog *content, bool is_primary) {
     peer_was_ready = radio::peer_ready();
 }
 bool trigger() {
+    if (jaw_inhibited.load()) return false;
     if (!accepting.exchange(false)) return false;
     bool expected = false;
     return requested.compare_exchange_strong(expected, true);
@@ -80,13 +83,43 @@ bool paired(const char *path) {
     actuators::diagnostic(1);
     return true;
 }
+bool command_ready() {
+    return !jaw_inhibited.load() && initialization_seen && !startup_blocked && assets && state == State::idle &&
+        !requested.load() && !greeting_pending && radio::stream_ready() &&
+        !audio::busy() && now() >= cooldown_until;
+}
+bool play_skit(const char *path) {
+    const auto *next = find(path);
+    if (!next || !next->skit || !command_ready()) return false;
+    // Choose the route once, before prebuffering. A disconnected primary may
+    // play solo; a coordinated request keeps the existing ACK/no-replay rules.
+    if (!begin(next, primary && radio::peer_ready())) return false;
+    actuators::diagnostic(1);
+    return true;
+}
+const char *current_path() {
+    return state != State::idle && selected ? selected->path : "";
+}
 bool busy() {
     // A dormant greeting cannot make progress without the speaker. Leave the
     // idle controller available to the console's connection-retry command;
     // greeting_pending still gates local/paired/Home playback until recovery.
     return state != State::idle || requested.load() || (greeting_pending && radio::stream_ready());
 }
-bool ready() { return accepting.load(); }
+bool ready() { return !jaw_inhibited.load() && accepting.load(); }
+void set_jaw_inhibited(bool inhibited) {
+    jaw_inhibited.store(inhibited);
+    if (inhibited) {
+        accepting.store(false);
+        requested.store(false);
+        greeting_pending = greeting_marco = false;
+        marco_at = 0;
+        // STOP may arrive after preparation/ACK acceptance. Prevent that
+        // preaccepted work from starting audio or requesting peer movement.
+        if (state != State::idle && state != State::cancelling)
+            abort("jaw control inhibited");
+    }
+}
 const char *state_name() {
     switch (state) {
     case State::idle: return "idle";
@@ -100,9 +133,10 @@ const char *state_name() {
     return "invalid";
 }
 void tick(bool initialization_finished, bool startup_active) {
+    startup_blocked = !initialization_finished || startup_active;
     const int64_t time = now();
     if (!primary) {
-        secondary::busy(!initialization_finished || startup_active || state != State::idle || audio::busy());
+        secondary::busy(jaw_inhibited.load() || !initialization_finished || startup_active || state != State::idle || audio::busy());
         secondary::poll();
         secondary::advertising(initialization_finished);
     }
@@ -113,6 +147,19 @@ void tick(bool initialization_finished, bool startup_active) {
     }
     if (!initialization_seen || startup_active) {
         accepting.store(false); discovery(false); return;
+    }
+    if (jaw_inhibited.load() && state == State::idle) {
+        // Consume incoming requests with an explicit rejection; never defer a
+        // peer's skit or a readiness-edge greeting until tuning finishes.
+        set_jaw_inhibited(true);
+        peer_was_ready = radio::peer_ready();
+        discovery(false);
+        if (!primary) {
+            secondary::take_connected();
+            secondary::Request incoming{};
+            if (secondary::take_request(incoming)) secondary::respond(incoming.token, false);
+        }
+        return;
     }
     if (primary) {
         const bool peer = radio::peer_ready();
@@ -241,16 +288,16 @@ void tick(bool initialization_finished, bool startup_active) {
             }
             return;
         }
-        const bool can_trigger = primary && assets && radio::stream_ready() && radio::peer_ready() &&
+        const bool can_trigger = primary && assets && radio::stream_ready() &&
             !audio::busy() && time >= cooldown_until;
         accepting.store(can_trigger && !requested.load());
         if (requested.exchange(false)) {
             accepting.store(false);
             if (can_trigger) {
                 const int index = catalog::select(*assets, static_cast<uint64_t>(time / 1000), esp_random());
-                if (index >= 0 && begin(&assets->assets[index], true)) actuators::diagnostic(1);
+                if (index >= 0 && begin(&assets->assets[index], radio::peer_ready())) actuators::diagnostic(1);
                 else ESP_LOGW(tag, "Trigger refused: no playable skit or prepare busy");
-            } else ESP_LOGW(tag, "Trigger consumed: busy/cooldown/speaker/peer unavailable");
+            } else ESP_LOGW(tag, "Trigger consumed: startup/busy/cooldown/speaker unavailable");
         } else if (marco_due && radio::stream_ready()) {
             begin(find("/audio/Marco.wav"), false);
         }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-set(PROJECT_VER "0.1.0-probe")
+set(PROJECT_VER "0.2.0-ha")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(anthony_wrover)
 include(cmake/matter_bluedroid_patch.cmake)

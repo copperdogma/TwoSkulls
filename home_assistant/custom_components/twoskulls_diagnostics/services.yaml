@@ -1,0 +1,11 @@
+refresh_logs:
+  name: Open saved reports
+  description: Read the prop's saved SD reports and show their full contents in Home Assistant Notifications.
+  fields:
+    device_id:
+      name: Device ID
+      description: Stable TwoSkulls MQTT identifier, for example twoskulls_001122334455.
+      required: true
+      example: twoskulls_001122334455
+      selector:
+        text:

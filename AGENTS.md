@@ -1,5 +1,16 @@
 # Agent guidelines
 
+## Home Assistant integration and operator UI
+
+Read [the AI prop-integration guide](docs/home-assistant-prop-integration.md)
+when implementing or maintaining Home Assistant features. Cam's approved pattern
+is a native dashboard with a grouped per-prop selection/Play/Now playing card and
+a separate status/logs card, set as the useful default. Raw discovered entities
+and generic history dialogs are not the finished operator interface.
+Update that guide, the dashboard example and relevant setup documentation when
+changing the integration, protocol, UI, provisioning or qualification. Keep
+reusable behavior distinct from TwoSkulls-specific code and tested evidence.
+
 
 ## Debugging native firmware
 

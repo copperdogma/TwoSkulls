@@ -16,6 +16,20 @@ Matter On requests a paired skit after startup and cooldown, requiring the
 configured speaker and Jeff. Serial `tone` retains the quiet diagnostic tone.
 Serial `play /audio/<filename>.wav` explicitly tests one local asset without Jeff.
 
+## Eye status priority
+
+Counted diagnostics have highest eye priority: repeating three flashes for SD
+mount failure, five for config failure, and the two/four role flashes at boot.
+Next is a missing Bluetooth speaker: both eyes alternate 255/255 brightness for
+one second and the normal dim 100/255 for one second. The warning starts at 30 s
+boot age if no connection was made, or on the next control tick (normally 20 ms)
+after an observed A2DP connection drops. A late first control tick does not grant
+an extra grace period. Reconnection clears it immediately on the control owner.
+Stream readiness alone does not trigger this warning. Speech/idle brightness is
+lowest priority; jaw speech, boot check and breathing remain independent.
+The phase uses elapsed time, so delayed ticks skip phases rather than queueing
+flashes. See [Story 008](../docs/stories/story-008-speaker-eye-warning.md).
+
 ## Build
 
 Activate the matching ESP-IDF installation and ESP32 toolchain, then:
@@ -229,16 +243,60 @@ c++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined \
 ## Jaw and eye bench outputs
 
 LEDC uses separate low-speed APB timers: jaw timer0/channel0 at 50 Hz/16-bit;
-eyes timer1/channels1/2 at 5 kHz/8-bit. The native pulse mapping preserves the
-actual legacy Servo library: 544–2400 us for 0–180 degrees, with application
-limits 0–80 degrees (544–1368 us). These are hardcoded legacy limits, not
-values read from config.txt.
+eyes timer1/channels1/2 at 5 kHz/8-bit. Story010 adds per-card `config.txt`
+keys `jaw_closed_us` and `jaw_open_us`. Old cards default to the legacy
+544/1368 us endpoints. Values must be distinct integers in 544..2400 us;
+reversed endpoints are supported. These electrical command bounds do not prove
+safe mechanical travel. Normal 0..80 logical motion interpolates between the
+saved endpoints; those logical values are not measured jaw angles.
 
-Initialization holds the jaw closed and eyes dim (100/255). The control loop
+Initialization keeps jaw pulses off and eyes dim (100/255). After valid SD
+configuration loads, jaw output starts at that card's closed endpoint. The control loop
 runs a gentle 0→30→0 degree check over 1.2 seconds on its first tick. Serial
 `jaw-test` repeats it while startup is idle. Speech overrides that check.
 The existing diagnostic task controls outputs with a 20 ms rate gate; no new
 task is allocated. Eye brightness rises to 255 during startup speech.
+
+### Home Assistant jaw tuning (Story010, Jeff deployed)
+
+The dashboard source adds **Jeff jaw tuning** as a dedicated subview. See the
+[operator steps](../home_assistant/README.md#jaw-tuning-story010) and
+[Story010](../docs/stories/story-010-sd-jaw-calibration.md). The firmware and
+dashboard are now deployed on Jeff: live discovery has 47 entities and
+STOP/Enter/STOP passed, ending disabled at applied 0. Cam then accepted the
+controls, saved closed/open 654/1404 us and resumed automatic movement. Those
+active values match drafts with no unsaved changes; Cam confirmed they survived
+reboot. Anthony deployment remains pending. The initial
+software qualification was followed by an application-only verified flash;
+see Story010 for rollback evidence and the SD warm-reset recovery observation.
+
+Tuning requires completed startup and quiescent show/audio/tone/content files.
+If Enter is rejected during automatic breathing because PWM is pending, STOP
+then Enter; retain the conservative pending-write guard.
+The existing control owner holds the current applied PWM command; all playback
+sources and automatic jaw gestures are blocked. Fine/coarse open/close moves are
+1/10 us; exact targets may differ by at most 25 us per accepted command. Each
+session is bounded to its starting saved span plus 50 us, clipped to 544..2400.
+There is no automatic sweep, torque/current sensing or physical angle feedback.
+
+Capture closed/open into drafts, then explicitly Save both to SD. The writer
+preserves other config bytes and verifies readback; first save adds keys to old
+cards. No unsolicited default-migration write occurs during boot. Retain
+`config.jaw.original`, and preserve/recover unresolved `config.jaw.tmp` or
+`config.jaw.previous` before retrying. Both speaker and jaw writers refuse
+unresolved transactions from either writer. FAT replacement is recoverable,
+not power-fail atomic; keep power stable until the result returns.
+
+STOP, Wi-Fi/MQTT loss or 90 seconds without accepted tuning input requests zero
+PWM and latches disabled mode. Closed-browser detection relies on inactivity;
+the broker can remain connected after closing a browser. Leave with STOP or
+explicit Resume. Resume discards drafts and slews at most 10 us/20 ms toward
+normal targets. Output errors latch a fault that prevents motion until reboot;
+best-effort zero updates continue despite an eye-channel failure. A permanently
+pending/failing driver can prevent zero output: `applied_us`/enabled remain
+truthful and results indicate a pending disable. This is not a physical emergency
+stop, guaranteed torque release or cancellation of a command another skull has
+already accepted. STOP cancels local active/prepared shows and pending starts.
 
 The startup loader computes 20 ms RMS windows in PSRAM after applying volume.
 The audio callback only publishes its consumed source-frame cursor; the control
@@ -425,3 +483,141 @@ NVS erasure or flash partition changes are introduced.
 See [Story 003](../docs/stories/story-003-retained-fault-logs.md) for validation
 and its original acceptance boundary. See the [SD startup recovery record](../docs/stories/story-005-sd-startup-recovery.md)
 for Jeff's utility/startup update and device checks.
+
+## Home Assistant MQTT
+
+Story 007 retains the native ESP-IDF radio/audio runtime and adds the SDK MQTT
+client. Home Assistant device discovery creates 26 entities with the current
+11-skit card: connectivity, SD/fault-report state, current activity, timings,
+heap/signal/counters, Skit selector, Play selected skit and Open saved reports
+buttons. Other MQTT
+consumers can read the same typed JSON state without Home Assistant.
+
+The Skit list comes from validated scripted assets on that skull's card, excluding
+startup/Marco/Polo and malformed or ambiguous paths. Selection only updates RAM;
+Play requests that exact selected skit. Selection resets to the first valid skit
+on reboot. Controls are not queued for later playback. Busy, startup/greeting,
+cooldown and unavailable-speaker gates return not_ready. Primary named/random
+triggers play solo if Jeff is absent at acceptance, or use the existing paired
+handshake if Jeff is ready. A paired transaction that subsequently fails still
+aborts without automatically replaying solo. Direct secondary control plays B.
+
+Optional networking keys in the existing `/sdcard/config.txt`:
+
+```ini
+wifi_ssid=YOUR_NETWORK
+wifi_password=YOUR_PASSWORD
+mqtt_uri=mqtt://BROKER_HOST:1883
+mqtt_username=YOUR_MQTT_USER
+mqtt_password=YOUR_MQTT_PASSWORD
+```
+
+These are placeholders, not the installed credentials. Existing role/speaker
+settings stay in the same file. Common ssid/password and wifi-prefixed aliases
+are accepted. Config is read-only at boot. Missing/invalid optional networking
+leaves normal local operation available. Jeff uses a Wi-Fi station with RAM-only
+SDK settings; Anthony's Matter stack remains his Wi-Fi owner. Networking does
+not initialize a Matter node on Jeff or overwrite primary fabrics/settings.
+
+If the SD card has no mqtt_uri, idle USB maintenance can save broker settings in
+the separate `skulls_net` NVS namespace:
+
+```text
+mqtt-config mqtt://BROKER_HOST:1883 USERNAME PASSWORD
+reboot
+```
+
+Use `-` for an empty auth field. This USB command accepts single tokens without
+spaces; SD values support spaces. Credentials are not echoed, published or added
+to source. Reboot applies changes. SD broker settings take precedence over the
+USB fallback. `mqtts://` uses SDK certificate-bundle verification; TLS with a
+production broker has not been device-qualified in this story. No AP is started.
+
+Topic prefix is `halloween/twoskulls_<stable-chip-id>`:
+
+| Suffix | Meaning |
+| --- | --- |
+| state | Non-retained typed JSON snapshot, about every 5 seconds |
+| availability | Retained online plus broker Last Will offline |
+| play_available | Retained playback-readiness gate |
+| select/set | Exact advertised skit option; selection only |
+| play | Exact PLAY command; no retained command replay |
+| logs_available | Retained readiness for an idle read-only SD snapshot |
+| logs/request | REFRESH request from the native HA button to the HA report bridge |
+| logs/get | Scoped GET request with a fresh request ID and fixed SD slot |
+| logs/&lt;request-id&gt;/… | Non-retained bounded report transfer, separate from state |
+
+Discovery is retained under `homeassistant/device/<id>/config`, republished on
+MQTT connection and HA birth. Command subscriptions must receive successful
+SUBACKs before controls become available. SDK custom events serialize subscription
+retries on the MQTT event owner. Only one bounded pending command is copied;
+control owner rejects stale (>2 s), fragmented, duplicate or retained-at-subscribe
+messages, and validates catalog membership. MQTT v3 can clear RETAIN on live
+forwarded messages: this guard prevents stored replay, not every live publish
+originally sent with retain enabled. Commands from HA explicitly use retain=false.
+
+Sensors expire after 20 seconds if application telemetry stops. Last Will handles
+connection loss; observed selector availability went offline in about 23 seconds.
+Wi-Fi RSSI is dBm; Bluetooth strength is a controller delta, explicitly not dBm.
+Missing measurements are null/unknown. Startup/SD timings are monotonic SDK values,
+not external power-rail measurements. Latest report ID is a hex string. Full SD report text stays on the card until
+requested through the read-only report path below; it is not stored in a sensor
+attribute or recorder history. Report count is cached from fixed file metadata
+at boot or idle after persistence changes, not polled from SD every heartbeat.
+
+### Open saved SD reports
+
+Install the [TwoSkulls saved-report integration](../home_assistant/custom_components/twoskulls_diagnostics/README.md)
+in Home Assistant with its existing MQTT integration. Press **Open saved reports**
+on Jeff's device page, then open Home Assistant's **Notifications** sidebar. An
+index lists the available slots and one notification per report contains the
+complete literal text. The initial bridge is a native HA integration and
+notification view, not a separate website or public download endpoint.
+
+The collector uses the fresh `report_slots` state bitmask (slots 0–7). Each request
+has a fresh 16-hex ID and targets one fixed slot. The firmware snapshots at most
+14,335 bytes into PSRAM only while its diagnostic owner is idle; SD/card contents
+are never changed. It sends a begin frame, ordered binary chunks of at most 256
+bytes and an end frame with byte count/standard CRC32. QoS1 duplicates are handled
+idempotently; stale IDs, invalid ordering, corruption or incomplete transfers
+cannot become a verified report. No report body enters regular state telemetry.
+
+HA verifies complete contents before saving a private content-addressed copy
+under `.storage/twoskulls_reports/<device>/` and displaying escaped plaintext.
+Repeated reads deduplicate; older cached versions remain available on disk when
+an SD slot later rotates. Report notifications are snapshots, not live streams.
+There is no automatic cache deletion. Dismissing a notification does not delete
+the SD report. Busy/unavailable/error/timeout results are explicit; they do not
+replace verified cached data. The integration does not automatically retry.
+
+The device exposes Idle for an empty current skit and identifies its firmware
+with the application version plus a short ELF SHA256 build fingerprint. A
+selected skit remains separate from current playback. Generic 0.1.0-probe alone
+is no longer used as the HA build identifier on the updated firmware.
+
+The live HA/MQTT hub is now on the Mac Mini (`192.168.1.80:8123` / broker1883),
+with the preserved grouped Halloween dashboard. Jeff's separate NVS broker URI
+was updated; SD Wi-Fi settings and firmware were not rewritten during migration.
+The old laptop containers are stopped and retained for rollback. Its private
+runtime/evidence remain under ignored `build/validation/story-007-ha/`; do not
+commit captures or credentials or casually start a second HA copy. See the
+[hub migration record](../docs/stories/story-009-mac-mini-home-assistant-hub.md)
+and [current integration guide](../docs/home-assistant-prop-integration.md).
+No public DNS, custom website or off-LAN access was configured.
+
+Device qualification: actual HA log reading verified both existing Jeff SD
+reports (413 and 5,689 bytes) byte-identical to their pre-flash copies, with complete
+native notifications. An initial larger-report timeout was corrected through the
+supported MQTT worker poll setting after bounded source/trace research; no
+unbounded retries or receiver bypass were introduced. See Story 007 and its
+throughput research for the failure, correction and observed timings.
+
+Other checks: actual Jeff discovery/selection/negative commands,
+retained-at-boot rejection, broker reconnection, offline/recovery, and preservation
+of both prior SD reports passed. No speaker was present, so the HA Play button
+correctly remains unavailable. Positive audible playback, active-audio resource
+behavior, and Anthony/paired hardware acceptance remain pending. The corrected
+application including the speaker eye warning is 2,315,472 bytes and still has only 85 bytes of measured
+IRAM margin. Further features require resource work rather than assuming flash
+free space is enough. Actual Chrome inspection confirmed the two full report
+notifications, Canada configuration and the native Overview status favorites.

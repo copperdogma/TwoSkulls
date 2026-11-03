@@ -1,4 +1,5 @@
 #include "skull_actuators.h"
+#include "skull_speaker_indicator.h"
 
 #include <algorithm>
 #include <cmath>
@@ -18,6 +19,12 @@ constexpr ledc_channel_t eye_right_channel = LEDC_CHANNEL_2;
 constexpr uint32_t dim = 100;
 constexpr uint32_t bright = 255;
 constexpr int jaw_max = 80;
+constexpr unsigned jaw_absolute_min = 544;
+constexpr unsigned jaw_absolute_max = 2400;
+constexpr unsigned manual_margin_us = 50;
+constexpr unsigned manual_max_change_us = 25;
+constexpr unsigned resume_step_us = 10;
+constexpr int64_t manual_lease_us = 90000000;
 // RMS is already measured over 20 ms of PCM. Use one fast follower so
 // separate syllables survive instead of cascading two slow low-pass filters.
 constexpr double speech_noise_floor = 200.0;
@@ -32,6 +39,9 @@ constexpr int64_t breathing_movement_us = 2000000;
 constexpr int64_t breathing_hold_us = 100000;
 
 bool ready = false;
+bool fault_latched = false;
+bool jaw_channel_configured = false;
+bool fault_stop_confirmed = false;
 bool peripheral_reset_done = false;
 bool check_pending = false;
 int64_t check_started = -1;
@@ -40,6 +50,17 @@ int64_t last_breath_started = -1;
 int64_t breath_started = -1;
 double speech_jaw = 0;
 uint32_t last_jaw_duty = 0;
+bool jaw_configured = false;
+JawMode jaw_mode = JawMode::disabled;
+unsigned jaw_closed_us = 544;
+unsigned jaw_open_us = 1368;
+unsigned jaw_requested_us = 0;
+unsigned jaw_applied_us = 0;
+unsigned jaw_held_us = 0;
+unsigned manual_min_us = 544;
+unsigned manual_max_us = 1368;
+int64_t manual_command_us = -1;
+bool jaw_resuming = false;
 uint32_t last_eye_duty[2] = {dim, dim};
 Stats telemetry = {};
 int64_t pending_since[3] = {-1, -1, -1};
@@ -49,15 +70,29 @@ bool diagnostic_repeat = false;
 int64_t diagnostic_started = -1;
 constexpr int64_t blink_half_us = 200000;
 constexpr int64_t diagnostic_gap_us = 2000000;
+SpeakerIndicator speaker_indicator;
 
-// Preserve ESP32_ESP32S2_AnalogWrite's Servo mapping: 0..180 degrees maps
-// to 544..2400 us. Restrict the application to its legacy 0..80 degree range;
-// 80 degrees is NOT mapped to the library's 2400 us endpoint.
-uint32_t jaw_duty(int degrees)
+// Existing logical animation range remains 0..80; calibration determines the
+// pulse range independently for each skull and supports reversed mechanics.
+unsigned jaw_pulse(int degrees)
 {
     const int bounded = std::clamp(degrees, 0, jaw_max);
-    const uint32_t pulse_us = 544 + bounded * (2400 - 544) / 180;
+    return static_cast<unsigned>((static_cast<int>(jaw_closed_us) * (jaw_max - bounded) +
+                                  static_cast<int>(jaw_open_us) * bounded) / jaw_max);
+}
+
+uint32_t pulse_duty(unsigned pulse_us)
+{
     return (pulse_us * 65536U + 10000U) / 20000U;
+}
+
+void cancel_jaw_gestures()
+{
+    check_pending = false;
+    check_started = -1;
+    breath_started = -1;
+    last_breath_started = esp_timer_get_time();
+    speech_jaw = 0;
 }
 
 esp_err_t configure_timer(ledc_timer_t timer, ledc_timer_bit_t bits, uint32_t hz)
@@ -85,12 +120,23 @@ esp_err_t configure_channel(int gpio, ledc_channel_t channel,
     return ledc_channel_config(&config);
 }
 
+void stop_jaw_after_fault();
+
 esp_err_t checked(esp_err_t error, const char *operation)
 {
     if (error != ESP_OK) {
         ESP_LOGE(tag, "%s failed: %s; actuator updates disabled", operation,
                  esp_err_to_name(error));
         ready = false;
+        fault_latched = true;
+        fault_stop_confirmed = false;
+        cancel_jaw_gestures();
+        jaw_mode = JawMode::disabled;
+        jaw_requested_us = 0;
+        jaw_resuming = false;
+        // A healthy jaw must still be stopped if an eye channel failed. This
+        // path deliberately avoids checked() recursion when the jaw also fails.
+        stop_jaw_after_fault();
     }
     return error;
 }
@@ -124,6 +170,22 @@ bool update_pending(ledc_channel_t channel, int64_t now)
     return pending;
 }
 
+void stop_jaw_after_fault()
+{
+    if (!jaw_channel_configured || fault_stop_confirmed) return;
+    if (update_pending(jaw_channel, esp_timer_get_time())) {
+        ++telemetry.deferred_updates;
+        return;
+    }
+    // Preserve the last successful applied state if either operation fails;
+    // neither a requested zero nor a failed update proves pulses have stopped.
+    if (ledc_set_duty(mode, jaw_channel, 0) != ESP_OK ||
+        ledc_update_duty(mode, jaw_channel) != ESP_OK) return;
+    last_jaw_duty = 0;
+    jaw_applied_us = 0;
+    fault_stop_confirmed = true;
+}
+
 enum class WriteResult { applied, deferred, failed };
 WriteResult write_duty(ledc_channel_t channel, uint32_t duty)
 {
@@ -141,6 +203,7 @@ WriteResult write_duty(ledc_channel_t channel, uint32_t duty)
 
 esp_err_t init()
 {
+    if (fault_latched) return ESP_FAIL; // Fault recovery requires a reboot.
     if (ready) return ESP_OK;
     // Software reset can preserve a pending duty_start bit. Reset once before
     // configuring any timer/channel, never while audio/actuators are running.
@@ -154,9 +217,10 @@ esp_err_t init()
     if (checked(error, "jaw timer init") != ESP_OK) return error;
     error = configure_timer(LEDC_TIMER_1, LEDC_TIMER_8_BIT, 5000);
     if (checked(error, "eye timer init") != ESP_OK) return error;
-    last_jaw_duty = jaw_duty(0);
+    last_jaw_duty = 0;
     error = configure_channel(23, jaw_channel, LEDC_TIMER_0, last_jaw_duty);
     if (checked(error, "jaw channel init") != ESP_OK) return error;
+    jaw_channel_configured = true;
     error = configure_channel(32, eye_left_channel, LEDC_TIMER_1, dim);
     if (checked(error, "left eye channel init") != ESP_OK) return error;
     error = configure_channel(33, eye_right_channel, LEDC_TIMER_1, dim);
@@ -167,15 +231,115 @@ esp_err_t init()
     last_breath_started = -1;
     breath_started = -1;
     ready = true;
-    test();
-    ESP_LOGI(tag, "Jaw GPIO23 closed (544 us), eyes GPIO32/33 dim (%lu/255)",
+    ESP_LOGI(tag, "Jaw GPIO23 disabled until SD calibration loads; eyes GPIO32/33 dim (%lu/255)",
              static_cast<unsigned long>(dim));
     return ESP_OK;
 }
 
+bool configure_jaw(unsigned closed_us, unsigned open_us)
+{
+    if (!ready || closed_us < jaw_absolute_min || closed_us > jaw_absolute_max ||
+        open_us < jaw_absolute_min || open_us > jaw_absolute_max || closed_us == open_us)
+        return false;
+    jaw_closed_us = closed_us;
+    jaw_open_us = open_us;
+    if (!jaw_configured) {
+        jaw_configured = true;
+        jaw_mode = JawMode::automatic;
+        jaw_requested_us = closed_us;
+        const auto result = write_duty(jaw_channel, pulse_duty(closed_us));
+        if (result == WriteResult::failed) return false;
+        if (result == WriteResult::applied) {
+            last_jaw_duty = pulse_duty(closed_us);
+            jaw_applied_us = jaw_held_us = closed_us;
+        }
+        test();
+    }
+    return true;
+}
+
+JawState jaw_state()
+{
+    return {jaw_mode, jaw_requested_us, jaw_applied_us, jaw_closed_us, jaw_open_us,
+            manual_min_us, manual_max_us, last_jaw_duty != 0, fault_latched};
+}
+
+bool jaw_manual_enter()
+{
+    if (!ready || !jaw_configured || jaw_mode == JawMode::manual || !jaw_held_us)
+        return false;
+    // Do not enter while an automatic command is still awaiting hardware: a
+    // later pending update could otherwise defeat the no-entry-jump contract.
+    if (update_pending(jaw_channel, esp_timer_get_time())) return false;
+    cancel_jaw_gestures();
+    jaw_mode = JawMode::manual;
+    jaw_requested_us = jaw_held_us;
+    const unsigned low = std::min(jaw_closed_us, jaw_open_us);
+    const unsigned high = std::max(jaw_closed_us, jaw_open_us);
+    manual_min_us = low - std::min(low - jaw_absolute_min, manual_margin_us);
+    manual_max_us = std::min(jaw_absolute_max, high + manual_margin_us);
+    manual_command_us = esp_timer_get_time();
+    jaw_resuming = false;
+    return true;
+}
+
+bool jaw_manual_target(unsigned pulse_us)
+{
+    if (!ready || jaw_mode != JawMode::manual ||
+        esp_timer_get_time() - manual_command_us >= manual_lease_us) {
+        if (jaw_mode == JawMode::manual) jaw_disable();
+        return false;
+    }
+    const auto distance = [](unsigned a, unsigned b) { return a > b ? a - b : b - a; };
+    if (pulse_us < manual_min_us || pulse_us > manual_max_us ||
+        distance(pulse_us, jaw_held_us) > manual_max_change_us ||
+        distance(pulse_us, jaw_requested_us) > manual_max_change_us)
+        return false;
+    jaw_requested_us = pulse_us;
+    manual_command_us = esp_timer_get_time();
+    return true;
+}
+
+bool jaw_manual_step(int delta_us)
+{
+    if (!delta_us || delta_us < -static_cast<int>(manual_max_change_us) ||
+        delta_us > static_cast<int>(manual_max_change_us)) return false;
+    const int target = static_cast<int>(jaw_requested_us) + delta_us;
+    return target >= 0 && jaw_manual_target(static_cast<unsigned>(target));
+}
+
+void jaw_disable()
+{
+    cancel_jaw_gestures();
+    jaw_mode = JawMode::disabled;
+    jaw_requested_us = 0;
+    jaw_resuming = false;
+    if (fault_latched) {
+        stop_jaw_after_fault();
+        return;
+    }
+    if (!ready || last_jaw_duty == 0) return;
+    const auto result = write_duty(jaw_channel, 0);
+    if (result == WriteResult::applied) {
+        last_jaw_duty = 0;
+        jaw_applied_us = 0;
+    }
+}
+
+bool jaw_resume()
+{
+    if (!ready || !jaw_configured || !jaw_held_us || jaw_mode == JawMode::automatic)
+        return false;
+    cancel_jaw_gestures();
+    jaw_mode = JawMode::automatic;
+    jaw_requested_us = jaw_held_us;
+    jaw_resuming = true;
+    return true;
+}
+
 void test()
 {
-    if (!ready) return;
+    if (!ready || !jaw_configured || jaw_mode != JawMode::automatic) return;
     check_pending = true;
     check_started = -1;
     breath_started = -1;
@@ -195,9 +359,20 @@ void diagnostic(unsigned count, bool repeat)
 
 Stats stats() { return telemetry; }
 
+void speaker_connection(bool connected)
+{
+    const bool previous = speaker_indicator.active;
+    speaker_indicator.update(esp_timer_get_time(), connected);
+    if (previous != speaker_indicator.active)
+        ESP_LOGI(tag, "Speaker eye warning %s", speaker_indicator.active ? "active" : "cleared");
+}
+
 void tick(uint16_t rms, bool speaking, bool audio_busy)
 {
-    if (!ready) return;
+    if (!ready) {
+        if (fault_latched) stop_jaw_after_fault();
+        return;
+    }
     const int64_t now = esp_timer_get_time();
     if (last_tick >= 0 && now - last_tick < 20000) return;
     last_tick = now;
@@ -208,7 +383,10 @@ void tick(uint16_t rms, bool speaking, bool audio_busy)
     // Matter initialization, so boot never jumps into an overdue breath.
     if (last_breath_started < 0) last_breath_started = now;
     int jaw = 0;
-    if (speaking) {
+    if (jaw_mode != JawMode::automatic) {
+        if (jaw_mode == JawMode::manual && now - manual_command_us >= manual_lease_us)
+            jaw_disable();
+    } else if (speaking) {
         check_pending = false;
         breath_started = -1;
         const double level = std::clamp((rms - speech_noise_floor) /
@@ -261,13 +439,31 @@ void tick(uint16_t rms, bool speaking, bool audio_busy)
             }
         }
     }
-    const uint32_t duty = jaw_duty(jaw);
+    if (jaw_mode == JawMode::automatic && jaw_configured) {
+        unsigned target = jaw_pulse(jaw);
+        if (jaw_resuming) {
+            if (target > jaw_held_us) target = std::min(target, jaw_held_us + resume_step_us);
+            else target = std::max(target, jaw_held_us > resume_step_us ? jaw_held_us - resume_step_us : 0U);
+            if (target == jaw_pulse(jaw) && pulse_duty(target) == last_jaw_duty)
+                jaw_resuming = false;
+        }
+        jaw_requested_us = target;
+    }
+    const uint32_t duty = pulse_duty(jaw_requested_us);
     if (duty != last_jaw_duty) {
         const auto result = write_duty(jaw_channel, duty);
         if (result == WriteResult::failed) return;
-        if (result == WriteResult::applied) last_jaw_duty = duty;
+        if (result == WriteResult::applied) {
+            last_jaw_duty = duty;
+            jaw_applied_us = jaw_requested_us;
+            if (jaw_applied_us) jaw_held_us = jaw_applied_us;
+            if (jaw_mode == JawMode::automatic && jaw_resuming &&
+                jaw_applied_us == jaw_pulse(jaw)) jaw_resuming = false;
+        }
     }
     uint32_t eye_duty = speaking ? bright : dim;
+    if (speaker_indicator.active)
+        eye_duty = speaker_indicator.bright(now) ? bright : dim;
     if (diagnostic_count) {
         if (diagnostic_started < 0) diagnostic_started = now;
         const int64_t duration = static_cast<int64_t>(diagnostic_count) * 2 * blink_half_us;
