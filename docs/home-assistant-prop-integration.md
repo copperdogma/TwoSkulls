@@ -106,7 +106,8 @@ retain its own tested physical behavior and task ownership.
 
 Cam selected the always-on Mac Mini as the primary whole-house Home Assistant
 hub. The live HA/MQTT setup has been migrated there; the laptop's two temporary
-server containers are stopped, with their data retained for rollback. See the
+server containers/images were removed during cleanup, with private data and
+cold backups retained for deliberate rollback. See the
 [migration record](stories/story-009-mac-mini-home-assistant-hub.md) for evidence,
 remaining qualification and the Mini-side coordinating chat.
 
@@ -145,7 +146,7 @@ existing 10% free-space monitor is a warning, not an HA minimum or blanket
 prohibition. Measure space and memory again before updates; preserve a bounded
 rollback rather than pruning unrelated containers/Books data or compacting the
 live shared VM. A second always-running HA clone can issue duplicate commands:
-keep the laptop server containers stopped during normal operation.
+keep the retired laptop runtime inactive during normal operation.
 
 The Mini's existing startup supervisor starts Colima at login; container policies
 provide the next layer. Service restart proof is distinct from a host reboot.
@@ -185,14 +186,21 @@ authentication; do not ask Cam to paste credentials into chat.
 
 ### Legacy laptop runtime — rollback only
 
-The stopped containers are `twoskulls-story007-ha` and
-`twoskulls-story007-mqtt`; old HA was `http://192.168.1.99:8123` on the LAN.
+The retired containers were `twoskulls-story007-ha` and
+`twoskulls-story007-mqtt`; both and their unshared images were removed during
+the November 2 cleanup. Old HA was `http://192.168.1.99:8123` on the LAN.
 The ignored `build/validation/story-007-ha/` tree retains their private configuration
 and helpers. Its original `ha_api.py` targets localhost and will not reach the
-current Mini server. Do not restart these containers casually or treat their
+current Mini server. Do not recreate this runtime casually or treat its
 old MQTT URI as the current hub. The source broker used persistence=false;
 the permanent target uses persistent broker storage. A deliberate rollback must
 coordinate source/target activation and restore Jeff's broker URI together.
+Protected container definitions, image digests and retained logs are under
+`build/validation/cleanup-20261102/` in the `jaw-articulation` worktree. Rollback
+requires pulling the recorded images and recreating containers with the retained
+bind configuration; existing `docker start` commands no longer apply. See the
+[cleanup record](research/2026-11-02-project-storage-cleanup.md) for build/debug
+archive recovery and retention boundaries.
 
 ## 2. Give the firmware a clear HA contract
 

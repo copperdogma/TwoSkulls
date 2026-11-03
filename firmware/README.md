@@ -598,8 +598,9 @@ is no longer used as the HA build identifier on the updated firmware.
 The live HA/MQTT hub is now on the Mac Mini (`192.168.1.80:8123` / broker1883),
 with the preserved grouped Halloween dashboard. Jeff's separate NVS broker URI
 was updated; SD Wi-Fi settings and firmware were not rewritten during migration.
-The old laptop containers are stopped and retained for rollback. Its private
-runtime/evidence remain under ignored `build/validation/story-007-ha/`; do not
+The old laptop containers/images were removed during cleanup. Their private
+configuration and cold rollback backups remain under ignored
+`build/validation/story-007-ha/`; do not
 commit captures or credentials or casually start a second HA copy. See the
 [hub migration record](../docs/stories/story-009-mac-mini-home-assistant-hub.md)
 and [current integration guide](../docs/home-assistant-prop-integration.md).

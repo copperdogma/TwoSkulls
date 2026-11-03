@@ -25,7 +25,8 @@ The hostname `The-Octagon.local:8123` also passed a LAN check. The instance is
 named **Home**; the grouped **Halloween** dashboard remains its current default.
 The original account, device/entity IDs, mobile registration and logs were
 preserved. Edit the existing phone-app server URL to the Mini address; the old
-laptop address is retired and its containers are stopped for rollback only.
+laptop address is retired. Its containers/images were removed during cleanup;
+private configurations and cold rollback backups remain available.
 See the [hub migration record](../docs/stories/story-009-mac-mini-home-assistant-hub.md)
 for operational paths, storage/restart limits and remaining qualification.
 

@@ -257,3 +257,12 @@ health sample: approximately3.48GiB host free, HA308/768MiB and MQTT3/64MiB,
 no OOM, existing household services unchanged. These are measured samples, not a
 guarantee of future storage/peak load. The target is left running; laptop services
 are stopped, and the browser is left at the working Mini dashboard.
+
+### Post-closeout laptop cleanup
+
+After Jeff's jaw feature was accepted and pushed, Cam requested disk recovery.
+The retired laptop containers and their unshared images were removed, while
+private runtime configuration, cold archives, exact image digests and container
+definitions were preserved. The Mini remains the live hub. See the
+[cleanup record](../research/2026-11-02-project-storage-cleanup.md); a deliberate
+laptop rollback now requires recreating containers rather than `docker start`.

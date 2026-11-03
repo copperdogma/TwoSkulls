@@ -61,7 +61,8 @@ native dashboard, saved logs, setup/migration, validation and known limits.
 
 The live **Home** server now runs on the Mac Mini at
 [192.168.1.80:8123](http://192.168.1.80:8123/dashboard-halloween/props), with the
-approved grouped Halloween dashboard. The laptop server containers are stopped;
+approved grouped Halloween dashboard. The retired laptop containers/images were
+removed during cleanup; private configuration and rollback backups remain;
 see [Story009](docs/stories/story-009-mac-mini-home-assistant-hub.md) for migration
 proof, maintenance ownership and remaining limits.
 
